@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
+  <title>Админка | ByVit</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
+  <link rel="stylesheet" href="css/style.css?v=27">
+  <script src="js/data.js?v=27" defer></script>
+  <script src="js/app.js?v=27" defer></script>
+</head>
+<body data-page="admin">
+  <header class="site-header">
+    <div class="header-top"><div class="container"><span data-site-announcement>Оригинальные бренды · самовывоз · доставка</span><span class="mono">BYVIT / STORE / 2026</span></div></div>
+    <div class="container header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">BV</span><span>ByVit</span></a>
+      <nav class="main-nav"><a data-nav href="index.html">Главная</a><a data-nav href="catalog.html">Каталог</a><a data-nav href="brands.html">Бренды</a><a data-nav href="sale.html">Акции</a><a data-nav href="delivery.html">Доставка</a><a data-nav href="stores.html">Магазины</a></nav>
+      <form class="header-search" data-header-search-form><input data-header-search placeholder="Поиск товара"><button aria-label="Искать">⌕</button></form>
+      <div class="header-actions">
+        <a class="icon-link" href="wishlist.html" title="Избранное">♡<span class="count-pill" data-count="wishlist">0</span></a>
+        <a class="icon-link" href="compare.html" title="Сравнение">⇄<span class="count-pill" data-count="compare">0</span></a>
+        <a class="icon-link" href="cart.html" title="Корзина">🛒<span class="count-pill" data-count="cart">0</span></a>
+        <a class="icon-link admin-pill" href="admin.html">Админ</a>
+        <button class="burger" data-burger type="button" aria-label="Меню">☰</button>
+      </div>
+    </div>
+    <div class="mobile-panel" data-mobile-panel><div class="container"><a href="index.html">Главная</a><a href="catalog.html">Каталог</a><a href="brands.html">Бренды</a><a href="sale.html">Акции</a><a href="delivery.html">Доставка</a><a href="stores.html">Магазины</a><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a href="cart.html">Корзина</a><a href="admin.html">Админка</a><form class="header-search" style="display:block;max-width:none" data-header-search-form><input data-header-search placeholder="Поиск товара"><button aria-label="Искать">⌕</button></form></div></div>
+  </header>
+
+
+  <main>
+    <section class="admin-login" id="adminLogin">
+      <form class="login-card" id="adminLoginForm">
+        <span class="eyebrow">Admin</span>
+        <h1>Вход</h1>
+        <input class="form-control" id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password">
+        <button class="btn btn-primary full" type="submit">Открыть админку</button>
+      </form>
+    </section>
+
+    <section class="section admin-shell" id="adminPanel" style="display:none">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Control panel</span>
+            <h1>Админка</h1>
+            <p>Товары, главная страница, доставка, Telegram, заказы и сервисные действия разнесены по разделам.</p>
+          </div>
+        </div>
+
+        <div class="admin-layout">
+          <nav class="admin-nav">
+            <button class="active" data-admin-tab="site">Главная</button>
+            <button data-admin-tab="delivery">Доставка</button>
+            <button data-admin-tab="telegram">Telegram</button>
+            <button data-admin-tab="stores">Магазины</button>
+            <button data-admin-tab="orders">Заказы</button>
+            <button data-admin-tab="cart">Корзина</button>
+            <button data-admin-tab="reviews">Отзывы</button>
+            <button data-admin-tab="service">Сервис</button>
+            <button data-admin-tab="content">Контент</button>
+            <button data-admin-tab="pages">Страницы</button>
+            <button data-admin-tab="faq">FAQ</button>
+            <button data-admin-tab="products">Товары</button>
+            <button data-admin-tab="categories">Категории</button>
+            <button data-admin-tab="footer">Футер</button>
+            <button data-admin-tab="header">Хэдер</button>
+          </nav>
+
+          <div class="admin-content">
+            <section class="admin-section" id="admin-products">
+              <div class="admin-grid">
+                <article class="admin-card">
+                  <h3>Карточка товара</h3>
+                  <form class="admin-form" id="adminProductForm">
+                    <input id="adminProductId" type="hidden">
+                    <input id="adminImageData" type="hidden">
+
+                    <div class="admin-form-section">
+                      <h4>Основное</h4>
+                      <input id="adminProductName" placeholder="Название">
+                      <div class="field-row">
+                        <input id="adminBrand" placeholder="Бренд">
+                        <select id="adminCategory"></select>
+                      </div>
+                      <div class="field-row">
+                        <input id="adminCountry" placeholder="Страна производитель">
+                        <select id="adminFormType"></select>
+                      </div>
+                      <input id="adminCustomFormType" placeholder="Своя форма выпуска">
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Цена, наличие и бейдж</h4>
+                      <div class="field-row">
+                        <input id="adminPrice" type="number" step="0.01" placeholder="Базовая цена">
+                        <input id="adminOldPrice" type="number" step="0.01" placeholder="Старая цена">
+                      </div>
+                      <div class="field-row">
+                        <input id="adminStock" type="number" placeholder="Остаток">
+                        <input id="adminBadge" placeholder="Текст бейджа">
+                      </div>
+                      <label class="color-field">
+                        <span>Цвет бейджа</span>
+                        <input id="adminBadgeColor" type="color" value="#2d5a27">
+                      </label>
+                      <label class="toggle-row">
+                        <span><strong>Популярный товар</strong><br><small>Показывать на главной</small></span>
+                        <input id="adminPopular" type="checkbox">
+                      </label>
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Описание</h4>
+                      <textarea id="adminShortDescription" placeholder="Короткое описание"></textarea>
+                      <textarea id="adminFullDescription" placeholder="Описание товара"></textarea>
+                      <textarea id="adminIngredients" placeholder="Состав"></textarea>
+                      <textarea id="adminUsage" placeholder="Способ применения"></textarea>
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Фасовки и вкусы</h4>
+                      <textarea id="adminPackageOptions" placeholder="900 г | 129&#10;2.27 кг | 249"></textarea>
+                      <input id="adminFlavors" placeholder="Вкусы через запятую">
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Изображение</h4>
+                      <label class="toggle-row">
+                        <span><strong>Файл товара</strong><br><small>Форматы: JPG, PNG, WebP или SVG. Изображение сохранится в браузере.</small></span>
+                        <input id="adminImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                      </label>
+                    </div>
+
+                    <div class="field-row">
+                      <button class="btn btn-primary" type="submit">Сохранить</button>
+                      <button class="btn btn-light" id="adminProductReset" type="button">Очистить</button>
+                    </div>
+                  </form>
+                </article>
+
+                <article class="admin-card">
+                  <h3>Список товаров</h3>
+                  <div class="table-wrap" id="adminProductsTable"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="admin-section" id="admin-categories">
+              <article class="admin-card">
+                <h3>Категории товаров</h3>
+                <form class="admin-form" id="adminCategoriesForm">
+                  <div class="admin-form-section">
+                    <h4>Список категорий</h4>
+                    <div class="admin-blocks" id="adminCategoriesList"></div>
+                    <button class="btn btn-light" data-category-add type="button">Добавить категорию</button>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить категории</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section active" id="admin-site">
+              <article class="admin-card">
+                <h3>Главная страница</h3>
+                <form class="admin-form" id="adminSiteForm">
+                  <div class="admin-form-section">
+                    <h4>Hero</h4>
+                    <input id="siteHeroEyebrow" placeholder="Надпись над заголовком">
+                    <input id="siteHeroTitle" placeholder="Заголовок hero">
+                    <textarea id="siteHeroText" placeholder="Текст hero"></textarea>
+                    <div class="field-row">
+                      <input id="siteHeroTitleSize" type="number" min="28" max="86" placeholder="Размер заголовка">
+                      <input id="siteHeroTextSize" type="number" min="12" max="24" placeholder="Размер текста">
+                    </div>
+                    <div class="hero-color-panel">
+                      <h4>Цвет текста hero</h4>
+                      <div class="field-row color-grid">
+                        <label class="color-field">
+                          <span>Надпись</span>
+                          <input id="siteHeroEyebrowColor" type="color" value="#2d5a27">
+                        </label>
+                        <label class="color-field">
+                          <span>Заголовок</span>
+                          <input id="siteHeroTitleColor" type="color" value="#191a17">
+                        </label>
+                        <label class="color-field">
+                          <span>Текст</span>
+                          <input id="siteHeroTextColor" type="color" value="#3f423d">
+                        </label>
+                        <button class="btn btn-light" data-hero-colors-reset type="button">Цвета по умолчанию</button>
+                      </div>
+                    </div>
+                    <div class="field-row">
+                      <select id="siteHeroAlign">
+                        <option value="right">Справа</option>
+                        <option value="left">Слева</option>
+                        <option value="center">По центру</option>
+                      </select>
+                      <select id="siteHeroMediaMode">
+                        <option value="video">Видео</option>
+                        <option value="image">Изображение</option>
+                        <option value="animation">Анимация</option>
+                        <option value="file">Загруженный файл</option>
+                      </select>
+                    </div>
+                    <label class="admin-input-field" data-hero-control="src">
+                      <span>Картинка/видео баннера</span>
+                      <input id="siteHeroMediaSrc" placeholder="Ссылка на файл или загруженное изображение">
+                      <small data-hero-src-hint>Видео: MP4/WebM. Изображение: JPG/PNG/WebP/SVG.</small>
+                    </label>
+                    <div class="field-row">
+                      <label class="admin-input-field" data-hero-control="animation">
+                        <span>Тип анимации</span>
+                        <select id="siteHeroAnimation">
+                          <option value="waves">Волны</option>
+                          <option value="rings">Кольца</option>
+                          <option value="grid">Сетка</option>
+                        </select>
+                        <small>Работает только в режиме «Анимация».</small>
+                      </label>
+                      <label class="range-field" data-hero-control="brightness">
+                        <span>Яркость медиа <strong id="heroOpacityValue">78%</strong></span>
+                        <input id="siteHeroOpacity" type="range" min="0.15" max="1" step="0.01">
+                      </label>
+                    </div>
+                    <label class="range-field">
+                      <span>Светлая затушёвка <strong id="heroVeilValue">100%</strong></span>
+                      <input id="siteHeroVeil" type="range" min="0" max="1" step="0.01">
+                    </label>
+                    <label class="range-field">
+                      <span>Тёмная затушёвка <strong id="heroOverlayValue">18%</strong></span>
+                      <input id="siteHeroOverlay" type="range" min="0" max="0.7" step="0.01">
+                    </label>
+                    <label class="toggle-row">
+                      <span><strong>Файл баннера</strong><br><small data-hero-upload-hint>Загрузить видео или изображение</small></span>
+                      <input id="siteHeroMediaUpload" type="file" accept="image/*,video/*">
+                    </label>
+                    <button class="btn btn-light" data-hero-video-default type="button">Вернуть видео по умолчанию</button>
+                    <input id="siteAnnouncement" placeholder="Текст верхней плашки">
+                  </div>
+
+                  <div class="admin-form-section">
+                    <h4>Метрики hero</h4>
+                    <div class="admin-blocks" id="adminHeroMetrics"></div>
+                    <button class="btn btn-light" data-hero-metric-add type="button">Добавить метрику</button>
+                  </div>
+
+                  <div class="admin-form-section">
+                    <h4>Блоки главной</h4>
+                    <div class="admin-blocks" id="adminHomeBlocks"></div>
+                  </div>
+
+                  <button class="btn btn-primary" type="submit">Сохранить главную</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-delivery">
+              <article class="admin-card">
+                <h3>Доставка</h3>
+                <form class="admin-form" id="adminDeliveryForm">
+                  <div class="admin-form-section">
+                    <h4>Контакты</h4>
+                    <div class="field-row">
+                      <input id="sitePickup" placeholder="Адрес по умолчанию, если пункты пустые">
+                      <input id="sitePhone" placeholder="Телефон">
+                    </div>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Пункты самовывоза</h4>
+                    <div class="admin-blocks" id="adminPickupStores"></div>
+                    <button class="btn btn-light" data-pickup-store-add type="button">Добавить пункт</button>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Способы доставки</h4>
+                    <div class="admin-blocks" id="adminDeliveryList"></div>
+                    <button class="btn btn-light" data-delivery-method-add type="button">Добавить способ</button>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить доставку</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-telegram">
+              <article class="admin-card">
+                <h3>Telegram</h3>
+                <form class="admin-form" id="adminTelegramForm">
+                  <div class="admin-form-section">
+                    <h4>Получатели заказов</h4>
+                    <div class="field-row">
+                      <input id="tgContact" placeholder="Telegram контакт @name для связи">
+                      <textarea id="tgChat" placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
+                    </div>
+                    <input id="tgBot" placeholder="Bot Token">
+                    <p class="admin-hint">Бот отправляет заказ только по Chat ID. Пользователь должен заранее открыть бота или это должен быть чат/канал, куда бот добавлен.</p>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-stores">
+              <article class="admin-card">
+                <h3>Магазины и карта</h3>
+                <form class="admin-form" id="adminStoresForm">
+                  <div class="admin-form-section">
+                    <h4>Блоки страницы</h4>
+                    <div class="admin-blocks" id="adminStoreBlocks"></div>
+                    <button class="btn btn-light" data-store-block-add type="button">Добавить блок</button>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Карта</h4>
+                    <label class="toggle-row">
+                      <span><strong>Показывать карту</strong><br><small>Яндекс, Google или другой iframe</small></span>
+                      <input id="storeMapEnabled" type="checkbox">
+                    </label>
+                    <div class="field-row">
+                      <select id="storeMapProvider">
+                        <option value="yandex">Яндекс карта</option>
+                        <option value="google">Google карта</option>
+                        <option value="custom">Другой iframe</option>
+                      </select>
+                      <input id="storeMapPlaceholder" placeholder="Текст, если карта выключена">
+                    </div>
+                    <textarea id="storeMapEmbed" placeholder="Вставьте ссылку embed или код iframe"></textarea>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить магазины</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-content">
+              <article class="admin-card">
+                <h3>Контент страниц</h3>
+                <form class="admin-form" id="adminContentForm">
+                  <div class="admin-form-section">
+                    <h4>Страница “О нас”</h4>
+                    <div class="field-row">
+                      <input id="aboutAdminEyebrow" placeholder="Надпись над заголовком">
+                      <input id="aboutAdminTitle" placeholder="Заголовок">
+                    </div>
+                    <textarea id="aboutAdminText" placeholder="Вступительный текст"></textarea>
+                    <div class="field-row">
+                      <input id="aboutAdminMissionTitle" placeholder="Заголовок миссии">
+                      <input id="aboutAdminLegalTitle" placeholder="Заголовок реквизитов">
+                    </div>
+                    <textarea id="aboutAdminMissionText" placeholder="Текст миссии"></textarea>
+                    <div class="admin-blocks" id="adminAboutCards"></div>
+                    <button class="btn btn-light" data-about-card-add type="button">Добавить карточку</button>
+                    <textarea id="aboutAdminLegalText" placeholder="Реквизиты и контакты"></textarea>
+                  </div>
+
+                  <button class="btn btn-primary" type="submit">Сохранить контент</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-orders">
+              <article class="admin-card">
+                <h3>Заказы</h3>
+                <div class="table-wrap" id="adminOrdersTable"></div>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-cart">
+              <article class="admin-card">
+                <h3>Корзина и оформление</h3>
+                <form class="admin-form" id="adminCartForm">
+                  <div class="admin-form-section">
+                    <h4>Включение блоков</h4>
+                    <div class="admin-toggle-grid">
+                      <label class="toggle-row"><span><strong>Блок итого</strong><br><small>Сумма, доставка и итог заказа</small></span><input id="cartBlockSummary" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Промокод</strong><br><small>Поле ввода промокода</small></span><input id="cartBlockPromo" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Оформление</strong><br><small>Форма данных покупателя</small></span><input id="cartBlockCheckout" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Способы доставки</strong><br><small>Карточки Самовывоз, Курьер и другие</small></span><input id="cartBlockDelivery" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Адрес</strong><br><small>Поле адреса или отделения</small></span><input id="cartBlockAddress" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Оплата</strong><br><small>Выбор способа оплаты</small></span><input id="cartBlockPayment" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Комментарий</strong><br><small>Поле комментария к заказу</small></span><input id="cartBlockComment" type="checkbox"></label>
+                    </div>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Блок итого</h4>
+                    <div class="field-row"><input id="cartSummaryTitle" placeholder="Заголовок итого"><input id="cartItemsLabel" placeholder="Товары"></div>
+                    <div class="field-row"><input id="cartDeliveryLabel" placeholder="Доставка"><input id="cartTotalLabel" placeholder="Итого"></div>
+                    <div class="field-row"><input id="cartPromoPlaceholder" placeholder="Плейсхолдер промокода"><input id="cartPromoButton" placeholder="Кнопка промокода"></div>
+                    <textarea id="cartPromoLines" placeholder="WELCOME | 10 | percent | 1&#10;SALE20 | 20 | percent | 1"></textarea>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Оформление</h4>
+                    <div class="field-row"><input id="cartCheckoutTitle" placeholder="Заголовок оформления"><input id="cartSubmitText" placeholder="Кнопка заказа"></div>
+                    <div class="field-row"><input id="cartNamePlaceholder" placeholder="Имя"><input id="cartPhonePlaceholder" placeholder="Телефон"></div>
+                    <div class="field-row"><input id="cartAddressPlaceholder" placeholder="Адрес"><input id="cartCommentPlaceholder" placeholder="Комментарий"></div>
+                    <textarea id="cartPaymentOptions" placeholder="Оплата при получении&#10;Перевод на карту"></textarea>
+                    <input id="cartSuccessTitle" placeholder="Заголовок после заказа">
+                    <textarea id="cartSuccessText" placeholder="Текст после заказа"></textarea>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить корзину</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-reviews">
+              <div class="admin-grid">
+                <article class="admin-card">
+                  <h3>Отзыв</h3>
+                  <form class="admin-form" id="adminReviewForm">
+                    <input id="adminReviewId" type="hidden">
+                    <select id="adminReviewProduct"></select>
+                    <div class="field-row">
+                      <input id="adminReviewName" placeholder="Имя">
+                      <select id="adminReviewRating"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+                    </div>
+                    <select id="adminReviewStatus"><option value="pending">На модерации</option><option value="approved">Одобрен</option></select>
+                    <textarea id="adminReviewText" placeholder="Текст отзыва"></textarea>
+                    <div class="field-row"><button class="btn btn-primary" type="submit">Сохранить отзыв</button><button class="btn btn-light" id="adminReviewReset" type="button">Очистить</button></div>
+                  </form>
+                </article>
+                <article class="admin-card">
+                  <h3>Список отзывов</h3>
+                  <div class="table-wrap" id="adminReviewsTable"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="admin-section" id="admin-pages">
+              <article class="admin-card">
+                <h3>Страницы</h3>
+                <form class="admin-form" id="adminPagesForm">
+                  <div class="admin-form-section">
+                    <h4>Заголовки страниц</h4>
+                    <div class="admin-blocks" id="adminPageHeaders"></div>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить страницы</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-faq">
+              <article class="admin-card">
+                <h3>FAQ</h3>
+                <form class="admin-form" id="adminFaqForm">
+                  <div class="admin-form-section">
+                    <h4>Вопросы и ответы</h4>
+                    <div class="admin-blocks" id="adminFaqItems"></div>
+                    <button class="btn btn-light" data-faq-add type="button">Добавить вопрос</button>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить FAQ</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-footer">
+              <article class="admin-card">
+                <h3>Футер</h3>
+                <form class="admin-form" id="adminFooterForm">
+                  <div class="admin-form-section">
+                    <h4>Текст</h4>
+                    <textarea id="footerDescription" placeholder="Описание"></textarea>
+                    <div class="field-row"><input id="footerCopyright" placeholder="Copyright"><input id="footerTechText" placeholder="Технический текст"></div>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Контакты</h4>
+                    <div class="field-row"><input id="footerInstagram" placeholder="Instagram ник или ссылка"><input id="footerTelegram" placeholder="Telegram ник или ссылка"></div>
+                    <div class="field-row"><input id="footerEmail" placeholder="Почта"><textarea id="footerPhones" placeholder="Телефоны, каждый с новой строки"></textarea></div>
+                    <textarea id="footerExtraContacts" placeholder="Доп. контакты: Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Менеджер | link | https://t.me/name | 1"></textarea>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Значки и платежи</h4>
+                    <div class="admin-blocks" id="footerBadgesList"></div>
+                    <textarea id="footerBadges" hidden></textarea>
+                    <button class="btn btn-light small" data-footer-badge-add type="button">Добавить значок</button>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Колонки ссылок</h4>
+                    <textarea id="footerColumns" placeholder="Магазин:&#10;Каталог | catalog.html | 1&#10;&#10;Клиенту:&#10;Доставка | delivery.html | 1"></textarea>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить футер</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-header">
+              <article class="admin-card">
+                <h3>Хэдер</h3>
+                <form class="admin-form" id="adminHeaderForm">
+                  <div class="admin-form-section">
+                    <h4>Название и верхняя строка</h4>
+                    <div class="field-row"><input id="headerStoreName" placeholder="Название магазина"><input id="headerLogoText" placeholder="Текст логотипа"></div>
+                    <div class="field-row"><input id="headerTopRight" placeholder="Текст справа сверху"><input id="headerAdminLabel" placeholder="Текст кнопки админки"></div>
+                    <input id="headerSearchPlaceholder" placeholder="Плейсхолдер поиска">
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Меню</h4>
+                    <textarea id="headerNavLines" placeholder="Главная | index.html | 1&#10;Каталог | catalog.html | 1"></textarea>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить хэдер</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-service">
+              <article class="admin-card">
+                <h3>Сервис</h3>
+                <p>Экспортирует товары, настройки и заказы в JSON. Сброс возвращает демо-данные.</p>
+                <form class="admin-form" id="adminPasswordForm" style="margin-bottom:18px">
+                  <div class="admin-form-section">
+                    <h4>Пароль админки</h4>
+                    <div class="field-row">
+                      <input id="adminNewPassword" type="password" placeholder="Новый пароль" autocomplete="new-password">
+                      <input id="adminNewPasswordRepeat" type="password" placeholder="Повторите пароль" autocomplete="new-password">
+                    </div>
+                    <button class="btn btn-primary" type="submit">Сменить пароль</button>
+                  </div>
+                </form>
+                <div class="admin-actions">
+                  <button class="btn btn-dark" data-export type="button">Экспорт JSON</button>
+                  <button class="btn btn-danger" data-reset-all type="button">Сбросить демо</button>
+                  <button class="btn btn-light" data-admin-logout type="button">Выйти</button>
+                </div>
+              </article>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark">BV</span><span>ByVit</span></a><p style="margin-top:18px;max-width:380px">Спортивное питание и БАДы в строгом минималистичном интерфейсе, потому что товар должен продаваться, а не кричать зелёным маркером.</p></div>
+        <div><h3>Магазин</h3><div class="footer-links"><a href="catalog.html">Каталог</a><a href="brands.html">Бренды</a><a href="sale.html">Акции</a></div></div>
+        <div><h3>Клиенту</h3><div class="footer-links"><a href="delivery.html">Доставка</a><a href="stores.html">Магазины</a></div></div>
+        <div><h3>Сервис</h3><div class="footer-links"><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a href="cart.html">Корзина</a></div></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 ByVit. Demo static e-commerce.</span><span class="mono">HTML / CSS / JS</span></div>
+    </div>
+  </footer>
+</body>
+</html>
