@@ -2332,6 +2332,13 @@
   function bindGlobal(){
     document.addEventListener('click', event => {
       const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
+      const filterToggle = event.target.closest('[data-filter-toggle]');
+      if(filterToggle){
+        const shell = filterToggle.closest('.catalog-filter-shell');
+        const open = shell?.classList.toggle('open');
+        filterToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
       const action = event.target.closest('[data-action]');
       if(action){
         const id = action.dataset.id;

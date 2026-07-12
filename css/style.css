@@ -324,3 +324,208 @@ p{line-height:1.7;margin:0;color:var(--muted)}
   .product-facts{grid-template-columns:1fr}
   .card-buttons{grid-template-columns:1fr 42px 42px}
 }
+
+.catalog-filter-shell{min-width:0}
+.filter-toggle{display:none}
+
+@media(max-width:760px){
+  .hero{
+    min-height:auto;
+    align-items:start;
+  }
+  .hero-media video,.hero-media img{
+    object-position:center;
+  }
+  .hero-content,.hero[data-align="left"] .hero-content,.hero[data-align="right"] .hero-content,.hero[data-align="center"] .hero-content{
+    padding:42px 0 34px;
+  }
+
+  #homeCategories,#homeBrands{
+    display:grid;
+    grid-auto-flow:column;
+    grid-template-columns:none;
+    grid-auto-columns:minmax(260px,82vw);
+    gap:14px;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scroll-snap-type:x mandatory;
+    margin-inline:-12px;
+    padding:0 12px 10px;
+    scrollbar-width:none;
+  }
+  #homeBrands{grid-auto-columns:minmax(238px,76vw)}
+  #homeCategories::-webkit-scrollbar,#homeBrands::-webkit-scrollbar{display:none}
+  #homeCategories>* ,#homeBrands>*{scroll-snap-align:start}
+  #homeCategories .category-card,#homeBrands .brand-card{min-height:176px}
+
+  .product-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px 10px;
+  }
+  .product-grid .empty-state{grid-column:1/-1}
+  .product-card{
+    border-radius:14px;
+    box-shadow:none;
+  }
+  .product-card:hover{
+    transform:none;
+    box-shadow:var(--shadow-sm);
+  }
+  .product-media{
+    aspect-ratio:1/1.08;
+  }
+  .product-badges{
+    left:8px;
+    right:8px;
+    top:8px;
+  }
+  .product-badges-main{
+    max-width:100%;
+  }
+  .product-card .badge{
+    padding:6px 8px;
+    font-size:10px;
+    letter-spacing:.04em;
+  }
+  .product-card .stock-badge{
+    display:none;
+  }
+  .product-card-actions{
+    display:none;
+  }
+  .product-body{
+    padding:10px;
+  }
+  .product-brand{
+    display:none;
+  }
+  .product-meta{
+    order:1;
+    height:auto;
+    margin:0;
+    padding-top:0;
+    gap:0;
+  }
+  .product-meta .stars{
+    display:none;
+  }
+  .product-title{
+    order:2;
+    min-height:2.44em;
+    margin:8px 0 0;
+    font-size:14px;
+    line-height:1.22;
+    letter-spacing:-.03em;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .product-desc{
+    display:none;
+  }
+  .product-card .price{
+    font-size:15px;
+    font-weight:800;
+  }
+  .old-price{
+    font-size:11px;
+  }
+  .card-buttons{
+    order:3;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:0;
+    margin-top:10px;
+  }
+  .card-buttons .btn{
+    width:100%;
+    min-height:38px;
+    padding:9px 10px;
+    font-size:13px;
+    line-height:1.15;
+  }
+  .card-buttons .circle-action{
+    display:none;
+  }
+
+  .catalog-filter-shell{
+    display:grid;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .filter-toggle{
+    display:flex;
+    width:100%;
+    min-height:46px;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--green);
+    border-radius:999px;
+    background:#fff;
+    color:var(--green);
+    font-weight:800;
+  }
+  .filter-toggle::after{
+    content:"";
+    width:8px;
+    height:8px;
+    margin-left:10px;
+    border-right:2px solid currentColor;
+    border-bottom:2px solid currentColor;
+    transform:rotate(45deg) translateY(-2px);
+    transition:.2s;
+  }
+  .catalog-filter-shell.open .filter-toggle::after{
+    transform:rotate(225deg) translateY(-1px);
+  }
+  .catalog-filter-shell .filters{
+    display:none;
+    margin-bottom:0;
+  }
+  .catalog-filter-shell.open .filters{
+    display:block;
+  }
+  .toolbar{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:430px){
+  .brand span:last-child{display:inline}
+  .hero-metrics{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .metric{
+    display:block;
+    padding:10px 8px;
+  }
+  .metric strong{
+    font-size:18px;
+    margin-bottom:3px;
+  }
+  .metric span{
+    display:block;
+    font-size:9px;
+    line-height:1.2;
+  }
+  #homeCategories,#homeBrands{
+    margin-inline:-10px;
+    padding-inline:10px;
+  }
+  .product-grid{
+    gap:13px 9px;
+  }
+  .product-body{
+    padding:9px;
+  }
+  .product-title{
+    font-size:13px;
+  }
+  .product-card .price{
+    font-size:14px;
+  }
+  .card-buttons{
+    grid-template-columns:1fr;
+  }
+}
