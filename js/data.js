@@ -3,16 +3,16 @@
 
   window.ByVitDefaults = {
     categories: [
-      {id:'protein', name:'Протеины', description:'Белок для набора, восстановления и ежедневного рациона.'},
-      {id:'creatine', name:'Креатин', description:'Сила, мощность и стабильный прогресс в базовых упражнениях.'},
-      {id:'amino', name:'Аминокислоты', description:'BCAA, EAA и комплексы для восстановления.'},
-      {id:'vitamins', name:'Витамины', description:'D3, K2, Omega-3 и ежедневная поддержка организма.'},
-      {id:'minerals', name:'Минералы', description:'Магний, цинк и поддержка нервной системы.'},
-      {id:'preworkout', name:'Предтрены', description:'Энергия, фокус и памп перед тренировкой.'},
-      {id:'healthy-food', name:'Здоровые перекусы', description:'Батончики, снеки и продукты без лишней драмы.'},
-      {id:'joints', name:'Суставы и связки', description:'Коллаген и комплексы для опорно-двигательной системы.'},
-      {id:'adaptogens', name:'Адаптогены', description:'Тонус, стрессоустойчивость и восстановление.'},
-      {id:'accessories', name:'Аксессуары', description:'Шейкеры, бутылки и полезные мелочи.'}
+      {id:'protein', name:'Протеины', description:'Белок для набора, восстановления и ежедневного рациона.', subcategories:[{title:'Сывороточный',query:'сывороточный'},{title:'Изолят',query:'whey'},{title:'Растительный',query:'растительный'}]},
+      {id:'creatine', name:'Креатин', description:'Сила, мощность и стабильный прогресс в базовых упражнениях.', subcategories:[{title:'Моногидрат',query:'моногидрат'},{title:'Сила',query:'сила'},{title:'Без вкуса',query:'без вкуса'}]},
+      {id:'amino', name:'Аминокислоты', description:'BCAA, EAA и комплексы для восстановления.', subcategories:[{title:'BCAA',query:'BCAA'},{title:'EAA',query:'EAA'},{title:'Восстановление',query:'восстановление'}]},
+      {id:'vitamins', name:'Витамины', description:'D3, K2, Omega-3 и ежедневная поддержка организма.', subcategories:[{title:'D3/K2',query:'D3'},{title:'Omega-3',query:'Omega'},{title:'Иммунитет',query:'иммунитет'}]},
+      {id:'minerals', name:'Минералы', description:'Магний, цинк и поддержка нервной системы.', subcategories:[{title:'Магний',query:'магний'},{title:'Цинк',query:'цинк'},{title:'Нервная система',query:'нервной'}]},
+      {id:'preworkout', name:'Предтрены', description:'Энергия, фокус и памп перед тренировкой.', subcategories:[{title:'Энергия',query:'энергия'},{title:'Фокус',query:'фокус'},{title:'Памп',query:'памп'}]},
+      {id:'healthy-food', name:'Здоровые перекусы', description:'Батончики, снеки и продукты без лишней драмы.', subcategories:[{title:'Батончики',query:'батончик'},{title:'Без сахара',query:'сахара'},{title:'Перекус',query:'перекус'}]},
+      {id:'joints', name:'Суставы и связки', description:'Коллаген и комплексы для опорно-двигательной системы.', subcategories:[{title:'Коллаген',query:'коллаген'},{title:'Связки',query:'связок'},{title:'Суставы',query:'суставов'}]},
+      {id:'adaptogens', name:'Адаптогены', description:'Тонус, стрессоустойчивость и восстановление.', subcategories:[{title:'Ашваганда',query:'Ashwagandha'},{title:'Стресс',query:'стресс'},{title:'Тонус',query:'тонус'}]},
+      {id:'accessories', name:'Аксессуары', description:'Шейкеры, бутылки и полезные мелочи.', subcategories:[{title:'Шейкеры',query:'шейкер'},{title:'Бутылки',query:'бутылка'}]}
     ],
     products: [
       {id:1,name:'100% Whey Protein',brand:'Optimum Nutrition',category:'protein',price:129,oldPrice:149,stock:15,badge:'Хит',country:'США',formType:'powder',popular:true,rating:4.9,images:['assets/product-whey.jpg'],flavors:['Шоколад','Ваниль','Клубника'],packageOptions:[{id:'900g',label:'900 г',price:129},{id:'2270g',label:'2.27 кг',price:249}],shortDescription:'Сывороточный протеин для роста мышц и быстрого восстановления.',description:'Премиальный сывороточный протеин для ежедневного добора белка, восстановления после тренировок и поддержки мышечной массы.',usage:'1 порция на 250–300 мл воды или молока после тренировки либо между приемами пищи.',ingredients:'Whey Protein Isolate, Whey Protein Concentrate, какао, ароматизатор, подсластитель.'},
@@ -104,7 +104,7 @@
         legalText:'Здесь можно указать юридическое лицо, УНП, адрес регистрации, email, телефоны и условия работы магазина.'
       },
       telegram:{mode:'bot',contact:'',botToken:'',chatId:''},
-      footer:{
+	      footer:{
         description:'Спортивное питание и БАДы в строгом минималистичном интерфейсе.',
         copyright:'© 2026 ByVit. Demo static e-commerce.',
         techText:'HTML / CSS / JS',
@@ -132,8 +132,16 @@
           {title:'Клиенту',links:[{text:'Доставка',href:'delivery.html'},{text:'Магазины',href:'stores.html'},{text:'FAQ',href:'faq.html'}]},
           {title:'Сервис',links:[{text:'Избранное',href:'wishlist.html'},{text:'Сравнение',href:'compare.html'},{text:'Корзина',href:'cart.html'}]}
         ]
-      },
-      pageHeaders:{
+	      },
+	      goals:[
+	        {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',enabled:true},
+	        {id:'strength',title:'Сила и выносливость',text:'Креатин, аминокислоты и предтренировочные комплексы.',href:'catalog.html?category=creatine',enabled:true},
+	        {id:'recovery',title:'Восстановление',text:'BCAA, EAA, омега-3, магний и поддержка сна.',href:'catalog.html?category=amino',enabled:true},
+	        {id:'joints',title:'Суставы и связки',text:'Коллаген и комплексы для опорно-двигательной системы.',href:'catalog.html?category=joints',enabled:true},
+	        {id:'immunity',title:'Иммунитет',text:'D3, K2, омега-3 и ежедневные витаминные комплексы.',href:'catalog.html?category=vitamins',enabled:true},
+	        {id:'energy',title:'Энергия и фокус',text:'Предтрены, адаптогены и добавки для тонуса.',href:'catalog.html?category=preworkout',enabled:true}
+	      ],
+	      pageHeaders:{
         catalog:{title:'Каталог',text:'Поиск, категории, бренды, сортировка и наличие.'},
         brands:{title:'Бренды',text:'Список производителей для быстрого выбора.'},
         sale:{title:'Акции',text:'Товары со старой ценой и актуальными скидками.'},
@@ -168,9 +176,10 @@
         paymentOptions:['Оплата при получении','Перевод на карту','Оплата онлайн после подтверждения'],
         blocks:{summary:true,promo:true,checkout:true,delivery:true,address:true,payment:true,comment:true}
       },
-      homeBlocks:{
-        categories:{visible:true,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
-        featured:{visible:true,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
+	      homeBlocks:{
+	        categories:{visible:true,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
+	        goals:{visible:true,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
+	        featured:{visible:true,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
         brands:{visible:true,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
         service:{visible:true,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
         sale:{visible:true,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}

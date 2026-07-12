@@ -26,11 +26,20 @@
   };
   const DEFAULT_HOME_BLOCKS = {
     categories:{visible:true,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
+    goals:{visible:true,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
     featured:{visible:true,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
     brands:{visible:true,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
     service:{visible:true,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
     sale:{visible:true,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
+  const DEFAULT_GOALS = [
+    {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',enabled:true},
+    {id:'strength',title:'Сила и выносливость',text:'Креатин, аминокислоты и предтренировочные комплексы.',href:'catalog.html?category=creatine',enabled:true},
+    {id:'recovery',title:'Восстановление',text:'BCAA, EAA, омега-3, магний и поддержка сна.',href:'catalog.html?category=amino',enabled:true},
+    {id:'joints',title:'Суставы и связки',text:'Коллаген и комплексы для опорно-двигательной системы.',href:'catalog.html?category=joints',enabled:true},
+    {id:'immunity',title:'Иммунитет',text:'D3, K2, омега-3 и ежедневные витаминные комплексы.',href:'catalog.html?category=vitamins',enabled:true},
+    {id:'energy',title:'Энергия и фокус',text:'Предтрены, адаптогены и добавки для тонуса.',href:'catalog.html?category=preworkout',enabled:true}
+  ];
   const DEFAULT_PAGE_HEADERS = {
     catalog:{title:'Каталог',text:'Поиск, категории, бренды, сортировка и наличие.'},
     brands:{title:'Бренды',text:'Список производителей для быстрого выбора.'},
@@ -328,18 +337,47 @@
       enabled:item.enabled !== false
     })).filter(item => item.value || item.label);
   }
+  function normalizeSubcategories(items){
+    return (Array.isArray(items) ? items : []).map((item, index) => {
+      if(typeof item === 'string'){
+        return {title:item.trim(),href:'',query:item.trim(),enabled:true};
+      }
+      return {
+        title:String(item.title || item.name || '').trim(),
+        href:String(item.href || '').trim(),
+        query:String(item.query || item.title || item.name || '').trim(),
+        enabled:item.enabled !== false
+      };
+    }).filter(item => item.title);
+  }
   function normalizeCategories(site, defaults){
     const source = Array.isArray(site?.categories) ? site.categories : (Array.isArray(defaults.categories) ? defaults.categories : getDefaults().categories);
+    const defaultCategories = Array.isArray(defaults.categories) ? defaults.categories : getDefaults().categories;
     const seen = new Set();
-    return (source || []).map((item, index) => ({
-      id:categoryIdFromName(item.id || item.name, index),
-      name:String(item.name || '').trim(),
-      description:String(item.description || '').trim()
-    })).filter(item => {
+    return (source || []).map((item, index) => {
+      const id = categoryIdFromName(item.id || item.name, index);
+      const fallback = (defaultCategories || []).find(category => categoryIdFromName(category.id || category.name, index) === id) || {};
+      return {
+        id,
+        name:String(item.name || fallback.name || '').trim(),
+        description:String(item.description || fallback.description || '').trim(),
+        subcategories:normalizeSubcategories(item.subcategories || fallback.subcategories)
+      };
+    }).filter(item => {
       if(!item.name || seen.has(item.id)) return false;
       seen.add(item.id);
       return true;
     });
+  }
+  function normalizeGoals(site, defaults){
+    const source = Array.isArray(site?.goals) ? site.goals : (Array.isArray(defaults.goals) ? defaults.goals : DEFAULT_GOALS);
+    return (source || []).map((item, index) => ({
+      id:String(item.id || `goal-${index + 1}`),
+      title:String(item.title || '').trim(),
+      text:String(item.text || '').trim(),
+      href:String(item.href || 'catalog.html').trim(),
+      enabled:item.enabled !== false
+    })).filter(item => item.title || item.text);
   }
   function normalizeFaqItems(site, defaults){
     const source = Array.isArray(site?.faqItems) ? site.faqItems : (Array.isArray(defaults.faqItems) ? defaults.faqItems : DEFAULT_FAQ_ITEMS);
@@ -426,6 +464,7 @@
     merged.checkout = normalizeCheckout(site, defaults);
     merged.aboutPage = normalizeAboutPage(site, defaults);
     merged.homeBlocks = normalizeHomeBlocks(merged);
+    merged.goals = normalizeGoals(site, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
     merged.pickupStores = normalizePickupStores(site, defaults);
@@ -457,6 +496,7 @@
   function getSite(){ return normalizeSite(read(KEYS.site, getDefaults().site)); }
   function saveSite(site){ write(KEYS.site, normalizeSite(site)); }
   function getCategories(){ return getSite().categories || getDefaults().categories; }
+  function getGoals(){ return getSite().goals || DEFAULT_GOALS; }
   function getCart(){ return read(KEYS.cart, []); }
   function saveCart(cart){ write(KEYS.cart, cart); updateCounts(); }
   function getWishlist(){ return read(KEYS.wishlist, []); }
@@ -533,13 +573,95 @@
     return `<div class="stars" title="Оценка ${rating} из 5">${'★'.repeat(rating).slice(0,5)}</div>`;
   }
   function setActiveNav(){
-    const current = location.pathname.split('/').pop() || 'index.html';
+    const current = currentPageHref();
     $$('[data-nav]').forEach(a => a.classList.toggle('active', a.getAttribute('href') === current));
   }
   function updateCounts(){
     const cartQty = getCart().reduce((sum,item)=>sum + Number(item.qty || 0),0);
     const counts = {cart:cartQty,wishlist:getWishlist().length,compare:getCompare().length};
     $$('[data-count]').forEach(el => { el.textContent = counts[el.dataset.count] || 0; });
+  }
+  function currentPageHref(){
+    return location.pathname.split('/').pop() || 'index.html';
+  }
+  function contactItems(site){
+    const contacts = site.footer?.contacts || {};
+    const items = [];
+    const primaryPhone = (contacts.phones || []).find(Boolean);
+    if(primaryPhone) items.push({label:'Позвонить',type:'phone',value:primaryPhone});
+    if(contacts.telegram) items.push({label:'Telegram',type:'telegram',value:contacts.telegram});
+    (contacts.extra || []).filter(item => item.enabled !== false).forEach(item => {
+      items.push({label:item.label || item.value || 'Контакт',type:item.type || 'link',value:item.value || item.href || '',href:item.href || ''});
+    });
+    if(contacts.email) items.push({label:'Почта',type:'email',value:contacts.email});
+    return items.filter(item => item.value || item.href);
+  }
+  function renderMobileSearch(header){
+    const headerEl = $('.site-header');
+    if(!headerEl) return;
+    const actions = $('.header-actions', headerEl);
+    if(actions && !$('[data-mobile-search]', actions)){
+      const burger = $('[data-burger]', actions);
+      const button = document.createElement('button');
+      button.className = 'icon-link mobile-search-trigger';
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Поиск');
+      button.setAttribute('data-mobile-search', '');
+      button.textContent = '⌕';
+      if(burger) actions.insertBefore(button, burger);
+      else actions.appendChild(button);
+    }
+    let panel = $('[data-mobile-search-panel]', headerEl);
+    if(!panel){
+      panel = document.createElement('div');
+      panel.className = 'mobile-search-panel';
+      panel.setAttribute('data-mobile-search-panel', '');
+      headerEl.appendChild(panel);
+    }
+    panel.innerHTML = `<div class="container"><form class="header-search" data-header-search-form action="catalog.html" method="get"><input data-header-search name="q" placeholder="${esc(header.searchPlaceholder || 'Поиск товара')}"><button type="submit" aria-label="Искать">⌕</button></form></div>`;
+  }
+  function renderBottomNav(){
+    let nav = $('[data-mobile-bottom-nav]');
+    if(!nav){
+      nav = document.createElement('nav');
+      nav.className = 'mobile-bottom-nav';
+      nav.setAttribute('data-mobile-bottom-nav', '');
+      nav.setAttribute('aria-label', 'Быстрая навигация');
+      document.body.appendChild(nav);
+    }
+    const current = currentPageHref();
+    const activeHref = current === 'product.html' ? 'catalog.html' : current;
+    const items = [
+      {label:'Главная',href:'index.html',icon:'⌂'},
+      {label:'Каталог',href:'catalog.html',icon:'▦'},
+      {label:'Корзина',href:'cart.html',icon:'🛒',count:'cart'},
+      {label:'Магазины',href:'stores.html',icon:'⌖'}
+    ];
+    nav.innerHTML = items.map(item => `
+      <a class="${item.href === activeHref ? 'active' : ''}" href="${esc(item.href)}">
+        <span class="bottom-nav-icon">${item.icon}</span>
+        <span>${esc(item.label)}</span>
+        ${item.count ? `<span class="bottom-nav-count" data-count="${esc(item.count)}">0</span>` : ''}
+      </a>`).join('');
+  }
+  function renderQuickContact(site){
+    const items = contactItems(site);
+    let root = $('[data-quick-contact]');
+    if(!items.length){
+      if(root) root.remove();
+      return;
+    }
+    if(!root){
+      root = document.createElement('div');
+      root.className = 'quick-contact';
+      root.setAttribute('data-quick-contact', '');
+      document.body.appendChild(root);
+    }
+    const links = items.slice(0,5).map(item => {
+      const href = item.href || contactHref(item.type, item.value);
+      return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
+    }).join('');
+    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">Связаться</button><div class="quick-contact-panel">${links}</div>`;
   }
   function brandMarkContent(header){
     const src = String(header.logoImage || '').trim();
@@ -576,17 +698,19 @@
     $$('.admin-pill').forEach(link => { link.textContent = header.adminLabel || 'Админ'; });
     const navHtml = (header.nav || []).filter(link => link.enabled !== false).map(link => `<a data-nav href="${esc(link.href)}">${esc(link.text)}</a>`).join('');
     $$('.main-nav').forEach(nav => { nav.innerHTML = navHtml; });
-    $$('.mobile-panel .container').forEach(panel => {
-      const searchForm = $('.header-search', panel)?.outerHTML || '';
-      const utility = [
-        {text:'Избранное',href:'wishlist.html'},
-        {text:'Сравнение',href:'compare.html'},
-        {text:'Корзина',href:'cart.html'},
-        {text:'Админка',href:'admin.html'}
-      ].map(link => `<a href="${link.href}">${link.text}</a>`).join('');
-      panel.innerHTML = `${navHtml.replaceAll(' data-nav','')} ${utility}${searchForm}`;
-    });
-    setActiveNav();
+	    $$('.mobile-panel .container').forEach(panel => {
+	      const searchForm = $('.header-search', panel)?.outerHTML || '';
+	      const utility = [
+	        {text:'Избранное',href:'wishlist.html'},
+	        {text:'Сравнение',href:'compare.html'},
+	        {text:'Корзина',href:'cart.html'}
+	      ].map(link => `<a href="${link.href}">${link.text}</a>`).join('');
+	      panel.innerHTML = `${navHtml.replaceAll(' data-nav','')} ${utility}${searchForm}`;
+	    });
+	    renderMobileSearch(header);
+	    renderBottomNav();
+	    renderQuickContact(site);
+	    setActiveNav();
     const burger = $('[data-burger]');
     const mobile = $('[data-mobile-panel]');
     if(burger && mobile){
@@ -672,6 +796,7 @@
     const wishActive = getWishlist().includes(product.id);
     const compareActive = getCompare().includes(product.id);
     const out = Number(product.stock || 0) <= 0;
+    const option = defaultPackage(product);
     return `
       <article class="product-card" data-product-id="${esc(product.id)}">
         <div class="product-media">
@@ -690,6 +815,11 @@
           <div class="product-brand">${esc(product.brand || 'ByVit')}</div>
           <h3 class="product-title"><a href="product.html?id=${esc(product.id)}">${esc(product.name)}</a></h3>
           <p class="product-desc">${esc(product.shortDescription || '')}</p>
+          <div class="product-card-tags">
+            <span>${esc(formTypeLabel(product.formType))}</span>
+            ${option?.label ? `<span>${esc(option.label)}</span>` : ''}
+            <span>${out ? 'Нет в наличии' : `${esc(product.stock)} шт.`}</span>
+          </div>
           <div class="product-meta">
             <div><span class="price">${money(product.price)}</span>${product.oldPrice ? `<span class="old-price">${money(product.oldPrice)}</span>` : ''}</div>
             <div class="stars" title="Рейтинг">${'★'.repeat(Math.round(product.rating || 5)).slice(0,5)}</div>
@@ -810,9 +940,9 @@
     }
     root.innerHTML = `<video autoplay muted loop playsinline><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video>`;
   }
-  function applyHomeBlock(key, block){
-    const section = $(`[data-home-block="${key}"]`);
-    if(!section) return;
+	  function applyHomeBlock(key, block){
+	    const section = $(`[data-home-block="${key}"]`);
+	    if(!section) return;
     section.hidden = block.visible === false;
     section.setAttribute('style', `--section-title-size:${Math.min(72, Math.max(24, Number(block.titleSize || 36)))}px;--section-text-size:${Math.min(22, Math.max(12, Number(block.textSize || 15)))}px`);
     const eyebrow = $('[data-block-eyebrow]', section);
@@ -828,10 +958,53 @@
     if(button){
       button.textContent = block.buttonText || button.textContent;
       button.href = block.buttonUrl || button.getAttribute('href') || '#';
-      button.hidden = !block.buttonText;
-    }
-  }
-  function renderHome(){
+	      button.hidden = !block.buttonText;
+	    }
+	  }
+	  function goalCard(goal, index){
+	    return `<a class="goal-card" href="${esc(goal.href || 'catalog.html')}">
+	      <span class="goal-index">${String(index + 1).padStart(2,'0')}</span>
+	      <h3>${esc(goal.title)}</h3>
+	      <p>${esc(goal.text)}</p>
+	    </a>`;
+	  }
+	  function renderGoals(){
+	    const root = $('#homeGoals');
+	    if(!root) return;
+	    const goals = getGoals().filter(item => item.enabled !== false).slice(0,8);
+	    root.innerHTML = goals.length ? goals.map(goalCard).join('') : '';
+	  }
+	  function categorySubLink(category, sub){
+	    const href = sub.href || `catalog.html?category=${encodeURIComponent(category.id)}${sub.query ? `&q=${encodeURIComponent(sub.query)}` : ''}`;
+	    return `<a href="${esc(href)}">${esc(sub.title)}</a>`;
+	  }
+	  function renderCatalogSmart(){
+	    const toolbar = $('.catalog-layout .toolbar');
+	    if(!toolbar) return;
+	    let root = $('#catalogSmart');
+	    if(!root){
+	      root = document.createElement('div');
+	      root.id = 'catalogSmart';
+	      root.className = 'catalog-smart';
+	      toolbar.before(root);
+	    }
+	    const cats = getCategories().filter(Boolean).slice(0,8);
+	    root.innerHTML = `<div class="catalog-smart-head"><div><span class="eyebrow">Разделы</span><h2>Быстрый каталог</h2></div><a href="catalog.html">Все товары</a></div>
+	      <div class="catalog-smart-grid">
+	        ${cats.map((category, index) => {
+	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
+	          return `<article class="catalog-smart-card">
+	            <a class="catalog-smart-mark" href="catalog.html?category=${esc(category.id)}">${String(index + 1).padStart(2,'0')}</a>
+	            <div>
+	              <a class="catalog-smart-title" href="catalog.html?category=${esc(category.id)}">${esc(category.name)}</a>
+	              <p>${esc(category.description)}</p>
+	              ${subs ? `<div class="catalog-smart-links">${subs}</div>` : ''}
+	            </div>
+	          </article>`;
+	        }).join('')}
+	      </div>`;
+	  }
+	  function renderHome(){
     const site = getSite();
     const products = getProducts();
     const blocks = site.homeBlocks || DEFAULT_HOME_BLOCKS;
@@ -865,16 +1038,17 @@
     if(serviceTwoTitle) serviceTwoTitle.textContent = service.featureTwoTitle || 'Контроль товара';
     if(serviceTwoText) serviceTwoText.textContent = service.featureTwoText || '';
     const catGrid = $('#homeCategories');
-    if(catGrid){
-      catGrid.innerHTML = getCategories().slice(0,8).map((c,i)=>`
-        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
+	    if(catGrid){
+	      catGrid.innerHTML = getCategories().slice(0,8).map((c,i)=>`
+	        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
           <span class="index">${String(i+1).padStart(2,'0')}</span>
           <h3>${esc(c.name)}</h3>
           <p>${esc(c.description)}</p>
           <div class="card-arrow">Перейти →</div>
-        </a>`).join('');
-    }
-    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,4));
+	        </a>`).join('');
+	    }
+	    renderGoals();
+	    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,4));
     renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,4));
     const brandRail = $('#homeBrands');
     if(brandRail){
@@ -918,8 +1092,9 @@
     const query = params.toString();
     history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`);
   }
-  function renderCatalog(){
-    const filters = $('#catalogFilters');
+	  function renderCatalog(){
+	    renderCatalogSmart();
+	    const filters = $('#catalogFilters');
     const params = new URLSearchParams(location.search);
     if(filters){
       const activeCategories = params.getAll('category');
@@ -1974,7 +2149,7 @@
     }
     const homeRoot = $('#adminHomeBlocks');
     if(homeRoot){
-      const titles = {categories:'Категории',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
+	      const titles = {categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
       homeRoot.innerHTML = Object.entries(site.homeBlocks || DEFAULT_HOME_BLOCKS).map(([key, block])=>`
         <article class="admin-block-editor" data-home-block-key="${esc(key)}">
           <div class="admin-block-head">
@@ -2355,11 +2530,34 @@
     if(page === 'about') renderAboutPage();
   }
 
-  function bindGlobal(){
-    document.addEventListener('click', event => {
-      const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
-      const filterToggle = event.target.closest('[data-filter-toggle]');
-      if(filterToggle){
+	  function bindGlobal(){
+	    document.addEventListener('click', event => {
+	      const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
+	      const mobileSearch = event.target.closest('[data-mobile-search]');
+	      if(mobileSearch){
+	        const panel = $('[data-mobile-search-panel]');
+	        const open = panel?.classList.toggle('open');
+	        document.body.classList.toggle('search-open', Boolean(open));
+	        mobileSearch.setAttribute('aria-expanded', open ? 'true' : 'false');
+	        if(open) $('[data-header-search]', panel)?.focus();
+	        return;
+	      }
+	      const contactToggle = event.target.closest('[data-contact-toggle]');
+	      if(contactToggle){
+	        const root = contactToggle.closest('[data-quick-contact]');
+	        const open = root?.classList.toggle('open');
+	        contactToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+	        return;
+	      }
+	      if(!event.target.closest('[data-quick-contact]')){
+	        const root = $('[data-quick-contact].open');
+	        if(root){
+	          root.classList.remove('open');
+	          $('[data-contact-toggle]', root)?.setAttribute('aria-expanded', 'false');
+	        }
+	      }
+	      const filterToggle = event.target.closest('[data-filter-toggle]');
+	      if(filterToggle){
         const shell = filterToggle.closest('.catalog-filter-shell');
         const open = shell?.classList.toggle('open');
         filterToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
