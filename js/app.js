@@ -226,9 +226,12 @@
     })).filter(link => link.text && !REMOVED_PAGE_HREFS.has(link.href));
   }
   function normalizeSiteHeader(site, defaults){
-    const header = {...(defaults.header || {}), ...(site?.header || {})};
+    const storedHeader = site?.header || {};
+    const header = {...(defaults.header || {}), ...storedHeader};
     header.storeName = header.storeName || 'ByVit';
     header.logoText = header.logoText || 'BV';
+    header.logoImage = Object.prototype.hasOwnProperty.call(storedHeader, 'logoImage') ? String(storedHeader.logoImage || '').trim() : String(defaults.header?.logoImage || 'assets/favicon.svg').trim();
+    header.brandImage = Object.prototype.hasOwnProperty.call(storedHeader, 'brandImage') ? String(storedHeader.brandImage || '').trim() : String(defaults.header?.brandImage || '').trim();
     header.topRight = header.topRight || 'BYVIT / STORE / 2026';
     header.searchPlaceholder = header.searchPlaceholder || 'Поиск товара';
     header.adminLabel = header.adminLabel || 'Админ';
@@ -538,17 +541,37 @@
     const counts = {cart:cartQty,wishlist:getWishlist().length,compare:getCompare().length};
     $$('[data-count]').forEach(el => { el.textContent = counts[el.dataset.count] || 0; });
   }
+  function brandMarkContent(header){
+    const src = String(header.logoImage || '').trim();
+    return src ? `<img class="brand-mark-img" src="${esc(src)}" alt="">` : esc(header.logoText || 'BV');
+  }
+  function brandNameContent(header){
+    const src = String(header.brandImage || '').trim();
+    const name = header.storeName || 'ByVit';
+    return src ? `<img class="brand-name-img" src="${esc(src)}" alt="${esc(name)}">` : esc(name);
+  }
+  function renderBrandInLink(link, header){
+    const mark = $('.brand-mark', link);
+    const name = $('span:last-child', link);
+    if(mark){
+      mark.innerHTML = brandMarkContent(header);
+      mark.classList.toggle('has-image', Boolean(String(header.logoImage || '').trim()));
+    }
+    if(name){
+      name.innerHTML = brandNameContent(header);
+      name.classList.add('brand-name');
+      name.classList.toggle('has-image', Boolean(String(header.brandImage || '').trim()));
+    }
+  }
+  function brandLinkHtml(header, extra=''){
+    return `<a class="brand" href="index.html" ${extra}><span class="brand-mark ${String(header.logoImage || '').trim() ? 'has-image' : ''}">${brandMarkContent(header)}</span><span class="brand-name ${String(header.brandImage || '').trim() ? 'has-image' : ''}">${brandNameContent(header)}</span></a>`;
+  }
   function applyHeader(){
     const site = getSite();
     const header = site.header || {};
     $$('[data-site-announcement]').forEach(el => { el.textContent = site.announcement || 'Оригинальные бренды · доставка · самовывоз'; });
     $$('.header-top .mono').forEach(el => { el.textContent = header.topRight || ''; });
-    $$('.site-header .brand').forEach(brand => {
-      const mark = $('.brand-mark', brand);
-      const name = $('span:last-child', brand);
-      if(mark) mark.textContent = header.logoText || 'BV';
-      if(name) name.textContent = header.storeName || 'ByVit';
-    });
+    $$('.site-header .brand').forEach(brand => renderBrandInLink(brand, header));
     $$('.header-search input').forEach(input => { input.placeholder = header.searchPlaceholder || 'Поиск товара'; input.name = 'q'; });
     $$('.admin-pill').forEach(link => { link.textContent = header.adminLabel || 'Админ'; });
     const navHtml = (header.nav || []).filter(link => link.enabled !== false).map(link => `<a data-nav href="${esc(link.href)}">${esc(link.text)}</a>`).join('');
@@ -610,7 +633,8 @@
       ...(contacts.phones || []).map(phone => `<a href="${esc(contactHref('phone', phone))}">${esc(phone)}</a>`),
       ...(contacts.extra || []).filter(item => item.enabled !== false).map(footerContactLink)
     ].filter(Boolean).join('');
-    const columns = (config.columns || []).map(col => `<div><h3>${esc(col.title)}</h3><div class="footer-links">${(col.links || []).filter(l=>l.enabled!==false).map(l=>`<a href="${esc(l.href)}">${esc(l.text)}</a>`).join('')}</div></div>`).join('');
+    const footerColumn = (title, body) => `<div class="footer-column" data-footer-accordion><button class="footer-toggle" type="button" data-footer-toggle aria-expanded="false"><span>${esc(title)}</span></button><div class="footer-links">${body}</div></div>`;
+    const columns = (config.columns || []).map(col => footerColumn(col.title, (col.links || []).filter(l=>l.enabled!==false).map(l=>`<a href="${esc(l.href)}">${esc(l.text)}</a>`).join(''))).join('');
     const badges = (config.badges || []).filter(badge => badge.enabled !== false && (badge.text || badge.image)).map(badge => {
       const body = badge.image
         ? `<span class="footer-badge footer-badge-media">${badge.text ? `<span class="sr-only">${esc(badge.text)}</span>` : ''}<img class="footer-badge-img" src="${esc(badge.image)}" alt="${esc(badge.text || 'Платёжный значок')}"></span>`
@@ -619,9 +643,9 @@
     }).join('');
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
-        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark">${esc(header.logoText || 'BV')}</span><span>${esc(header.storeName || 'ByVit')}</span></a><p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
+        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
         ${columns}
-        <div><h3>Контакты</h3><div class="footer-links">${contactLinks || '<span>Контакты не указаны</span>'}</div></div>
+        ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
       </div>
       ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
       <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
@@ -1351,9 +1375,9 @@
     if(!root) return;
     const items = (getSite().faqItems || DEFAULT_FAQ_ITEMS).filter(item => item.enabled !== false);
     root.innerHTML = items.length ? items.map(item => `
-      <article class="faq-item">
-        <h3>${esc(item.question || 'Вопрос')}</h3>
-        ${textToParagraphs(item.answer)}
+      <article class="faq-item" data-faq-item>
+        <button class="faq-question" type="button" data-faq-toggle aria-expanded="false"><span>${esc(item.question || 'Вопрос')}</span></button>
+        <div class="faq-answer">${textToParagraphs(item.answer)}</div>
       </article>`).join('') : `<div class="empty-state"><h3>FAQ скрыт</h3><p>Добавьте вопросы или включите их в админке.</p></div>`;
   }
   function renderAboutPage(){
@@ -2103,7 +2127,7 @@
   }
   function renderAdminHeader(){
     const header = getSite().header || {};
-    const map = {headerStoreName:'storeName',headerLogoText:'logoText',headerTopRight:'topRight',headerSearchPlaceholder:'searchPlaceholder',headerAdminLabel:'adminLabel'};
+    const map = {headerStoreName:'storeName',headerLogoText:'logoText',headerLogoImage:'logoImage',headerBrandImage:'brandImage',headerTopRight:'topRight',headerSearchPlaceholder:'searchPlaceholder',headerAdminLabel:'adminLabel'};
     Object.entries(map).forEach(([id,key]) => { const el = $('#'+id); if(el) el.value = header[key] || ''; });
     const nav = $('#headerNavLines'); if(nav) nav.value = linksToLines(header.nav || []);
   }
@@ -2113,6 +2137,8 @@
     site.header = site.header || {};
     site.header.storeName = $('#headerStoreName')?.value.trim() || 'ByVit';
     site.header.logoText = $('#headerLogoText')?.value.trim() || 'BV';
+    site.header.logoImage = $('#headerLogoImage')?.value.trim() || '';
+    site.header.brandImage = $('#headerBrandImage')?.value.trim() || '';
     site.header.topRight = $('#headerTopRight')?.value.trim();
     site.header.searchPlaceholder = $('#headerSearchPlaceholder')?.value.trim() || 'Поиск товара';
     site.header.adminLabel = $('#headerAdminLabel')?.value.trim() || 'Админ';
@@ -2339,6 +2365,20 @@
         filterToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         return;
       }
+      const footerToggle = event.target.closest('[data-footer-toggle]');
+      if(footerToggle){
+        const item = footerToggle.closest('[data-footer-accordion]');
+        const open = item?.classList.toggle('open');
+        footerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
+      const faqToggle = event.target.closest('[data-faq-toggle]');
+      if(faqToggle){
+        const item = faqToggle.closest('[data-faq-item]');
+        const open = item?.classList.toggle('open');
+        faqToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
       const action = event.target.closest('[data-action]');
       if(action){
         const id = action.dataset.id;
@@ -2398,6 +2438,8 @@
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
     $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData'));
     $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc'));
+    $('#headerLogoImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerLogoImage'));
+    $('#headerBrandImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerBrandImage'));
     $('#siteHeroMediaMode')?.addEventListener('change', updateHeroAdminControls);
     $('[data-hero-colors-reset]')?.addEventListener('click', resetHeroColors);
     $('[data-hero-video-default]')?.addEventListener('click', resetHeroDefaultVideo);

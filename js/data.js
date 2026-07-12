@@ -35,6 +35,8 @@
       header:{
         storeName:'ByVit',
         logoText:'BV',
+        logoImage:'assets/favicon.svg',
+        brandImage:'',
         topRight:'BYVIT / STORE / 2026',
         searchPlaceholder:'Поиск товара',
         adminLabel:'Админ',

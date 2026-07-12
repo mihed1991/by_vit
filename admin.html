@@ -488,6 +488,24 @@
                   <div class="admin-form-section">
                     <h4>Название и верхняя строка</h4>
                     <div class="field-row"><input id="headerStoreName" placeholder="Название магазина"><input id="headerLogoText" placeholder="Текст логотипа"></div>
+                    <label class="admin-input-field">
+                      <span>Изображение значка</span>
+                      <input id="headerLogoImage" placeholder="Ссылка или загруженный файл для квадрата">
+                      <small>Если поле заполнено, картинка заменит текст в зелёном квадрате.</small>
+                    </label>
+                    <label class="toggle-row">
+                      <span><strong>Файл значка</strong><br><small>JPG, PNG, WebP или SVG. Подстроится под размер хедера.</small></span>
+                      <input id="headerLogoImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                    </label>
+                    <label class="admin-input-field">
+                      <span>Изображение названия</span>
+                      <input id="headerBrandImage" placeholder="Ссылка или загруженный файл вместо текстового названия">
+                      <small>Если поле пустое, показывается текст названия магазина.</small>
+                    </label>
+                    <label class="toggle-row">
+                      <span><strong>Файл названия</strong><br><small>Можно загрузить горизонтальный логотип для десктопа и мобильной версии.</small></span>
+                      <input id="headerBrandImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                    </label>
                     <div class="field-row"><input id="headerTopRight" placeholder="Текст справа сверху"><input id="headerAdminLabel" placeholder="Текст кнопки админки"></div>
                     <input id="headerSearchPlaceholder" placeholder="Плейсхолдер поиска">
                   </div>
