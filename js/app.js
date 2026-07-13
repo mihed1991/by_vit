@@ -792,12 +792,12 @@
     }).join('');
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
-        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
+        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a><p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
 	      </div>
 	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
-	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span><a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a></div>
+	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
 	    </div>`;
 	  }
   function applyPageHeader(){
