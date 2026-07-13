@@ -24,13 +24,13 @@
     bar:'Батончик',
     accessory:'Аксессуар'
   };
-  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'categories', 'goals', 'featured', 'brands', 'service'];
+  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'categories', 'goals', 'featured', 'service', 'brands'];
   const DEFAULT_HOME_BLOCKS = {
     categories:{visible:true,order:2,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
     goals:{visible:true,order:3,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
     featured:{visible:true,order:4,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
-    brands:{visible:true,order:5,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
-    service:{visible:true,order:6,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
+    service:{visible:true,order:5,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
+    brands:{visible:true,order:6,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
     sale:{visible:true,order:1,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
   const DEFAULT_GOALS = [
@@ -2354,6 +2354,14 @@
     site.deliveryMethods = collectDeliveryMethods();
     saveSite(site); applyHeader(); renderAdminSite(); toast('Настройки сохранены');
   }
+  function saveAdminBrands(event){
+    event.preventDefault();
+    const site = getSite();
+    site.brandImages = collectBrandImages(site.brandImages || {});
+    saveSite(site);
+    renderAdminSite();
+    toast('Бренды сохранены');
+  }
   function renderAdminTelegram(){
     const telegram = getSite().telegram || {};
     const map = {tgContact:'contact',tgBot:'botToken',tgChat:'chatId'};
@@ -2786,6 +2794,7 @@
     $('#siteHeroVeil')?.addEventListener('input', e=>{ const node = $('#heroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroOverlay')?.addEventListener('input', e=>{ const node = $('#heroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#adminSiteForm')?.addEventListener('submit', saveAdminSite);
+    $('#adminBrandsForm')?.addEventListener('submit', saveAdminBrands);
     $('#adminDeliveryForm')?.addEventListener('submit', saveAdminSite);
     $('#adminTelegramForm')?.addEventListener('submit', saveAdminTelegram);
     $('#adminStoresForm')?.addEventListener('submit', saveAdminStores);

@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=31">
-  <script src="js/data.js?v=31" defer></script>
-  <script src="js/app.js?v=31" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=32">
+  <script src="js/data.js?v=32" defer></script>
+  <script src="js/app.js?v=32" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -52,6 +52,7 @@
         <div class="admin-layout">
           <nav class="admin-nav">
             <button class="active" data-admin-tab="site">Главная</button>
+            <button data-admin-tab="brands">Бренды</button>
             <button data-admin-tab="delivery">Доставка</button>
             <button data-admin-tab="telegram">Telegram</button>
             <button data-admin-tab="stores">Магазины</button>
@@ -258,13 +259,21 @@
 	                    <button class="btn btn-light" data-goal-add type="button">Добавить цель</button>
 	                  </div>
 
-	                  <div class="admin-form-section">
-	                    <h4>Изображения брендов</h4>
-	                    <p class="admin-hint">Картинки подтягиваются в карточки брендов на главной и странице брендов.</p>
-	                    <div class="admin-blocks brand-image-admin-list" id="adminBrandImages"></div>
-	                  </div>
-
 	                  <button class="btn btn-primary" type="submit">Сохранить главную</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-brands">
+              <article class="admin-card">
+                <h3>Бренды</h3>
+                <form class="admin-form" id="adminBrandsForm">
+                  <div class="admin-form-section">
+                    <h4>Изображения брендов</h4>
+                    <p class="admin-hint">Картинки подтягиваются в карточки брендов на главной и странице брендов.</p>
+                    <div class="admin-blocks brand-image-admin-list" id="adminBrandImages"></div>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить бренды</button>
                 </form>
               </article>
             </section>
