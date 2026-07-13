@@ -24,13 +24,14 @@
     bar:'Батончик',
     accessory:'Аксессуар'
   };
+  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'categories', 'goals', 'featured', 'brands', 'service'];
   const DEFAULT_HOME_BLOCKS = {
-    categories:{visible:true,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
-    goals:{visible:true,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
-    featured:{visible:true,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
-    brands:{visible:true,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
-    service:{visible:true,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
-    sale:{visible:true,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
+    categories:{visible:true,order:2,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
+    goals:{visible:true,order:3,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
+    featured:{visible:true,order:4,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
+    brands:{visible:true,order:5,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
+    service:{visible:true,order:6,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
+    sale:{visible:true,order:1,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
   const DEFAULT_GOALS = [
     {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',enabled:true},
@@ -225,7 +226,13 @@
     const defaultSite = getDefaults().site || {};
     const source = site.homeBlocks || {};
     const defaultSource = defaultSite.homeBlocks || {};
-    return Object.fromEntries(Object.entries(DEFAULT_HOME_BLOCKS).map(([key, value]) => [key, {...value, ...(defaultSource[key] || {}), ...(source[key] || {})}]));
+    return Object.fromEntries(Object.entries(DEFAULT_HOME_BLOCKS).map(([key, value], index) => {
+      const block = {...value, ...(defaultSource[key] || {}), ...(source[key] || {})};
+      const fallbackOrder = DEFAULT_HOME_BLOCK_ORDER.indexOf(key) + 1 || index + 1;
+      const order = Number(block.order);
+      block.order = Number.isFinite(order) && order > 0 ? order : fallbackOrder;
+      return [key, block];
+    }));
   }
   function normalizeLinks(links){
     return (Array.isArray(links) ? links : []).map(link => ({
@@ -239,7 +246,7 @@
     const header = {...(defaults.header || {}), ...storedHeader};
     header.storeName = header.storeName || 'ByVit';
     header.logoText = header.logoText || 'BV';
-    header.logoImage = Object.prototype.hasOwnProperty.call(storedHeader, 'logoImage') ? String(storedHeader.logoImage || '').trim() : String(defaults.header?.logoImage || 'assets/favicon.svg').trim();
+    header.logoImage = (Object.prototype.hasOwnProperty.call(storedHeader, 'logoImage') ? String(storedHeader.logoImage || '').trim() : String(defaults.header?.logoImage || 'assets/favicon.svg').trim()) || 'assets/favicon.svg';
     header.brandImage = Object.prototype.hasOwnProperty.call(storedHeader, 'brandImage') ? String(storedHeader.brandImage || '').trim() : String(defaults.header?.brandImage || '').trim();
     header.topRight = header.topRight || 'BYVIT / STORE / 2026';
     header.searchPlaceholder = header.searchPlaceholder || 'Поиск товара';
@@ -379,6 +386,13 @@
       enabled:item.enabled !== false
     })).filter(item => item.title || item.text);
   }
+  function normalizeBrandImages(site, defaults){
+    const source = {...(defaults.brandImages || {}), ...(site?.brandImages || {})};
+    return Object.fromEntries(Object.entries(source).map(([brand, image]) => [
+      String(brand || '').trim(),
+      String(image || '').trim()
+    ]).filter(([brand, image]) => brand && image));
+  }
   function normalizeFaqItems(site, defaults){
     const source = Array.isArray(site?.faqItems) ? site.faqItems : (Array.isArray(defaults.faqItems) ? defaults.faqItems : DEFAULT_FAQ_ITEMS);
     return (source || []).map((item, index) => ({
@@ -465,6 +479,7 @@
     merged.aboutPage = normalizeAboutPage(site, defaults);
     merged.homeBlocks = normalizeHomeBlocks(merged);
     merged.goals = normalizeGoals(site, defaults);
+    merged.brandImages = normalizeBrandImages(site, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
     merged.pickupStores = normalizePickupStores(site, defaults);
@@ -510,6 +525,16 @@
   function productById(id){ return getProducts().find(p => String(p.id) === String(id)); }
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
   function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
+  function brandCardHtml(brand, index, products=getProducts(), site=getSite()){
+    const image = site.brandImages?.[brand] || '';
+    const count = products.filter(product => product.brand === brand).length;
+    return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image ? 'has-image' : ''}">
+      <span class="index">Brand ${String(index + 1).padStart(2,'0')}</span>
+      <div class="brand-media">${image ? `<img src="${esc(image)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
+      <h3 title="${esc(brand)}">${esc(brand)}</h3>
+      <p>${count} товар(ов)</p>
+    </a>`;
+  }
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
   function defaultPackage(product){ return product?.packageOptions?.[0] || {id:'base',label:'1 шт.',price:Number(product?.price || 0)}; }
   function optionById(product, optionId){ return product?.packageOptions?.find(o => o.id === optionId) || defaultPackage(product); }
@@ -770,11 +795,11 @@
         <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
-      </div>
-      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
-      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
-    </div>`;
-  }
+	      </div>
+	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
+	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span><a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a></div>
+	    </div>`;
+	  }
   function applyPageHeader(){
     const page = document.body.dataset.page;
     const root = $('.page-hero');
@@ -961,6 +986,27 @@
 	      button.hidden = !block.buttonText;
 	    }
 	  }
+  function homeBlockOrder(key, block, index=0){
+    const order = Number(block?.order);
+    if(Number.isFinite(order) && order > 0) return order;
+    const fallback = DEFAULT_HOME_BLOCK_ORDER.indexOf(key);
+    return fallback >= 0 ? fallback + 1 : index + 1;
+  }
+  function orderHomeSections(blocks){
+    const main = $('main');
+    if(!main) return;
+    const sections = $$('[data-home-block]', main).map((section, index) => {
+      const key = section.dataset.homeBlock;
+      return {section, key, index, order:homeBlockOrder(key, blocks[key], index)};
+    }).sort((a, b) => a.order - b.order || a.index - b.index);
+    sections.forEach(item => main.appendChild(item.section));
+    sections.filter(item => !item.section.hidden).forEach((item, visibleIndex) => {
+      if(item.section.classList.contains('dark')) return;
+      const paper = visibleIndex % 2 === 1;
+      item.section.classList.toggle('paper', paper);
+      item.section.dataset.tone = paper ? 'paper' : 'white';
+    });
+  }
 	  function goalCard(goal, index){
 	    return `<a class="goal-card" href="${esc(goal.href || 'catalog.html')}">
 	      <span class="goal-index">${String(index + 1).padStart(2,'0')}</span>
@@ -1027,7 +1073,8 @@
       metricRoot.hidden = !metrics.length;
       metricRoot.innerHTML = metrics.map(item => `<div class="metric"><strong>${esc(item.value)}</strong><span>${esc(item.label)}</span></div>`).join('');
     }
-    Object.entries(blocks).forEach(([key, block]) => applyHomeBlock(key, block));
+	    Object.entries(blocks).forEach(([key, block]) => applyHomeBlock(key, block));
+	    orderHomeSections(blocks);
     const service = blocks.service || {};
     const serviceOneTitle = $('#serviceFeatureOneTitle');
     const serviceOneText = $('#serviceFeatureOneText');
@@ -1050,10 +1097,10 @@
 	    renderGoals();
 	    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,4));
     renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,4));
-    const brandRail = $('#homeBrands');
-    if(brandRail){
-      brandRail.innerHTML = brands().slice(0,10).map((brand,i)=>`<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card"><span class="index">Brand ${String(i+1).padStart(2,'0')}</span><div class="brand-letter">${esc(brand[0] || 'B')}</div><h3 title="${esc(brand)}">${esc(brand)}</h3><p>${getProducts().filter(p=>p.brand===brand).length} товар(ов)</p></a>`).join('');
-    }
+	    const brandRail = $('#homeBrands');
+	    if(brandRail){
+	      brandRail.innerHTML = brands().slice(0,10).map((brand,i)=>brandCardHtml(brand, i, products, site)).join('');
+	    }
     document.body.classList.add('home-ready');
   }
 
@@ -1147,13 +1194,9 @@
   function renderBrands(){
     const wrap = $('#brandsList');
     if(!wrap) return;
-    wrap.innerHTML = brands().map((brand,i)=>`
-      <a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card">
-        <span class="index">${String(i+1).padStart(2,'0')}</span>
-        <div class="brand-letter">${esc(brand[0] || 'B')}</div>
-        <h3 title="${esc(brand)}">${esc(brand)}</h3>
-        <p>${getProducts().filter(p=>p.brand===brand).length} товар(ов)</p>
-      </a>`).join('');
+    const products = getProducts();
+    const site = getSite();
+    wrap.innerHTML = brands().map((brand,i)=>brandCardHtml(brand, i, products, site)).join('');
   }
   function renderCompare(){
     const wrap = $('#compareTable');
@@ -1698,6 +1741,27 @@
     };
     reader.readAsDataURL(file);
   }
+  function updateBrandImagePreview(block){
+    const preview = $('[data-brand-image-preview]', block);
+    if(!preview) return;
+    const image = $('[data-brand-image-src]', block)?.value.trim() || '';
+    const brand = block?.dataset.brandImageKey || 'Brand';
+    preview.innerHTML = image ? `<img src="${esc(image)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`;
+  }
+  function readBrandImageFile(input){
+    const file = input.files?.[0];
+    const block = input.closest('[data-brand-image-key]');
+    if(!file || !block) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const target = $('[data-brand-image-src]', block);
+      if(target) target.value = reader.result;
+      updateBrandImagePreview(block);
+      input.value = '';
+      toast('Изображение бренда загружено');
+    };
+    reader.readAsDataURL(file);
+  }
   async function sha256(value){
     if(!window.crypto?.subtle) return '';
     const bytes = new TextEncoder().encode(value);
@@ -1720,6 +1784,40 @@
         <input data-hero-metric-label value="${esc(metric.label || '')}" placeholder="категорий">
       </div>
       <button class="btn btn-danger small" data-hero-metric-delete type="button">Удалить метрику</button>
+    </article>`;
+  }
+  function goalEditor(goal={}, index=0){
+    const id = String(goal.id || `goal-${Date.now()}-${index}`);
+    return `<article class="admin-block-editor" data-goal-key="${esc(id)}">
+      <div class="admin-block-head">
+        <h4>Цель ${index + 1}</h4>
+        <label class="mini-toggle"><input type="checkbox" data-goal-enabled ${goal.enabled !== false ? 'checked' : ''}> Включена</label>
+      </div>
+      <div class="field-row">
+        <input data-goal-title value="${esc(goal.title || '')}" placeholder="Название цели">
+        <input data-goal-href value="${esc(goal.href || 'catalog.html')}" placeholder="Ссылка">
+      </div>
+      <textarea data-goal-text placeholder="Описание">${esc(goal.text || '')}</textarea>
+      <button class="btn btn-danger small" data-goal-delete type="button">Удалить цель</button>
+    </article>`;
+  }
+  function brandImageEditor(brand, image='', index=0){
+    return `<article class="admin-block-editor brand-image-editor" data-brand-image-key="${esc(brand)}">
+      <div class="admin-block-head">
+        <h4>${esc(brand)}</h4>
+        <span class="mono">${String(index + 1).padStart(2,'0')}</span>
+      </div>
+      <div class="brand-image-admin-preview" data-brand-image-preview>
+        ${image ? `<img src="${esc(image)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`}
+      </div>
+      <label class="admin-input-field">
+        <span>Изображение бренда</span>
+        <input data-brand-image-src value="${esc(image)}" placeholder="Ссылка или загруженный файл">
+      </label>
+      <div class="field-row">
+        <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        <button class="btn btn-light small" data-brand-image-clear type="button">Убрать картинку</button>
+      </div>
     </article>`;
   }
   function storeBlockEditor(block={}, index=0){
@@ -1808,6 +1906,26 @@
       label:$('[data-hero-metric-label]', card)?.value.trim() || '',
       enabled:$('[data-hero-metric-enabled]', card)?.checked !== false
     })).filter(item => item.value || item.label);
+  }
+  function collectGoals(){
+    return $$('[data-goal-key]').map((card, index) => ({
+      id:card.dataset.goalKey || `goal-${index + 1}`,
+      title:$('[data-goal-title]', card)?.value.trim() || '',
+      text:$('[data-goal-text]', card)?.value.trim() || '',
+      href:$('[data-goal-href]', card)?.value.trim() || 'catalog.html',
+      enabled:$('[data-goal-enabled]', card)?.checked !== false
+    })).filter(item => item.title || item.text);
+  }
+  function collectBrandImages(existing={}){
+    const images = {...existing};
+    $$('[data-brand-image-key]').forEach(card => {
+      const brand = card.dataset.brandImageKey;
+      const image = $('[data-brand-image-src]', card)?.value.trim() || '';
+      if(!brand) return;
+      if(image) images[brand] = image;
+      else delete images[brand];
+    });
+    return images;
   }
   function collectStoreBlocks(){
     return $$('[data-store-block-key]').map((card, index) => ({
@@ -2147,18 +2265,22 @@
     if(metricRoot){
       metricRoot.innerHTML = (site.heroMetrics || DEFAULT_HERO_METRICS).map(heroMetricEditor).join('');
     }
-    const homeRoot = $('#adminHomeBlocks');
-    if(homeRoot){
-	      const titles = {categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
-      homeRoot.innerHTML = Object.entries(site.homeBlocks || DEFAULT_HOME_BLOCKS).map(([key, block])=>`
-        <article class="admin-block-editor" data-home-block-key="${esc(key)}">
-          <div class="admin-block-head">
-            <h4>${esc(titles[key] || key)}</h4>
-            <label class="mini-toggle"><input type="checkbox" data-block-field="visible" ${block.visible !== false ? 'checked' : ''}> Включен</label>
-          </div>
-          <div class="field-row">
-            <input data-block-field="eyebrow" value="${esc(block.eyebrow || '')}" placeholder="Надпись над заголовком">
-            <input data-block-field="title" value="${esc(block.title || '')}" placeholder="Заголовок">
+	    const homeRoot = $('#adminHomeBlocks');
+	    if(homeRoot){
+		      const titles = {categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
+	      homeRoot.innerHTML = Object.entries(site.homeBlocks || DEFAULT_HOME_BLOCKS).sort(([keyA, blockA], [keyB, blockB]) => homeBlockOrder(keyA, blockA) - homeBlockOrder(keyB, blockB)).map(([key, block])=>`
+	        <article class="admin-block-editor" data-home-block-key="${esc(key)}">
+	          <div class="admin-block-head">
+	            <h4>${esc(titles[key] || key)}</h4>
+	            <label class="mini-toggle"><input type="checkbox" data-block-field="visible" ${block.visible !== false ? 'checked' : ''}> Включен</label>
+	          </div>
+	          <label class="admin-input-field">
+	            <span>Позиция блока на главной</span>
+	            <input data-block-field="order" type="number" min="1" max="20" value="${esc(block.order || homeBlockOrder(key, block))}" placeholder="1">
+	          </label>
+	          <div class="field-row">
+	            <input data-block-field="eyebrow" value="${esc(block.eyebrow || '')}" placeholder="Надпись над заголовком">
+	            <input data-block-field="title" value="${esc(block.title || '')}" placeholder="Заголовок">
           </div>
           <textarea data-block-field="text" placeholder="Текст блока">${esc(block.text || '')}</textarea>
           <div class="field-row">
@@ -2168,9 +2290,20 @@
           ${key !== 'service' ? `<div class="field-row"><input data-block-field="buttonText" value="${esc(block.buttonText || '')}" placeholder="Текст кнопки"><input data-block-field="buttonUrl" value="${esc(block.buttonUrl || '')}" placeholder="Ссылка кнопки"></div>` : `
             <div class="field-row"><input data-block-field="featureOneTitle" value="${esc(block.featureOneTitle || '')}" placeholder="Заголовок карточки 1"><input data-block-field="featureTwoTitle" value="${esc(block.featureTwoTitle || '')}" placeholder="Заголовок карточки 2"></div>
             <div class="field-row"><textarea data-block-field="featureOneText" placeholder="Текст карточки 1">${esc(block.featureOneText || '')}</textarea><textarea data-block-field="featureTwoText" placeholder="Текст карточки 2">${esc(block.featureTwoText || '')}</textarea></div>
-          `}
-        </article>`).join('');
-    }
+	          `}
+	        </article>`).join('');
+	    }
+	    const goalsRoot = $('#adminGoalsList');
+	    if(goalsRoot){
+	      goalsRoot.innerHTML = (site.goals || DEFAULT_GOALS).map(goalEditor).join('');
+	    }
+	    const brandImagesRoot = $('#adminBrandImages');
+	    if(brandImagesRoot){
+	      const brandList = brands();
+	      brandImagesRoot.innerHTML = brandList.length
+	        ? brandList.map((brand, index) => brandImageEditor(brand, site.brandImages?.[brand] || '', index)).join('')
+	        : '<p class="admin-hint">Добавьте товары с брендами, и здесь появятся поля для изображений.</p>';
+	    }
     const deliveryRoot = $('#adminDeliveryList');
     if(deliveryRoot){
       const methods = site.deliveryMethods || getDefaults().site.deliveryMethods;
@@ -2200,18 +2333,21 @@
     if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
     if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
     if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
-    site.heroMetrics = collectHeroMetrics();
-    $$('[data-home-block-key]').forEach(card => {
-      const key = card.dataset.homeBlockKey;
-      const block = site.homeBlocks[key] || {};
-      $$('[data-block-field]', card).forEach(input => {
-        const field = input.dataset.blockField;
-        if(field === 'visible') block.visible = input.checked;
-        else if(field === 'titleSize' || field === 'textSize') block[field] = Number(input.value || DEFAULT_HOME_BLOCKS[key]?.[field] || 16);
-        else block[field] = input.value;
-      });
-      site.homeBlocks[key] = block;
-    });
+	    site.heroMetrics = collectHeroMetrics();
+	    site.homeBlocks = site.homeBlocks || {};
+	    $$('[data-home-block-key]').forEach(card => {
+	      const key = card.dataset.homeBlockKey;
+	      const block = site.homeBlocks[key] || {};
+	      $$('[data-block-field]', card).forEach(input => {
+	        const field = input.dataset.blockField;
+	        if(field === 'visible') block.visible = input.checked;
+	        else if(field === 'titleSize' || field === 'textSize' || field === 'order') block[field] = Number(input.value || DEFAULT_HOME_BLOCKS[key]?.[field] || 16);
+	        else block[field] = input.value;
+	      });
+	      site.homeBlocks[key] = block;
+	    });
+	    if($('#adminGoalsList')) site.goals = collectGoals();
+	    if($('#adminBrandImages')) site.brandImages = collectBrandImages(site.brandImages || {});
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
@@ -2593,9 +2729,12 @@
       const adminDelete = event.target.closest('[data-admin-delete]'); if(adminDelete){ deleteProduct(adminDelete.dataset.adminDelete); return; }
       const selectAll = event.target.closest('[data-admin-select-all]'); if(selectAll){ $$('[data-admin-product-select]').forEach(input => { input.checked = selectAll.checked; }); return; }
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
-      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
-      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
-      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
+	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
+	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
+	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
+	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
+	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); if(input) input.value = ''; updateBrandImagePreview(block); return; }
+	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
       const storeDelete = event.target.closest('[data-store-block-delete]'); if(storeDelete){ storeDelete.closest('[data-store-block-key]')?.remove(); return; }
       const pickupStoreAdd = event.target.closest('[data-pickup-store-add]'); if(pickupStoreAdd){ const root = $('#adminPickupStores'); if(root) root.insertAdjacentHTML('beforeend', pickupStoreEditor({id:`pickup-${Date.now()}`,title:'',address:'',note:'',enabled:true}, $$('[data-pickup-store-key]', root).length)); return; }
       const pickupStoreDelete = event.target.closest('[data-pickup-store-delete]'); if(pickupStoreDelete){ pickupStoreDelete.closest('[data-pickup-store-key]')?.remove(); return; }
@@ -2622,10 +2761,12 @@
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });
-    document.addEventListener('change', event => {
-      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
-      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
-    });
+	    document.addEventListener('change', event => {
+	      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
+	      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
+	      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
+	      if(event.target.matches('[data-brand-image-src]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
+	    });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
     $('#promoApply')?.addEventListener('click', applyPromo);
     $('#promoCode')?.addEventListener('input', updatePromoFromInput);
