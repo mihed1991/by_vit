@@ -82,6 +82,13 @@
     title:'#191a17',
     text:'#3f423d'
   };
+  const DEFAULT_BRAND_IMAGE = {
+    src:'',
+    fit:'contain',
+    positionX:50,
+    positionY:50,
+    scale:1
+  };
   const DEFAULT_STORE_BLOCKS = [
     {id:'showroom',title:'Шоурум ByVit',text:'Минский район, Боровлянский сельсовет, 743этаж 1\nТелефон: +375 29 000-00-00\nГрафик: 10:00–20:00',enabled:true},
     {id:'pickup',title:'Самовывоз',text:'Выберите самовывоз в корзине и дождитесь подтверждения заказа.',enabled:true},
@@ -386,12 +393,34 @@
       enabled:item.enabled !== false
     })).filter(item => item.title || item.text);
   }
+  function clampNumber(value, min, max, fallback){
+    const number = Number(value);
+    if(!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+  function normalizeBrandImageValue(value){
+    const source = value && typeof value === 'object' && !Array.isArray(value)
+      ? value
+      : {src:value};
+    const fit = ['contain','cover'].includes(source.fit) ? source.fit : DEFAULT_BRAND_IMAGE.fit;
+    return {
+      src:String(source.src || source.image || '').trim(),
+      fit,
+      positionX:clampNumber(source.positionX, 0, 100, DEFAULT_BRAND_IMAGE.positionX),
+      positionY:clampNumber(source.positionY, 0, 100, DEFAULT_BRAND_IMAGE.positionY),
+      scale:clampNumber(source.scale, .5, 2, DEFAULT_BRAND_IMAGE.scale)
+    };
+  }
+  function brandImageStyle(value){
+    const image = normalizeBrandImageValue(value);
+    return `--brand-img-fit:${image.fit};--brand-img-x:${image.positionX}%;--brand-img-y:${image.positionY}%;--brand-img-scale:${image.scale}`;
+  }
   function normalizeBrandImages(site, defaults){
     const source = {...(defaults.brandImages || {}), ...(site?.brandImages || {})};
-    return Object.fromEntries(Object.entries(source).map(([brand, image]) => [
+    return Object.fromEntries(Object.entries(source).map(([brand, value]) => [
       String(brand || '').trim(),
-      String(image || '').trim()
-    ]).filter(([brand, image]) => brand && image));
+      normalizeBrandImageValue(value)
+    ]).filter(([brand, image]) => brand && image.src));
   }
   function normalizeFaqItems(site, defaults){
     const source = Array.isArray(site?.faqItems) ? site.faqItems : (Array.isArray(defaults.faqItems) ? defaults.faqItems : DEFAULT_FAQ_ITEMS);
@@ -526,11 +555,11 @@
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
   function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
   function brandCardHtml(brand, index, products=getProducts(), site=getSite()){
-    const image = site.brandImages?.[brand] || '';
+    const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
     const count = products.filter(product => product.brand === brand).length;
-    return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image ? 'has-image' : ''}">
+    return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
       <span class="index">Brand ${String(index + 1).padStart(2,'0')}</span>
-      <div class="brand-media">${image ? `<img src="${esc(image)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
+      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
       <h3 title="${esc(brand)}">${esc(brand)}</h3>
       <p>${count} товар(ов)</p>
     </a>`;
@@ -1741,12 +1770,42 @@
     };
     reader.readAsDataURL(file);
   }
+  function collectBrandImageEditorValue(block){
+    if(!block) return {...DEFAULT_BRAND_IMAGE};
+    return normalizeBrandImageValue({
+      src:$('[data-brand-image-src]', block)?.value.trim() || '',
+      fit:$('[data-brand-image-fit]', block)?.value || DEFAULT_BRAND_IMAGE.fit,
+      positionX:$('[data-brand-image-x]', block)?.value,
+      positionY:$('[data-brand-image-y]', block)?.value,
+      scale:$('[data-brand-image-scale]', block)?.value
+    });
+  }
+  function resetBrandImageControls(block){
+    if(!block) return;
+    const fit = $('[data-brand-image-fit]', block);
+    const x = $('[data-brand-image-x]', block);
+    const y = $('[data-brand-image-y]', block);
+    const scale = $('[data-brand-image-scale]', block);
+    if(fit) fit.value = DEFAULT_BRAND_IMAGE.fit;
+    if(x) x.value = DEFAULT_BRAND_IMAGE.positionX;
+    if(y) y.value = DEFAULT_BRAND_IMAGE.positionY;
+    if(scale) scale.value = DEFAULT_BRAND_IMAGE.scale;
+    updateBrandImagePreview(block);
+  }
   function updateBrandImagePreview(block){
+    if(!block) return;
     const preview = $('[data-brand-image-preview]', block);
     if(!preview) return;
-    const image = $('[data-brand-image-src]', block)?.value.trim() || '';
+    const image = collectBrandImageEditorValue(block);
     const brand = block?.dataset.brandImageKey || 'Brand';
-    preview.innerHTML = image ? `<img src="${esc(image)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`;
+    preview.setAttribute('style', brandImageStyle(image));
+    preview.innerHTML = image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`;
+    const xValue = $('[data-brand-image-x-value]', block);
+    const yValue = $('[data-brand-image-y-value]', block);
+    const scaleValue = $('[data-brand-image-scale-value]', block);
+    if(xValue) xValue.textContent = `${Math.round(image.positionX)}%`;
+    if(yValue) yValue.textContent = `${Math.round(image.positionY)}%`;
+    if(scaleValue) scaleValue.textContent = `${Math.round(image.scale * 100)}%`;
   }
   function readBrandImageFile(input){
     const file = input.files?.[0];
@@ -1802,20 +1861,44 @@
     </article>`;
   }
   function brandImageEditor(brand, image='', index=0){
+    const settings = normalizeBrandImageValue(image);
     return `<article class="admin-block-editor brand-image-editor" data-brand-image-key="${esc(brand)}">
       <div class="admin-block-head">
         <h4>${esc(brand)}</h4>
         <span class="mono">${String(index + 1).padStart(2,'0')}</span>
       </div>
-      <div class="brand-image-admin-preview" data-brand-image-preview>
-        ${image ? `<img src="${esc(image)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`}
+      <div class="brand-image-admin-preview" data-brand-image-preview style="${esc(brandImageStyle(settings))}">
+        ${settings.src ? `<img src="${esc(settings.src)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`}
       </div>
       <label class="admin-input-field">
         <span>Изображение бренда</span>
-        <input data-brand-image-src value="${esc(image)}" placeholder="Ссылка или загруженный файл">
+        <input data-brand-image-src value="${esc(settings.src)}" placeholder="Ссылка или загруженный файл">
+      </label>
+      <label class="admin-input-field">
+        <span>Подгонка изображения</span>
+        <select data-brand-image-fit>
+          <option value="contain" ${settings.fit === 'contain' ? 'selected' : ''}>Авто: вписать целиком</option>
+          <option value="cover" ${settings.fit === 'cover' ? 'selected' : ''}>Заполнить область</option>
+        </select>
+        <small>Авто не обрезает логотип. «Заполнить» подходит для фото и широких баннеров.</small>
+      </label>
+      <label class="range-field">
+        <span>Сдвиг по X <strong data-brand-image-x-value>${Math.round(settings.positionX)}%</strong></span>
+        <input data-brand-image-x type="range" min="0" max="100" step="1" value="${esc(settings.positionX)}">
+      </label>
+      <label class="range-field">
+        <span>Сдвиг по Y <strong data-brand-image-y-value>${Math.round(settings.positionY)}%</strong></span>
+        <input data-brand-image-y type="range" min="0" max="100" step="1" value="${esc(settings.positionY)}">
+      </label>
+      <label class="range-field">
+        <span>Масштаб <strong data-brand-image-scale-value>${Math.round(settings.scale * 100)}%</strong></span>
+        <input data-brand-image-scale type="range" min="0.5" max="2" step="0.05" value="${esc(settings.scale)}">
       </label>
       <div class="field-row">
         <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        <button class="btn btn-light small" data-brand-image-reset type="button">Авто-подгонка</button>
+      </div>
+      <div class="field-row">
         <button class="btn btn-light small" data-brand-image-clear type="button">Убрать картинку</button>
       </div>
     </article>`;
@@ -1920,9 +2003,9 @@
     const images = {...existing};
     $$('[data-brand-image-key]').forEach(card => {
       const brand = card.dataset.brandImageKey;
-      const image = $('[data-brand-image-src]', card)?.value.trim() || '';
+      const image = collectBrandImageEditorValue(card);
       if(!brand) return;
-      if(image) images[brand] = image;
+      if(image.src) images[brand] = image;
       else delete images[brand];
     });
     return images;
@@ -2347,7 +2430,6 @@
 	      site.homeBlocks[key] = block;
 	    });
 	    if($('#adminGoalsList')) site.goals = collectGoals();
-	    if($('#adminBrandImages')) site.brandImages = collectBrandImages(site.brandImages || {});
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
@@ -2742,6 +2824,7 @@
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); if(input) input.value = ''; updateBrandImagePreview(block); return; }
+	      const brandImageReset = event.target.closest('[data-brand-image-reset]'); if(brandImageReset){ resetBrandImageControls(brandImageReset.closest('[data-brand-image-key]')); return; }
 	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
       const storeDelete = event.target.closest('[data-store-block-delete]'); if(storeDelete){ storeDelete.closest('[data-store-block-key]')?.remove(); return; }
       const pickupStoreAdd = event.target.closest('[data-pickup-store-add]'); if(pickupStoreAdd){ const root = $('#adminPickupStores'); if(root) root.insertAdjacentHTML('beforeend', pickupStoreEditor({id:`pickup-${Date.now()}`,title:'',address:'',note:'',enabled:true}, $$('[data-pickup-store-key]', root).length)); return; }
@@ -2773,8 +2856,11 @@
 	      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
 	      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
 	      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
-	      if(event.target.matches('[data-brand-image-src]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
+	      if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
 	    });
+    document.addEventListener('input', event => {
+      if(event.target.matches('[data-brand-image-src],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
+    });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
     $('#promoApply')?.addEventListener('click', applyPromo);
     $('#promoCode')?.addEventListener('input', updatePromoFromInput);
