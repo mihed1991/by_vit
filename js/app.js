@@ -1461,7 +1461,8 @@
       if(!cart.length){ list.innerHTML = `<div class="empty-state"><h3>Корзина пустая</h3><p>Товары пока не добавлены.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`; }
       else list.innerHTML = cart.map(item=>{
         const p = productById(item.productId) || {};
-        return `<div class="cart-item" data-key="${esc(item.key)}"><img src="${esc(firstImage(p))}" alt="${esc(p.name || '')}"><div><h3>${esc(p.name || 'Товар')}</h3><small>${esc(item.optionLabel || '')}${item.flavor ? ` · ${esc(item.flavor)}` : ''}</small><div class="qty-row" style="margin:12px 0 0"><div class="qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div></div></div><div style="text-align:right"><strong class="price">${money(Number(item.price)*Number(item.qty))}</strong><br><button class="btn btn-light small" data-cart-remove="${esc(item.key)}" style="margin-top:10px">Удалить</button></div></div>`;
+        const optionText = `${esc(item.optionLabel || '')}${item.flavor ? ` · ${esc(item.flavor)}` : ''}`;
+        return `<div class="cart-item" data-key="${esc(item.key)}"><img class="cart-item-img" src="${esc(firstImage(p))}" alt="${esc(p.name || '')}"><div class="cart-item-main"><div class="cart-item-info"><h3>${esc(p.name || 'Товар')}</h3><small>${optionText}</small></div><div class="cart-item-controls"><strong class="price cart-item-price">${money(Number(item.price)*Number(item.qty))}</strong><div class="qty-stepper cart-qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div><button class="btn btn-light small cart-remove" data-cart-remove="${esc(item.key)}">Удалить</button></div></div></div>`;
       }).join('');
     }
     renderSummary();
