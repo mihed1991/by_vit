@@ -66,6 +66,7 @@
       heroMediaOpacity:0.78,
       heroVeilOpacity:1,
       heroOverlayOpacity:0.18,
+      mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves'},
       heroMetrics:[
         {id:'categories',value:'12+',label:'категорий',enabled:true},
         {id:'delivery',value:'4',label:'способа доставки',enabled:true},

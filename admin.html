@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=36">
-  <script src="js/data.js?v=36" defer></script>
-  <script src="js/app.js?v=36" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=37">
+  <script src="js/data.js?v=37" defer></script>
+  <script src="js/app.js?v=37" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -240,6 +240,34 @@
                     </label>
                     <button class="btn btn-light" data-hero-video-default type="button">Вернуть видео по умолчанию</button>
                     <input id="siteAnnouncement" placeholder="Текст верхней плашки">
+                  </div>
+
+                  <div class="admin-form-section mobile-home-admin">
+                    <h4>Мобильный баннер</h4>
+                    <label class="toggle-row">
+                      <span><strong>Отдельный баннер для мобильной версии</strong><br><small>Используется только на телефоне. Десктопный баннер не меняется.</small></span>
+                      <input id="siteMobileHeroEnabled" type="checkbox">
+                    </label>
+                    <div class="field-row">
+                      <select id="siteMobileHeroMode">
+                        <option value="image">Изображение</option>
+                        <option value="animation">Анимация</option>
+                      </select>
+                      <select id="siteMobileHeroAnimation" data-mobile-hero-control="animation">
+                        <option value="waves">Волны</option>
+                        <option value="rings">Кольца</option>
+                        <option value="grid">Сетка</option>
+                      </select>
+                    </div>
+                    <label class="admin-input-field" data-mobile-hero-control="src">
+                      <span>Изображение мобильного баннера</span>
+                      <input id="siteMobileHeroMediaSrc" placeholder="Ссылка или загруженное изображение">
+                      <small>Только JPG, PNG, WebP или SVG. Видео для мобильного баннера не используется.</small>
+                    </label>
+                    <label class="toggle-row" data-mobile-hero-control="upload">
+                      <span><strong>Загрузить изображение</strong><br><small>Файл сохранится в браузере как отдельный мобильный баннер</small></span>
+                      <input id="siteMobileHeroMediaUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                    </label>
                   </div>
 
                   <div class="admin-form-section">

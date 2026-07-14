@@ -491,6 +491,16 @@
     map.placeholder = String(map.placeholder || DEFAULT_MAP.placeholder).trim();
     return map;
   }
+  function normalizeMobileHeroMedia(site, defaults){
+    const source = {...(defaults.mobileHeroMedia || {}), ...(site?.mobileHeroMedia || {})};
+    const mode = ['image','animation'].includes(source.mode) ? source.mode : 'image';
+    return {
+      enabled:source.enabled === true,
+      mode,
+      src:String(source.src || '').trim(),
+      animation:['waves','rings','grid'].includes(source.animation) ? source.animation : 'waves'
+    };
+  }
   function normalizeSite(site){
     const defaults = getDefaults().site || {};
     const storedTypographyVersion = Number(site?.typographyVersion || 1);
@@ -533,6 +543,7 @@
     merged.heroMediaOpacity = Math.min(1, Math.max(.15, Number(merged.heroMediaOpacity ?? .78)));
     merged.heroVeilOpacity = Math.min(1, Math.max(0, Number(merged.heroVeilOpacity ?? 1)));
     merged.heroOverlayOpacity = Math.min(.7, Math.max(0, Number(merged.heroOverlayOpacity ?? .18)));
+    merged.mobileHeroMedia = normalizeMobileHeroMedia(site, defaults);
     return merged;
   }
   function getProducts(){ return read(KEYS.products, getDefaults().products); }
@@ -971,8 +982,12 @@
   function renderHeroMedia(site){
     const hero = $('.hero');
     const root = $('#heroMedia');
+    const imageFallback = 'assets/hero-fallback.svg';
+    const mobileMedia = site.mobileHeroMedia || {};
+    const mobileEnabled = mobileMedia.enabled === true;
     if(hero){
       hero.dataset.align = site.heroAlign || 'right';
+      hero.classList.toggle('hero-mobile-media-enabled', mobileEnabled);
       hero.style.setProperty('--hero-media-opacity', String(site.heroMediaOpacity));
       hero.style.setProperty('--hero-veil-opacity', String(site.heroVeilOpacity));
       hero.style.setProperty('--hero-overlay-opacity', String(site.heroOverlayOpacity));
@@ -983,16 +998,20 @@
     if(!root) return;
     const mode = site.heroMediaMode || 'video';
     const src = site.heroMediaSrc || '';
-    const imageFallback = 'assets/hero-fallback.svg';
+    const mobileHtml = mobileEnabled
+      ? (mobileMedia.mode === 'animation'
+        ? `<div class="hero-mobile-animation hero-animation ${classToken(mobileMedia.animation, 'waves')}"><span></span><span></span><span></span></div>`
+        : `<img class="hero-mobile-fallback hero-mobile-custom" src="${esc(mobileMedia.src || imageFallback)}" alt="">`)
+      : '';
     if(mode === 'animation'){
-      root.innerHTML = `<div class="hero-animation ${classToken(site.heroAnimation, 'waves')}"><span></span><span></span><span></span></div>`;
+      root.innerHTML = `<div class="hero-animation hero-desktop-media ${classToken(site.heroAnimation, 'waves')}"><span></span><span></span><span></span></div>${mobileHtml}`;
       return;
     }
     if(mode === 'image' || (mode === 'file' && !/(\.mp4|\.webm|^data:video)/i.test(src))){
-      root.innerHTML = `<img src="${esc(src || imageFallback)}" alt="">`;
+      root.innerHTML = `<img class="hero-desktop-media" src="${esc(src || imageFallback)}" alt="">${mobileHtml}`;
       return;
     }
-    root.innerHTML = `<video autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video><img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">`;
+    root.innerHTML = `<video class="hero-desktop-media" autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video>${mobileHtml || `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">`}`;
   }
 	  function applyHomeBlock(key, block){
 	    const section = $(`[data-home-block="${key}"]`);
@@ -2321,6 +2340,15 @@
       uploadInput.disabled = mode === 'animation';
     }
   }
+  function updateMobileHeroAdminControls(){
+    const mode = $('#siteMobileHeroMode')?.value || 'image';
+    const srcWrap = $('[data-mobile-hero-control="src"]');
+    const uploadWrap = $('[data-mobile-hero-control="upload"]');
+    const animationSelect = $('#siteMobileHeroAnimation');
+    if(srcWrap) srcWrap.hidden = mode === 'animation';
+    if(uploadWrap) uploadWrap.hidden = mode === 'animation';
+    if(animationSelect) animationSelect.hidden = mode !== 'animation';
+  }
   function renderAdminSite(){
     const site = getSite();
     const map = {
@@ -2351,6 +2379,16 @@
     const overlayValue = $('#heroOverlayValue');
     if(overlayValue) overlayValue.textContent = `${Math.round(Number(site.heroOverlayOpacity ?? .18) * 100)}%`;
     updateHeroAdminControls();
+    const mobileHero = site.mobileHeroMedia || {};
+    const mobileHeroEnabled = $('#siteMobileHeroEnabled');
+    if(mobileHeroEnabled) mobileHeroEnabled.checked = mobileHero.enabled === true;
+    const mobileHeroMode = $('#siteMobileHeroMode');
+    if(mobileHeroMode) mobileHeroMode.value = mobileHero.mode || 'image';
+    const mobileHeroSrc = $('#siteMobileHeroMediaSrc');
+    if(mobileHeroSrc) mobileHeroSrc.value = mobileHero.src || '';
+    const mobileHeroAnimation = $('#siteMobileHeroAnimation');
+    if(mobileHeroAnimation) mobileHeroAnimation.value = mobileHero.animation || 'waves';
+    updateMobileHeroAdminControls();
     const metricRoot = $('#adminHeroMetrics');
     if(metricRoot){
       metricRoot.innerHTML = (site.heroMetrics || DEFAULT_HERO_METRICS).map(heroMetricEditor).join('');
@@ -2423,6 +2461,14 @@
     if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
     if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
     if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
+    if($('#siteMobileHeroMode')){
+      site.mobileHeroMedia = {
+        enabled:$('#siteMobileHeroEnabled')?.checked === true,
+        mode:$('#siteMobileHeroMode').value === 'animation' ? 'animation' : 'image',
+        src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
+        animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves'
+      };
+    }
 	    site.heroMetrics = collectHeroMetrics();
 	    site.homeBlocks = site.homeBlocks || {};
 	    $$('[data-home-block-key]').forEach(card => {
@@ -2878,9 +2924,11 @@
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
     $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData'));
     $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc'));
+    $('#siteMobileHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteMobileHeroMediaSrc'));
     $('#headerLogoImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerLogoImage'));
     $('#headerBrandImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerBrandImage'));
     $('#siteHeroMediaMode')?.addEventListener('change', updateHeroAdminControls);
+    $('#siteMobileHeroMode')?.addEventListener('change', updateMobileHeroAdminControls);
     $('[data-hero-colors-reset]')?.addEventListener('click', resetHeroColors);
     $('[data-hero-video-default]')?.addEventListener('click', resetHeroDefaultVideo);
     $('#siteHeroOpacity')?.addEventListener('input', e=>{ const node = $('#heroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
