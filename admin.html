@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=39">
-  <script src="js/data.js?v=39" defer></script>
-  <script src="js/app.js?v=39" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=40">
+  <script src="js/data.js?v=40" defer></script>
+  <script src="js/app.js?v=40" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -281,6 +281,10 @@
 
                   <div class="admin-form-section">
                     <h4>Метрики hero</h4>
+                    <label class="range-field">
+                      <span>Прозрачность метрик <strong id="heroMetricOpacityValue">72%</strong></span>
+                      <input id="siteHeroMetricOpacity" type="range" min="0.25" max="1" step="0.01">
+                    </label>
                     <div class="admin-blocks" id="adminHeroMetrics"></div>
                     <button class="btn btn-light" data-hero-metric-add type="button">Добавить метрику</button>
                   </div>
@@ -371,11 +375,10 @@
                     </label>
                     <div class="field-row">
                       <input id="quickContactButtonText" placeholder="Текст кнопки">
-                      <button class="btn btn-light" data-quick-contact-reset-position type="button">Вернуть в угол</button>
-                    </div>
-                    <div class="field-row">
-                      <input id="quickContactX" type="number" min="0" placeholder="Позиция X после перетаскивания">
-                      <input id="quickContactY" type="number" min="0" placeholder="Позиция Y после перетаскивания">
+                      <label class="range-field compact-range">
+                        <span>Прозрачность <strong id="quickContactOpacityValue">100%</strong></span>
+                        <input id="quickContactOpacity" type="range" min="0.25" max="1" step="0.01">
+                      </label>
                     </div>
                   </div>
                   <div class="admin-form-section">

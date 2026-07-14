@@ -66,6 +66,7 @@
       heroMediaOpacity:0.78,
       heroVeilOpacity:1,
       heroOverlayOpacity:0.18,
+      heroMetricOpacity:0.72,
       mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves',opacity:0.28,veil:0.9},
       heroMetrics:[
         {id:'categories',value:'12+',label:'категорий',enabled:true},
@@ -108,6 +109,7 @@
       quickContact:{
         enabled:true,
         buttonText:'Связаться',
+        opacity:1,
         position:{x:'',y:''},
         items:[
           {id:'phone',label:'Позвонить',type:'phone',value:'+375 29 000-00-00',href:'',enabled:true},

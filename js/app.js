@@ -308,6 +308,7 @@
     return {
       enabled:config.enabled !== false,
       buttonText:String(config.buttonText || 'Связаться').trim() || 'Связаться',
+      opacity:Math.min(1, Math.max(.25, Number(config.opacity ?? 1))),
       position:{
         x:Number.isFinite(x) ? Math.max(0, Math.round(x)) : '',
         y:Number.isFinite(y) ? Math.max(0, Math.round(y)) : ''
@@ -564,6 +565,7 @@
     merged.heroMediaOpacity = Math.min(1, Math.max(.15, Number(merged.heroMediaOpacity ?? .78)));
     merged.heroVeilOpacity = Math.min(1, Math.max(0, Number(merged.heroVeilOpacity ?? 1)));
     merged.heroOverlayOpacity = Math.min(.7, Math.max(0, Number(merged.heroOverlayOpacity ?? .18)));
+    merged.heroMetricOpacity = Math.min(1, Math.max(.25, Number(merged.heroMetricOpacity ?? .72)));
     merged.mobileHeroMedia = normalizeMobileHeroMedia(site, defaults);
     return merged;
   }
@@ -754,24 +756,16 @@
       root.setAttribute('data-quick-contact', '');
       document.body.appendChild(root);
     }
-    const x = Number(config.position?.x);
-    const y = Number(config.position?.y);
-    if(Number.isFinite(x) && Number.isFinite(y)){
-      root.style.left = `${x}px`;
-      root.style.top = `${y}px`;
-      root.style.right = 'auto';
-      root.style.bottom = 'auto';
-    } else {
-      root.style.left = '';
-      root.style.top = '';
-      root.style.right = '';
-      root.style.bottom = '';
-    }
+    root.style.left = '';
+    root.style.top = '';
+    root.style.right = '';
+    root.style.bottom = '';
+    root.style.setProperty('--quick-contact-opacity', String(config.opacity ?? 1));
     const links = items.slice(0,5).map(item => {
       const href = item.href || contactHref(item.type, item.value);
       return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
     }).join('');
-    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle data-contact-drag aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
+    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
   }
   function startQuickContactDrag(event){
     const button = event.target.closest('[data-contact-drag]');
@@ -1086,6 +1080,7 @@
       hero.style.setProperty('--hero-media-opacity', String(site.heroMediaOpacity));
       hero.style.setProperty('--hero-veil-opacity', String(site.heroVeilOpacity));
       hero.style.setProperty('--hero-overlay-opacity', String(site.heroOverlayOpacity));
+      hero.style.setProperty('--hero-metric-opacity', String(site.heroMetricOpacity ?? .72));
       hero.style.setProperty('--hero-mobile-media-opacity', String(mobileMedia.opacity ?? .28));
       hero.style.setProperty('--hero-mobile-veil-opacity', String(mobileMedia.veil ?? .9));
       hero.style.setProperty('--hero-eyebrow-color', colorValue(site.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow));
@@ -2489,6 +2484,10 @@
     if(veilValue) veilValue.textContent = `${Math.round(Number(site.heroVeilOpacity ?? 1) * 100)}%`;
     const overlayValue = $('#heroOverlayValue');
     if(overlayValue) overlayValue.textContent = `${Math.round(Number(site.heroOverlayOpacity ?? .18) * 100)}%`;
+    const metricOpacity = $('#siteHeroMetricOpacity');
+    if(metricOpacity) metricOpacity.value = site.heroMetricOpacity ?? .72;
+    const metricOpacityValue = $('#heroMetricOpacityValue');
+    if(metricOpacityValue) metricOpacityValue.textContent = `${Math.round(Number(site.heroMetricOpacity ?? .72) * 100)}%`;
     updateHeroAdminControls();
     const mobileHero = site.mobileHeroMedia || {};
     const mobileHeroEnabled = $('#siteMobileHeroEnabled');
@@ -2579,6 +2578,7 @@
     if($('#siteHeroOpacity')) site.heroMediaOpacity = Number($('#siteHeroOpacity').value || .78);
     if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
     if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
+    if($('#siteHeroMetricOpacity')) site.heroMetricOpacity = Number($('#siteHeroMetricOpacity').value || .72);
     if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
     if($('#siteMobileHeroMode')){
       site.mobileHeroMedia = {
@@ -2641,10 +2641,10 @@
     if(enabled) enabled.checked = quick.enabled !== false;
     const buttonText = $('#quickContactButtonText');
     if(buttonText) buttonText.value = quick.buttonText || 'Связаться';
-    const x = $('#quickContactX');
-    if(x) x.value = quick.position?.x ?? '';
-    const y = $('#quickContactY');
-    if(y) y.value = quick.position?.y ?? '';
+    const opacity = $('#quickContactOpacity');
+    if(opacity) opacity.value = quick.opacity ?? 1;
+    const opacityValue = $('#quickContactOpacityValue');
+    if(opacityValue) opacityValue.textContent = `${Math.round(Number(quick.opacity ?? 1) * 100)}%`;
     const items = $('#quickContactItems');
     if(items) items.value = footerContactsToLines(quick.items || []);
   }
@@ -2654,10 +2654,8 @@
     site.quickContact = {
       enabled:$('#quickContactEnabled')?.checked !== false,
       buttonText:$('#quickContactButtonText')?.value.trim() || 'Связаться',
-      position:{
-        x:$('#quickContactX')?.value === '' ? '' : Number($('#quickContactX')?.value || 0),
-        y:$('#quickContactY')?.value === '' ? '' : Number($('#quickContactY')?.value || 0)
-      },
+      opacity:Number($('#quickContactOpacity')?.value || 1),
+      position:{x:'',y:''},
       items:linesToFooterContacts($('#quickContactItems')?.value || '')
     };
     saveSite(site);
@@ -3101,8 +3099,10 @@
     $('#siteHeroOpacity')?.addEventListener('input', e=>{ const node = $('#heroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroVeil')?.addEventListener('input', e=>{ const node = $('#heroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroOverlay')?.addEventListener('input', e=>{ const node = $('#heroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $('#siteHeroMetricOpacity')?.addEventListener('input', e=>{ const node = $('#heroMetricOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroOpacity')?.addEventListener('input', e=>{ const node = $('#mobileHeroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroVeil')?.addEventListener('input', e=>{ const node = $('#mobileHeroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $('#quickContactOpacity')?.addEventListener('input', e=>{ const node = $('#quickContactOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#adminSiteForm')?.addEventListener('submit', saveAdminSite);
     $('#adminBrandsForm')?.addEventListener('submit', saveAdminBrands);
     $('#adminDeliveryForm')?.addEventListener('submit', saveAdminSite);

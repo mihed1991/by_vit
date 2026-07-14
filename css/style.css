@@ -1850,19 +1850,36 @@ p{line-height:1.7;margin:0;color:var(--muted)}
 /* Final compactness pass: mobile menu, section buttons, contact button, cart alignment. */
 .quick-contact-button{
   touch-action:none;
-  cursor:grab;
+  cursor:pointer;
+  opacity:var(--quick-contact-opacity,1);
 }
 .quick-contact.dragging{
   transition:none;
 }
-.quick-contact.dragging .quick-contact-button{
-  cursor:grabbing;
-}
 .quick-contact-panel a{
   font-weight:500;
 }
+.metric{
+  background:rgba(255,255,255,var(--hero-metric-opacity,.72));
+}
+.compact-range{
+  min-height:40px;
+  padding:10px 12px;
+}
 
 @media(max-width:760px){
+  body[data-page="home"] .section{
+    padding:15px 0;
+  }
+  body[data-page="home"] .section.dark{
+    padding:18px 0;
+  }
+  body[data-page="home"] .section-head{
+    margin-bottom:8px;
+  }
+  body[data-page="home"] .section-head .btn{
+    margin-top:8px;
+  }
   .mobile-panel{
     padding:8px 0 12px;
   }
@@ -1912,6 +1929,78 @@ p{line-height:1.7;margin:0;color:var(--muted)}
     font-size:14px;
     line-height:1.15;
     font-weight:500;
+  }
+  .product-card-tags{
+    flex-wrap:nowrap;
+    overflow:hidden;
+    gap:3px;
+  }
+  .product-card-tags span{
+    flex:0 1 auto;
+    min-width:0;
+    max-width:33%;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    min-height:18px;
+    padding:2px 4px;
+    font-size:9px;
+  }
+  #saleProducts .product-card-tags span,
+  #featuredProducts .product-card-tags span{
+    font-size:9px;
+    padding-inline:4px;
+  }
+  .footer{
+    padding:22px 0 12px;
+  }
+  .footer-grid{
+    gap:0;
+    margin-bottom:14px;
+  }
+  .footer .brand{
+    font-size:18px;
+  }
+  .footer .brand-mark{
+    width:28px;
+    height:28px;
+  }
+  .footer-brand-block p,
+  .footer p{
+    margin-top:8px!important;
+    font-size:13px;
+    line-height:1.35;
+  }
+  .footer-toggle{
+    min-height:42px;
+    padding:0;
+    font-size:15px;
+  }
+  .footer-column{
+    padding:0;
+  }
+  .footer-links{
+    gap:6px;
+    padding-bottom:10px;
+  }
+  .footer-badges{
+    padding:12px 0;
+    gap:8px 14px;
+    margin-bottom:0;
+  }
+  .footer-badge{
+    font-size:15px;
+  }
+  .footer-badge-img{
+    max-width:110px;
+    max-height:24px;
+  }
+  .footer-bottom{
+    padding-top:12px;
+    gap:6px;
+  }
+  .footer-bottom span{
+    font-size:12px;
   }
   .hero.hero-mobile-media-enabled .hero-mobile-fallback,
   .hero.hero-mobile-media-enabled .hero-mobile-animation{
