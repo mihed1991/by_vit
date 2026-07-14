@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="ByVit hero background">
+  <defs>
+    <radialGradient id="bg" cx="48%" cy="46%" r="74%">
+      <stop offset="0" stop-color="#f3f7ef"/>
+      <stop offset="0.48" stop-color="#dbe8d4"/>
+      <stop offset="1" stop-color="#aebfa5"/>
+    </radialGradient>
+    <radialGradient id="ring" cx="50%" cy="50%" r="50%">
+      <stop offset="0.58" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.68" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="0.78" stop-color="#2d5a27" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1040" cy="238" r="260" fill="#ffffff" opacity="0.2" filter="url(#blur)"/>
+  <circle cx="650" cy="476" r="310" fill="url(#ring)" opacity="0.88"/>
+  <circle cx="840" cy="382" r="190" fill="url(#ring)" opacity="0.62"/>
+  <circle cx="196" cy="318" r="210" fill="url(#ring)" opacity="0.5"/>
+  <circle cx="1290" cy="602" r="150" fill="url(#ring)" opacity="0.42"/>
+  <g fill="#ffffff" opacity="0.58">
+    <circle cx="332" cy="172" r="5"/>
+    <circle cx="492" cy="248" r="4"/>
+    <circle cx="712" cy="186" r="6"/>
+    <circle cx="928" cy="176" r="4"/>
+    <circle cx="1114" cy="318" r="5"/>
+    <circle cx="1234" cy="230" r="3"/>
+    <circle cx="1382" cy="394" r="6"/>
+    <circle cx="1180" cy="670" r="4"/>
+    <circle cx="802" cy="714" r="5"/>
+    <circle cx="566" cy="630" r="3"/>
+  </g>
+</svg>

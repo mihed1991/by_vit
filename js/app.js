@@ -689,7 +689,7 @@
       {label:'Главная',href:'index.html',icon:'⌂'},
       {label:'Каталог',href:'catalog.html',icon:'▦'},
       {label:'Корзина',href:'cart.html',icon:'🛒',count:'cart'},
-      {label:'Магазины',href:'stores.html',icon:'⌖'}
+      {label:'Магазины',href:'stores.html',icon:'📍'}
     ];
     nav.innerHTML = items.map(item => `
       <a class="${item.href === activeHref ? 'active' : ''}" href="${esc(item.href)}">
@@ -983,7 +983,7 @@
     if(!root) return;
     const mode = site.heroMediaMode || 'video';
     const src = site.heroMediaSrc || '';
-    const imageFallback = 'assets/product-whey.jpg';
+    const imageFallback = 'assets/hero-fallback.svg';
     if(mode === 'animation'){
       root.innerHTML = `<div class="hero-animation ${classToken(site.heroAnimation, 'waves')}"><span></span><span></span><span></span></div>`;
       return;
@@ -1882,20 +1882,26 @@
         </select>
         <small>Авто не обрезает логотип. «Заполнить» подходит для фото и широких баннеров.</small>
       </label>
-      <label class="range-field">
-        <span>Сдвиг по X <strong data-brand-image-x-value>${Math.round(settings.positionX)}%</strong></span>
-        <input data-brand-image-x type="range" min="0" max="100" step="1" value="${esc(settings.positionX)}">
-      </label>
-      <label class="range-field">
-        <span>Сдвиг по Y <strong data-brand-image-y-value>${Math.round(settings.positionY)}%</strong></span>
-        <input data-brand-image-y type="range" min="0" max="100" step="1" value="${esc(settings.positionY)}">
-      </label>
-      <label class="range-field">
-        <span>Масштаб <strong data-brand-image-scale-value>${Math.round(settings.scale * 100)}%</strong></span>
-        <input data-brand-image-scale type="range" min="0.5" max="2" step="0.05" value="${esc(settings.scale)}">
-      </label>
-      <div class="field-row">
-        <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+      <details class="brand-image-advanced">
+        <summary>Ручная настройка</summary>
+        <label class="range-field">
+          <span>Сдвиг по X <strong data-brand-image-x-value>${Math.round(settings.positionX)}%</strong></span>
+          <input data-brand-image-x type="range" min="0" max="100" step="1" value="${esc(settings.positionX)}">
+        </label>
+        <label class="range-field">
+          <span>Сдвиг по Y <strong data-brand-image-y-value>${Math.round(settings.positionY)}%</strong></span>
+          <input data-brand-image-y type="range" min="0" max="100" step="1" value="${esc(settings.positionY)}">
+        </label>
+        <label class="range-field">
+          <span>Масштаб <strong data-brand-image-scale-value>${Math.round(settings.scale * 100)}%</strong></span>
+          <input data-brand-image-scale type="range" min="0.5" max="2" step="0.05" value="${esc(settings.scale)}">
+        </label>
+      </details>
+      <div class="field-row brand-image-actions">
+        <label class="admin-file-field">
+          <span>Загрузить файл</span>
+          <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        </label>
         <button class="btn btn-light small" data-brand-image-reset type="button">Авто-подгонка</button>
       </div>
       <div class="field-row">
