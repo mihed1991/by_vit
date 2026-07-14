@@ -983,7 +983,7 @@
     if(!root) return;
     const mode = site.heroMediaMode || 'video';
     const src = site.heroMediaSrc || '';
-    const imageFallback = 'assets/article-featured.jpg';
+    const imageFallback = 'assets/product-whey.jpg';
     if(mode === 'animation'){
       root.innerHTML = `<div class="hero-animation ${classToken(site.heroAnimation, 'waves')}"><span></span><span></span><span></span></div>`;
       return;
@@ -992,7 +992,7 @@
       root.innerHTML = `<img src="${esc(src || imageFallback)}" alt="">`;
       return;
     }
-    root.innerHTML = `<video autoplay muted loop playsinline><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video>`;
+    root.innerHTML = `<video autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video><img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">`;
   }
 	  function applyHomeBlock(key, block){
 	    const section = $(`[data-home-block="${key}"]`);
@@ -1061,7 +1061,7 @@
 	      root = document.createElement('div');
 	      root.id = 'catalogSmart';
 	      root.className = 'catalog-smart';
-	      toolbar.before(root);
+	      toolbar.after(root);
 	    }
 	    const cats = getCategories().filter(Boolean).slice(0,8);
 	    root.innerHTML = `<div class="catalog-smart-head"><div><span class="eyebrow">Разделы</span><h2>Быстрый каталог</h2></div><a href="catalog.html">Все товары</a></div>
@@ -1124,8 +1124,8 @@
 	        </a>`).join('');
 	    }
 	    renderGoals();
-	    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,4));
-    renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,4));
+    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,5));
+    renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,5));
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
 	      brandRail.innerHTML = brands().slice(0,10).map((brand,i)=>brandCardHtml(brand, i, products, site)).join('');
