@@ -1846,3 +1846,95 @@ p{line-height:1.7;margin:0;color:var(--muted)}
     grid-template-columns:minmax(0,1fr) 90px;
   }
 }
+
+/* Final compactness pass: mobile menu, section buttons, contact button, cart alignment. */
+.quick-contact-button{
+  touch-action:none;
+  cursor:grab;
+}
+.quick-contact.dragging{
+  transition:none;
+}
+.quick-contact.dragging .quick-contact-button{
+  cursor:grabbing;
+}
+.quick-contact-panel a{
+  font-weight:500;
+}
+
+@media(max-width:760px){
+  .mobile-panel{
+    padding:8px 0 12px;
+  }
+  .mobile-panel.open{
+    max-height:calc(100vh - 58px);
+  }
+  .mobile-panel .container{
+    gap:0;
+  }
+  .mobile-panel a{
+    min-height:36px;
+    padding:6px 0;
+    font-size:16px;
+    line-height:1.15;
+  }
+  .mobile-panel .header-search{
+    margin-top:10px!important;
+  }
+  .mobile-panel .header-search input{
+    height:40px;
+    font-size:14px;
+  }
+  .mobile-panel .header-search button{
+    top:4px;
+    right:5px;
+  }
+  .section-head .btn{
+    width:100%;
+    min-width:0;
+    max-width:none;
+    min-height:40px;
+    padding:8px 16px;
+    margin-top:12px;
+  }
+  .quick-contact-panel{
+    min-width:168px;
+    padding:8px;
+    border-radius:14px;
+  }
+  .quick-contact.open .quick-contact-panel{
+    gap:5px;
+  }
+  .quick-contact-panel a{
+    min-height:34px;
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:14px;
+    line-height:1.15;
+    font-weight:500;
+  }
+  .hero.hero-mobile-media-enabled .hero-mobile-fallback,
+  .hero.hero-mobile-media-enabled .hero-mobile-animation{
+    opacity:var(--hero-mobile-media-opacity,.28);
+  }
+  .hero.hero-mobile-media-enabled::before{
+    opacity:var(--hero-mobile-veil-opacity,.9);
+  }
+  body[data-page="cart"] .cart-item-controls{
+    grid-template-columns:minmax(54px,68px) 86px minmax(72px,1fr);
+    justify-content:stretch;
+  }
+  body[data-page="cart"] .cart-remove.btn.small{
+    justify-self:end;
+  }
+  .login-card h1{
+    font-size:28px;
+    line-height:1.05;
+  }
+}
+
+@media(max-width:380px){
+  body[data-page="cart"] .cart-item-controls{
+    grid-template-columns:54px 80px minmax(66px,1fr);
+  }
+}

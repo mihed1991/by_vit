@@ -66,7 +66,7 @@
       heroMediaOpacity:0.78,
       heroVeilOpacity:1,
       heroOverlayOpacity:0.18,
-      mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves'},
+      mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves',opacity:0.28,veil:0.9},
       heroMetrics:[
         {id:'categories',value:'12+',label:'категорий',enabled:true},
         {id:'delivery',value:'4',label:'способа доставки',enabled:true},
@@ -105,6 +105,17 @@
         legalText:'Здесь можно указать юридическое лицо, УНП, адрес регистрации, email, телефоны и условия работы магазина.'
       },
       telegram:{mode:'bot',contact:'',botToken:'',chatId:''},
+      quickContact:{
+        enabled:true,
+        buttonText:'Связаться',
+        position:{x:'',y:''},
+        items:[
+          {id:'phone',label:'Позвонить',type:'phone',value:'+375 29 000-00-00',href:'',enabled:true},
+          {id:'viber',label:'Viber',type:'viber',value:'+375 29 000-00-00',href:'',enabled:true},
+          {id:'whatsapp',label:'WhatsApp',type:'whatsapp',value:'+375 29 000-00-00',href:'',enabled:true},
+          {id:'email',label:'Почта',type:'email',value:'info@byvit.by',href:'',enabled:true}
+        ]
+      },
 	      footer:{
         description:'Спортивное питание и БАДы в строгом минималистичном интерфейсе.',
         copyright:'© 2026 ByVit. Demo static e-commerce.',

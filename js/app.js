@@ -169,6 +169,7 @@
   let serverState = null;
   let serverAvailable = false;
   let persistTimer = null;
+  let quickContactDrag = null;
   function canUseServer(){
     return location.protocol === 'http:' || location.protocol === 'https:';
   }
@@ -296,6 +297,23 @@
       href:String(item.href || '').trim(),
       enabled:item.enabled !== false
     })).filter(item => item.label || item.value || item.href);
+  }
+  function normalizeQuickContact(site, defaults){
+    const stored = site?.quickContact || {};
+    const fallback = defaults.quickContact || {};
+    const config = {...fallback, ...stored};
+    const items = normalizeFooterContacts(config.items, fallback.items);
+    const x = Number(config.position?.x);
+    const y = Number(config.position?.y);
+    return {
+      enabled:config.enabled !== false,
+      buttonText:String(config.buttonText || 'Связаться').trim() || 'Связаться',
+      position:{
+        x:Number.isFinite(x) ? Math.max(0, Math.round(x)) : '',
+        y:Number.isFinite(y) ? Math.max(0, Math.round(y)) : ''
+      },
+      items
+    };
   }
   function normalizeFooterBadges(items, fallback){
     const source = Array.isArray(items) ? items : (Array.isArray(fallback) ? fallback : []);
@@ -498,7 +516,9 @@
       enabled:source.enabled === true,
       mode,
       src:String(source.src || '').trim(),
-      animation:['waves','rings','grid'].includes(source.animation) ? source.animation : 'waves'
+      animation:['waves','rings','grid'].includes(source.animation) ? source.animation : 'waves',
+      opacity:Math.min(1, Math.max(.05, Number(source.opacity ?? .28))),
+      veil:Math.min(1, Math.max(0, Number(source.veil ?? .9)))
     };
   }
   function normalizeSite(site){
@@ -510,6 +530,7 @@
     merged.telegram = {...(defaults.telegram || {}), ...(site?.telegram || {})};
     merged.deliveryMethods = normalizeDeliveryMethods(site, defaults);
     merged.footer = normalizeFooter(site, defaults);
+    merged.quickContact = normalizeQuickContact(site, defaults);
     merged.pageHeaders = normalizePageHeaders(site, defaults);
     merged.categories = normalizeCategories(site, defaults);
     merged.faqItems = normalizeFaqItems(site, defaults);
@@ -650,6 +671,16 @@
     return location.pathname.split('/').pop() || 'index.html';
   }
   function contactItems(site){
+    const quick = site.quickContact || {};
+    if(quick.enabled === false) return [];
+    if(Array.isArray(quick.items) && quick.items.length){
+      return quick.items.filter(item => item.enabled !== false && (item.value || item.href)).map(item => ({
+        label:item.label || item.value || 'Контакт',
+        type:item.type || 'link',
+        value:item.value || '',
+        href:item.href || ''
+      }));
+    }
     const contacts = site.footer?.contacts || {};
     const items = [];
     const primaryPhone = (contacts.phones || []).find(Boolean);
@@ -710,6 +741,7 @@
       </a>`).join('');
   }
   function renderQuickContact(site){
+    const config = site.quickContact || {};
     const items = contactItems(site);
     let root = $('[data-quick-contact]');
     if(!items.length){
@@ -722,11 +754,74 @@
       root.setAttribute('data-quick-contact', '');
       document.body.appendChild(root);
     }
+    const x = Number(config.position?.x);
+    const y = Number(config.position?.y);
+    if(Number.isFinite(x) && Number.isFinite(y)){
+      root.style.left = `${x}px`;
+      root.style.top = `${y}px`;
+      root.style.right = 'auto';
+      root.style.bottom = 'auto';
+    } else {
+      root.style.left = '';
+      root.style.top = '';
+      root.style.right = '';
+      root.style.bottom = '';
+    }
     const links = items.slice(0,5).map(item => {
       const href = item.href || contactHref(item.type, item.value);
       return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
     }).join('');
-    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">Связаться</button><div class="quick-contact-panel">${links}</div>`;
+    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle data-contact-drag aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
+  }
+  function startQuickContactDrag(event){
+    const button = event.target.closest('[data-contact-drag]');
+    if(!button || event.button > 0) return;
+    const root = button.closest('[data-quick-contact]');
+    if(!root) return;
+    const rect = root.getBoundingClientRect();
+    quickContactDrag = {
+      root,
+      button,
+      pointerId:event.pointerId,
+      startX:event.clientX,
+      startY:event.clientY,
+      left:rect.left,
+      top:rect.top,
+      moved:false
+    };
+    button.setPointerCapture?.(event.pointerId);
+  }
+  function moveQuickContactDrag(event){
+    if(!quickContactDrag || quickContactDrag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - quickContactDrag.startX;
+    const dy = event.clientY - quickContactDrag.startY;
+    if(Math.abs(dx) + Math.abs(dy) > 5) quickContactDrag.moved = true;
+    if(!quickContactDrag.moved) return;
+    const rect = quickContactDrag.root.getBoundingClientRect();
+    const left = Math.min(window.innerWidth - rect.width - 8, Math.max(8, quickContactDrag.left + dx));
+    const top = Math.min(window.innerHeight - rect.height - 8, Math.max(8, quickContactDrag.top + dy));
+    quickContactDrag.root.classList.add('dragging');
+    quickContactDrag.root.style.left = `${Math.round(left)}px`;
+    quickContactDrag.root.style.top = `${Math.round(top)}px`;
+    quickContactDrag.root.style.right = 'auto';
+    quickContactDrag.root.style.bottom = 'auto';
+    event.preventDefault();
+  }
+  function endQuickContactDrag(event){
+    if(!quickContactDrag || quickContactDrag.pointerId !== event.pointerId) return;
+    const drag = quickContactDrag;
+    quickContactDrag = null;
+    drag.root.classList.remove('dragging');
+    drag.button.releasePointerCapture?.(event.pointerId);
+    if(!drag.moved) return;
+    const rect = drag.root.getBoundingClientRect();
+    const site = getSite();
+    site.quickContact = site.quickContact || {};
+    site.quickContact.position = {x:Math.round(rect.left),y:Math.round(rect.top)};
+    saveSite(site);
+    renderAdminQuickContact();
+    drag.button.dataset.dragMoved = '1';
+    setTimeout(() => { delete drag.button.dataset.dragMoved; }, 80);
   }
   function brandMarkContent(header){
     const src = String(header.logoImage || '').trim();
@@ -991,6 +1086,8 @@
       hero.style.setProperty('--hero-media-opacity', String(site.heroMediaOpacity));
       hero.style.setProperty('--hero-veil-opacity', String(site.heroVeilOpacity));
       hero.style.setProperty('--hero-overlay-opacity', String(site.heroOverlayOpacity));
+      hero.style.setProperty('--hero-mobile-media-opacity', String(mobileMedia.opacity ?? .28));
+      hero.style.setProperty('--hero-mobile-veil-opacity', String(mobileMedia.veil ?? .9));
       hero.style.setProperty('--hero-eyebrow-color', colorValue(site.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow));
       hero.style.setProperty('--hero-title-color', colorValue(site.heroTitleColor, DEFAULT_HERO_COLORS.title));
       hero.style.setProperty('--hero-text-color', colorValue(site.heroTextColor, DEFAULT_HERO_COLORS.text));
@@ -2111,7 +2208,7 @@
     login.style.display = isLogged ? 'none' : 'grid';
     panel.style.display = isLogged ? 'block' : 'none';
     if(!isLogged) return;
-    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews();
+    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews();
   }
   async function adminLogin(event){
     event.preventDefault();
@@ -2388,6 +2485,14 @@
     if(mobileHeroSrc) mobileHeroSrc.value = mobileHero.src || '';
     const mobileHeroAnimation = $('#siteMobileHeroAnimation');
     if(mobileHeroAnimation) mobileHeroAnimation.value = mobileHero.animation || 'waves';
+    const mobileHeroOpacity = $('#siteMobileHeroOpacity');
+    if(mobileHeroOpacity) mobileHeroOpacity.value = mobileHero.opacity ?? .28;
+    const mobileHeroVeil = $('#siteMobileHeroVeil');
+    if(mobileHeroVeil) mobileHeroVeil.value = mobileHero.veil ?? .9;
+    const mobileOpacityValue = $('#mobileHeroOpacityValue');
+    if(mobileOpacityValue) mobileOpacityValue.textContent = `${Math.round(Number(mobileHero.opacity ?? .28) * 100)}%`;
+    const mobileVeilValue = $('#mobileHeroVeilValue');
+    if(mobileVeilValue) mobileVeilValue.textContent = `${Math.round(Number(mobileHero.veil ?? .9) * 100)}%`;
     updateMobileHeroAdminControls();
     const metricRoot = $('#adminHeroMetrics');
     if(metricRoot){
@@ -2466,7 +2571,9 @@
         enabled:$('#siteMobileHeroEnabled')?.checked === true,
         mode:$('#siteMobileHeroMode').value === 'animation' ? 'animation' : 'image',
         src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
-        animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves'
+        animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves',
+        opacity:Number($('#siteMobileHeroOpacity')?.value || .28),
+        veil:Number($('#siteMobileHeroVeil')?.value || .9)
       };
     }
 	    site.heroMetrics = collectHeroMetrics();
@@ -2513,6 +2620,48 @@
     site.telegram.botToken = $('#tgBot')?.value.trim() || '';
     site.telegram.chatId = $('#tgChat')?.value.trim() || '';
     saveSite(site); renderAdminTelegram(); toast('Telegram сохранён');
+  }
+  function renderAdminQuickContact(){
+    const quick = getSite().quickContact || {};
+    const enabled = $('#quickContactEnabled');
+    if(enabled) enabled.checked = quick.enabled !== false;
+    const buttonText = $('#quickContactButtonText');
+    if(buttonText) buttonText.value = quick.buttonText || 'Связаться';
+    const x = $('#quickContactX');
+    if(x) x.value = quick.position?.x ?? '';
+    const y = $('#quickContactY');
+    if(y) y.value = quick.position?.y ?? '';
+    const items = $('#quickContactItems');
+    if(items) items.value = footerContactsToLines(quick.items || []);
+  }
+  function saveAdminQuickContact(event){
+    event.preventDefault();
+    const site = getSite();
+    site.quickContact = {
+      enabled:$('#quickContactEnabled')?.checked !== false,
+      buttonText:$('#quickContactButtonText')?.value.trim() || 'Связаться',
+      position:{
+        x:$('#quickContactX')?.value === '' ? '' : Number($('#quickContactX')?.value || 0),
+        y:$('#quickContactY')?.value === '' ? '' : Number($('#quickContactY')?.value || 0)
+      },
+      items:linesToFooterContacts($('#quickContactItems')?.value || '')
+    };
+    saveSite(site);
+    renderQuickContact(getSite());
+    renderAdminQuickContact();
+    toast('Связь сохранена');
+  }
+  function resetQuickContactPosition(){
+    const x = $('#quickContactX');
+    const y = $('#quickContactY');
+    if(x) x.value = '';
+    if(y) y.value = '';
+    const site = getSite();
+    site.quickContact = site.quickContact || {};
+    site.quickContact.position = {x:'',y:''};
+    saveSite(site);
+    renderQuickContact(getSite());
+    toast('Кнопка вернётся в угол');
   }
   function resetHeroColors(){
     const fields = {
@@ -2823,6 +2972,7 @@
 	      }
 	      const contactToggle = event.target.closest('[data-contact-toggle]');
 	      if(contactToggle){
+	        if(contactToggle.dataset.dragMoved === '1') return;
 	        const root = contactToggle.closest('[data-quick-contact]');
 	        const open = root?.classList.toggle('open');
 	        contactToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -2904,8 +3054,11 @@
     });
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
-    });
-	    document.addEventListener('change', event => {
+	    });
+    document.addEventListener('pointerdown', startQuickContactDrag);
+    document.addEventListener('pointermove', moveQuickContactDrag, {passive:false});
+    document.addEventListener('pointerup', endQuickContactDrag);
+    document.addEventListener('change', event => {
 	      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
 	      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
 	      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
@@ -2934,10 +3087,14 @@
     $('#siteHeroOpacity')?.addEventListener('input', e=>{ const node = $('#heroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroVeil')?.addEventListener('input', e=>{ const node = $('#heroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroOverlay')?.addEventListener('input', e=>{ const node = $('#heroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $('#siteMobileHeroOpacity')?.addEventListener('input', e=>{ const node = $('#mobileHeroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $('#siteMobileHeroVeil')?.addEventListener('input', e=>{ const node = $('#mobileHeroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#adminSiteForm')?.addEventListener('submit', saveAdminSite);
     $('#adminBrandsForm')?.addEventListener('submit', saveAdminBrands);
     $('#adminDeliveryForm')?.addEventListener('submit', saveAdminSite);
     $('#adminTelegramForm')?.addEventListener('submit', saveAdminTelegram);
+    $('#adminQuickContactForm')?.addEventListener('submit', saveAdminQuickContact);
+    $('[data-quick-contact-reset-position]')?.addEventListener('click', resetQuickContactPosition);
     $('#adminStoresForm')?.addEventListener('submit', saveAdminStores);
     $('#adminHeaderForm')?.addEventListener('submit', saveAdminHeader);
     $('#adminFooterForm')?.addEventListener('submit', saveAdminFooter);

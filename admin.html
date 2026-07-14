@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=37">
-  <script src="js/data.js?v=37" defer></script>
-  <script src="js/app.js?v=37" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=38">
+  <script src="js/data.js?v=38" defer></script>
+  <script src="js/app.js?v=38" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -55,6 +55,7 @@
             <button data-admin-tab="brands">Бренды</button>
             <button data-admin-tab="delivery">Доставка</button>
             <button data-admin-tab="telegram">Telegram</button>
+            <button data-admin-tab="quick-contact">Связь</button>
             <button data-admin-tab="stores">Магазины</button>
             <button data-admin-tab="orders">Заказы</button>
             <button data-admin-tab="cart">Корзина</button>
@@ -268,6 +269,14 @@
                       <span><strong>Загрузить изображение</strong><br><small>Файл сохранится в браузере как отдельный мобильный баннер</small></span>
                       <input id="siteMobileHeroMediaUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
                     </label>
+                    <label class="range-field">
+                      <span>Яркость мобильного медиа <strong id="mobileHeroOpacityValue">28%</strong></span>
+                      <input id="siteMobileHeroOpacity" type="range" min="0.05" max="1" step="0.01">
+                    </label>
+                    <label class="range-field">
+                      <span>Затушёвка мобильного баннера <strong id="mobileHeroVeilValue">90%</strong></span>
+                      <input id="siteMobileHeroVeil" type="range" min="0" max="1" step="0.01">
+                    </label>
                   </div>
 
                   <div class="admin-form-section">
@@ -346,6 +355,35 @@
                     <p class="admin-hint">Бот отправляет заказ только по Chat ID. Пользователь должен заранее открыть бота или это должен быть чат/канал, куда бот добавлен.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-quick-contact">
+              <article class="admin-card">
+                <h3>Быстрая связь</h3>
+                <form class="admin-form" id="adminQuickContactForm">
+                  <div class="admin-form-section">
+                    <h4>Кнопка на сайте</h4>
+                    <label class="toggle-row">
+                      <span><strong>Показывать кнопку связи</strong><br><small>Плавающая кнопка на всех страницах</small></span>
+                      <input id="quickContactEnabled" type="checkbox">
+                    </label>
+                    <div class="field-row">
+                      <input id="quickContactButtonText" placeholder="Текст кнопки">
+                      <button class="btn btn-light" data-quick-contact-reset-position type="button">Вернуть в угол</button>
+                    </div>
+                    <div class="field-row">
+                      <input id="quickContactX" type="number" min="0" placeholder="Позиция X после перетаскивания">
+                      <input id="quickContactY" type="number" min="0" placeholder="Позиция Y после перетаскивания">
+                    </div>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Способы связи</h4>
+                    <textarea id="quickContactItems" placeholder="Позвонить | phone | +375290000000 | 1&#10;Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Почта | email | info@byvit.by | 1"></textarea>
+                    <p class="admin-hint">Типы: phone, viber, whatsapp, telegram, email, link. Последняя цифра: 1 — включено, 0 — скрыто.</p>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить связь</button>
                 </form>
               </article>
             </section>
