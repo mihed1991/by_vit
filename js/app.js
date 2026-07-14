@@ -731,11 +731,11 @@
       {label:'Главная',href:'index.html',icon:'⌂'},
       {label:'Каталог',href:'catalog.html',icon:'▦'},
       {label:'Корзина',href:'cart.html',icon:'🛒',count:'cart'},
-      {label:'Магазины',href:'stores.html',icon:'📍'}
+      {label:'Магазины',href:'stores.html',iconType:'pin'}
     ];
     nav.innerHTML = items.map(item => `
       <a class="${item.href === activeHref ? 'active' : ''}" href="${esc(item.href)}">
-        <span class="bottom-nav-icon">${item.icon}</span>
+        ${item.iconType === 'pin' ? '<span class="bottom-nav-icon bottom-nav-pin" aria-hidden="true"></span>' : `<span class="bottom-nav-icon">${item.icon}</span>`}
         <span>${esc(item.label)}</span>
         ${item.count ? `<span class="bottom-nav-count" data-count="${esc(item.count)}">0</span>` : ''}
       </a>`).join('');
@@ -1170,15 +1170,15 @@
 	    return `<a href="${esc(href)}">${esc(sub.title)}</a>`;
 	  }
 	  function renderCatalogSmart(){
-	    const toolbar = $('.catalog-layout .toolbar');
-	    if(!toolbar) return;
 	    let root = $('#catalogSmart');
 	    if(!root){
 	      root = document.createElement('div');
 	      root.id = 'catalogSmart';
 	      root.className = 'catalog-smart';
-	      toolbar.after(root);
+	      $('.catalog-layout .toolbar')?.after(root);
 	    }
+	    if(!root) return;
+	    root.classList.add('catalog-smart');
 	    const cats = getCategories().filter(Boolean).slice(0,8);
 	    root.innerHTML = `<div class="catalog-smart-head"><div><span class="eyebrow">Разделы</span><h2>Быстрый каталог</h2></div><a href="catalog.html">Все товары</a></div>
 	      <div class="catalog-smart-grid">
@@ -1195,6 +1195,19 @@
 	        }).join('')}
 	      </div>`;
 	  }
+  function renderCatalogSuggestions(){
+    const root = $('#catalogSuggestions');
+    if(!root) return;
+    const values = new Set();
+    getProducts().forEach(product => {
+      [product.name, product.brand, categoryName(product.category), formTypeLabel(product.formType)].filter(Boolean).forEach(value => values.add(String(value).trim()));
+      (product.options || []).forEach(option => values.add(String(option.label || '').trim()));
+      (product.flavors || []).forEach(flavor => values.add(String(flavor || '').trim()));
+    });
+    getCategories().forEach(category => values.add(category.name));
+    brands().forEach(brand => values.add(brand));
+    root.innerHTML = [...values].filter(Boolean).slice(0,80).sort((a,b)=>a.localeCompare(b,'ru')).map(value => `<option value="${esc(value)}"></option>`).join('');
+  }
 	  function renderHome(){
     const site = getSite();
     const products = getProducts();
@@ -1286,6 +1299,7 @@
   }
 	  function renderCatalog(){
 	    renderCatalogSmart();
+	    renderCatalogSuggestions();
 	    const filters = $('#catalogFilters');
     const params = new URLSearchParams(location.search);
     if(filters){

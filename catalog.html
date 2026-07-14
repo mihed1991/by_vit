@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Каталог | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=38">
-  <script src="js/data.js?v=38" defer></script>
-  <script src="js/app.js?v=38" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=39">
+  <script src="js/data.js?v=39" defer></script>
+  <script src="js/app.js?v=39" defer></script>
 </head>
 <body data-page="catalog">
   <header class="site-header">
@@ -31,7 +31,7 @@
 
   <main>
     <section class="page-hero"><div class="container"><div class="breadcrumbs"><a href="index.html">Главная</a> / Каталог</div><h1>Каталог</h1><p>Поиск, категории, бренды, сортировка и наличие. Вот это уже похоже на магазин, а не на стенд с бумажками.</p></div></section>
-    <section class="section"><div class="container"><div class="catalog-layout"><div class="catalog-filter-shell"><button class="filter-toggle" type="button" aria-expanded="false" aria-controls="catalogFilters" data-filter-toggle>Фильтры</button><aside class="filters" id="catalogFilters"></aside></div><div><div class="toolbar"><input id="catalogSearch" placeholder="Поиск по названию, бренду или составу"><select id="catalogSort"><option value="default">По умолчанию</option><option value="popular">Сначала популярные</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="stock">Больше в наличии</option><option value="name">По названию</option></select></div><div class="result-note" id="catalogResultNote">0 товаров</div><div class="product-grid" id="catalogProducts"></div></div></div></div></section>
+    <section class="section"><div class="container"><div class="catalog-layout"><div class="catalog-sidebar"><div class="catalog-smart-slot" id="catalogSmart"></div><div class="catalog-filter-shell catalog-filter-disabled" hidden><button class="filter-toggle" type="button" aria-expanded="false" aria-controls="catalogFilters" data-filter-toggle>Фильтры</button><aside class="filters" id="catalogFilters"></aside></div></div><div class="catalog-main"><div class="toolbar"><input id="catalogSearch" list="catalogSuggestions" autocomplete="off" placeholder="Поиск по названию, бренду или составу"><datalist id="catalogSuggestions"></datalist><select id="catalogSort"><option value="default">По умолчанию</option><option value="popular">Сначала популярные</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="stock">Больше в наличии</option><option value="name">По названию</option></select></div><div class="result-note" id="catalogResultNote">0 товаров</div><div class="product-grid" id="catalogProducts"></div></div></div></div></section>
   </main>
 
 
