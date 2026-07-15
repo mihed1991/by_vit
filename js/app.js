@@ -170,6 +170,7 @@
   let serverAvailable = false;
   let persistTimer = null;
   let quickContactDrag = null;
+  let heroSlideTimer = null;
   function canUseServer(){
     return location.protocol === 'http:' || location.protocol === 'https:';
   }
@@ -512,7 +513,7 @@
   }
   function normalizeMobileHeroMedia(site, defaults){
     const source = {...(defaults.mobileHeroMedia || {}), ...(site?.mobileHeroMedia || {})};
-    const mode = ['image','animation'].includes(source.mode) ? source.mode : 'image';
+    const mode = ['image','video','animation'].includes(source.mode) ? source.mode : 'image';
     return {
       enabled:source.enabled === true,
       mode,
@@ -521,6 +522,39 @@
       opacity:Math.min(1, Math.max(.05, Number(source.opacity ?? .28))),
       veil:Math.min(1, Math.max(0, Number(source.veil ?? .9)))
     };
+  }
+  function normalizeHeroSlide(slide={}, index=0){
+    const desktopMode = ['video','image','animation','file'].includes(slide.desktopMode) ? slide.desktopMode : (slide.mode || 'video');
+    const mobileMode = ['video','image','animation'].includes(slide.mobileMode) ? slide.mobileMode : 'image';
+    return {
+      id:String(slide.id || `hero-${index + 1}`),
+      enabled:slide.enabled !== false,
+      desktopMode,
+      desktopSrc:String(slide.desktopSrc || slide.src || '').trim(),
+      desktopAnimation:['waves','rings','grid'].includes(slide.desktopAnimation) ? slide.desktopAnimation : 'waves',
+      mobileEnabled:slide.mobileEnabled === true,
+      mobileMode,
+      mobileSrc:String(slide.mobileSrc || '').trim(),
+      mobileAnimation:['waves','rings','grid'].includes(slide.mobileAnimation) ? slide.mobileAnimation : 'waves'
+    };
+  }
+  function normalizeHeroSlides(site, defaults, mobileHero){
+    const hasStoredSlides = Array.isArray(site?.heroSlides) && site.heroSlides.length;
+    const hasLegacyMedia = !!(site && (site.heroMediaSrc || site.heroMediaMode || site.mobileHeroMedia?.src || site.mobileHeroMedia?.enabled));
+    const existing = hasStoredSlides ? site.heroSlides : (!hasLegacyMedia && Array.isArray(defaults.heroSlides) ? defaults.heroSlides : []);
+    const fallback = {
+      id:'hero-1',
+      enabled:true,
+      desktopMode:site?.heroMediaMode || defaults.heroMediaMode || 'video',
+      desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-video.mp4',
+      desktopAnimation:site?.heroAnimation || defaults.heroAnimation || 'waves',
+      mobileEnabled:mobileHero.enabled === true,
+      mobileMode:mobileHero.mode || 'image',
+      mobileSrc:mobileHero.src || '',
+      mobileAnimation:mobileHero.animation || 'waves'
+    };
+    const slides = (existing.length ? existing : [fallback]).slice(0,4).map(normalizeHeroSlide);
+    return slides.length ? slides : [normalizeHeroSlide(fallback)];
   }
   function normalizeSite(site){
     const defaults = getDefaults().site || {};
@@ -567,6 +601,11 @@
     merged.heroOverlayOpacity = Math.min(.7, Math.max(0, Number(merged.heroOverlayOpacity ?? .18)));
     merged.heroMetricOpacity = Math.min(1, Math.max(.25, Number(merged.heroMetricOpacity ?? .72)));
     merged.mobileHeroMedia = normalizeMobileHeroMedia(site, defaults);
+    merged.heroCopyDesktop = merged.heroCopyDesktop !== false;
+    merged.heroActionsDesktop = merged.heroActionsDesktop !== false;
+    merged.heroCopyMobile = merged.heroCopyMobile !== false;
+    merged.heroActionsMobile = merged.heroActionsMobile !== false;
+    merged.heroSlides = normalizeHeroSlides(site, defaults, merged.mobileHeroMedia);
     return merged;
   }
   function getProducts(){ return read(KEYS.products, getDefaults().products); }
@@ -619,6 +658,12 @@
   function classToken(value, fallback){
     const token = String(value || '').trim();
     return /^[a-z0-9_-]+$/i.test(token) ? token : fallback;
+  }
+  function isVideoSource(src){
+    return /(\.mp4|\.webm|^data:video)/i.test(String(src || ''));
+  }
+  function videoMime(src){
+    return /(\.webm|^data:video\/webm)/i.test(String(src || '')) ? 'video/webm' : 'video/mp4';
   }
   function textToParagraphs(value){
     const lines = String(value || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
@@ -1073,10 +1118,24 @@
     const root = $('#heroMedia');
     const imageFallback = 'assets/hero-fallback.svg';
     const mobileMedia = site.mobileHeroMedia || {};
-    const mobileEnabled = mobileMedia.enabled === true;
+    const slides = (site.heroSlides || []).filter(slide => slide.enabled !== false).slice(0,4);
+    const activeSlides = slides.length ? slides : [normalizeHeroSlide({
+      desktopMode:site.heroMediaMode || 'video',
+      desktopSrc:site.heroMediaSrc || 'assets/hero-video.mp4',
+      desktopAnimation:site.heroAnimation || 'waves',
+      mobileEnabled:mobileMedia.enabled === true,
+      mobileMode:mobileMedia.mode || 'image',
+      mobileSrc:mobileMedia.src || '',
+      mobileAnimation:mobileMedia.animation || 'waves'
+    })];
+    const mobileEnabled = activeSlides.some(slide => slide.mobileEnabled === true);
     if(hero){
       hero.dataset.align = site.heroAlign || 'right';
       hero.classList.toggle('hero-mobile-media-enabled', mobileEnabled);
+      hero.classList.toggle('hide-desktop-copy', site.heroCopyDesktop === false);
+      hero.classList.toggle('hide-desktop-actions', site.heroActionsDesktop === false);
+      hero.classList.toggle('hide-mobile-copy', site.heroCopyMobile === false);
+      hero.classList.toggle('hide-mobile-actions', site.heroActionsMobile === false);
       hero.style.setProperty('--hero-media-opacity', String(site.heroMediaOpacity));
       hero.style.setProperty('--hero-veil-opacity', String(site.heroVeilOpacity));
       hero.style.setProperty('--hero-overlay-opacity', String(site.heroOverlayOpacity));
@@ -1088,22 +1147,33 @@
       hero.style.setProperty('--hero-text-color', colorValue(site.heroTextColor, DEFAULT_HERO_COLORS.text));
     }
     if(!root) return;
-    const mode = site.heroMediaMode || 'video';
-    const src = site.heroMediaSrc || '';
-    const mobileHtml = mobileEnabled
-      ? (mobileMedia.mode === 'animation'
-        ? `<div class="hero-mobile-animation hero-animation ${classToken(mobileMedia.animation, 'waves')}"><span></span><span></span><span></span></div>`
-        : `<img class="hero-mobile-fallback hero-mobile-custom" src="${esc(mobileMedia.src || imageFallback)}" alt="">`)
-      : '';
-    if(mode === 'animation'){
-      root.innerHTML = `<div class="hero-animation hero-desktop-media ${classToken(site.heroAnimation, 'waves')}"><span></span><span></span><span></span></div>${mobileHtml}`;
-      return;
+    clearInterval(heroSlideTimer);
+    heroSlideTimer = null;
+    const mediaHtml = (mode, src, animation, mobile=false) => {
+      const mediaClass = mobile ? 'hero-mobile-fallback' : 'hero-desktop-media';
+      if(mode === 'animation') return `<div class="${mediaClass} hero-animation ${mobile ? 'hero-mobile-animation' : ''} ${classToken(animation, 'waves')}"><span></span><span></span><span></span></div>`;
+      if(mode === 'image' || (mode === 'file' && !isVideoSource(src))) return `<img class="${mediaClass} ${mobile ? 'hero-mobile-custom' : ''}" src="${esc(src || imageFallback)}" alt="">`;
+      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
+    };
+    root.dataset.slideCount = String(activeSlides.length);
+    root.innerHTML = activeSlides.map((slide, index) => {
+      const desktop = mediaHtml(slide.desktopMode, slide.desktopSrc, slide.desktopAnimation, false);
+      const needsMobileFallback = !slide.mobileEnabled && (slide.desktopMode === 'video' || (slide.desktopMode === 'file' && isVideoSource(slide.desktopSrc)));
+      const mobile = slide.mobileEnabled
+        ? mediaHtml(slide.mobileMode, slide.mobileSrc, slide.mobileAnimation, true)
+        : needsMobileFallback ? `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">` : '';
+      return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}</div>`;
+    }).join('');
+    if(activeSlides.length > 1){
+      let index = 0;
+      heroSlideTimer = setInterval(() => {
+        const nodes = $$('.hero-slide', root);
+        if(nodes.length < 2){ clearInterval(heroSlideTimer); heroSlideTimer = null; return; }
+        nodes[index]?.classList.remove('active');
+        index = (index + 1) % nodes.length;
+        nodes[index]?.classList.add('active');
+      }, 6200);
     }
-    if(mode === 'image' || (mode === 'file' && !/(\.mp4|\.webm|^data:video)/i.test(src))){
-      root.innerHTML = `<img class="hero-desktop-media" src="${esc(src || imageFallback)}" alt="">${mobileHtml}`;
-      return;
-    }
-    root.innerHTML = `<video class="hero-desktop-media" autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="video/mp4"></video>${mobileHtml || `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">`}`;
   }
 	  function applyHomeBlock(key, block){
 	    const section = $(`[data-home-block="${key}"]`);
@@ -1114,15 +1184,22 @@
     const title = $('[data-block-title]', section);
     const text = $('[data-block-text]', section);
     const button = $('[data-block-button]', section);
-    if(eyebrow) eyebrow.textContent = block.eyebrow || '';
-    if(title) title.textContent = block.title || '';
+    const href = block.buttonUrl || button?.getAttribute('href') || '#';
+    if(eyebrow){
+      const label = block.eyebrow || '';
+      eyebrow.innerHTML = href ? `<a href="${esc(href)}">${esc(label)}</a>` : esc(label);
+    }
+    if(title){
+      const label = block.title || '';
+      title.innerHTML = href ? `<a href="${esc(href)}">${esc(label)}</a>` : esc(label);
+    }
     if(text){
       text.textContent = block.text || '';
       text.hidden = !block.text;
     }
     if(button){
       button.textContent = block.buttonText || button.textContent;
-      button.href = block.buttonUrl || button.getAttribute('href') || '#';
+      button.href = href;
 	      button.hidden = !block.buttonText;
 	    }
 	  }
@@ -1971,6 +2048,75 @@
       <button class="btn btn-danger small" data-hero-metric-delete type="button">Удалить метрику</button>
     </article>`;
   }
+  function heroSlideEditor(slide={}, index=0){
+    const data = normalizeHeroSlide(slide, index);
+    return `<article class="admin-block-editor hero-slide-editor" data-hero-slide-key="${esc(data.id)}">
+      <div class="admin-block-head">
+        <h4>Баннер ${index + 1}</h4>
+        <label class="mini-toggle"><input type="checkbox" data-hero-slide-field="enabled" ${data.enabled !== false ? 'checked' : ''}> Включен</label>
+      </div>
+      <div class="field-row">
+        <label class="admin-input-field">
+          <span>Десктоп формат</span>
+          <select data-hero-slide-field="desktopMode">
+            <option value="video" ${data.desktopMode === 'video' ? 'selected' : ''}>Видео</option>
+            <option value="image" ${data.desktopMode === 'image' ? 'selected' : ''}>Изображение</option>
+            <option value="animation" ${data.desktopMode === 'animation' ? 'selected' : ''}>Анимация</option>
+            <option value="file" ${data.desktopMode === 'file' ? 'selected' : ''}>Загруженный файл</option>
+          </select>
+        </label>
+        <label class="admin-input-field">
+          <span>Десктоп анимация</span>
+          <select data-hero-slide-field="desktopAnimation">
+            <option value="waves" ${data.desktopAnimation === 'waves' ? 'selected' : ''}>Волны</option>
+            <option value="rings" ${data.desktopAnimation === 'rings' ? 'selected' : ''}>Кольца</option>
+            <option value="grid" ${data.desktopAnimation === 'grid' ? 'selected' : ''}>Сетка</option>
+          </select>
+        </label>
+      </div>
+      <label class="admin-input-field">
+        <span>Десктоп файл / ссылка</span>
+        <input data-hero-slide-field="desktopSrc" value="${esc(data.desktopSrc)}" placeholder="MP4, WebM, JPG, PNG, WebP, SVG">
+      </label>
+      <label class="admin-file-field">
+        <span>Загрузить десктоп</span>
+        <input data-hero-slide-upload="desktop" type="file" accept="image/*,video/mp4,video/webm">
+      </label>
+      <label class="toggle-row">
+        <span><strong>Отдельное медиа для телефона</strong><br><small>Если выключено, телефон использует десктопный баннер</small></span>
+        <input data-hero-slide-field="mobileEnabled" type="checkbox" ${data.mobileEnabled ? 'checked' : ''}>
+      </label>
+      <div class="field-row">
+        <label class="admin-input-field">
+          <span>Мобильный формат</span>
+          <select data-hero-slide-field="mobileMode">
+            <option value="image" ${data.mobileMode === 'image' ? 'selected' : ''}>Изображение</option>
+            <option value="video" ${data.mobileMode === 'video' ? 'selected' : ''}>Видео</option>
+            <option value="animation" ${data.mobileMode === 'animation' ? 'selected' : ''}>Анимация</option>
+          </select>
+        </label>
+        <label class="admin-input-field">
+          <span>Мобильная анимация</span>
+          <select data-hero-slide-field="mobileAnimation">
+            <option value="waves" ${data.mobileAnimation === 'waves' ? 'selected' : ''}>Волны</option>
+            <option value="rings" ${data.mobileAnimation === 'rings' ? 'selected' : ''}>Кольца</option>
+            <option value="grid" ${data.mobileAnimation === 'grid' ? 'selected' : ''}>Сетка</option>
+          </select>
+        </label>
+      </div>
+      <label class="admin-input-field">
+        <span>Мобильный файл / ссылка</span>
+        <input data-hero-slide-field="mobileSrc" value="${esc(data.mobileSrc)}" placeholder="MP4, WebM, JPG, PNG, WebP, SVG">
+      </label>
+      <div class="field-row">
+        <label class="admin-file-field">
+          <span>Загрузить телефон</span>
+          <input data-hero-slide-upload="mobile" type="file" accept="image/*,video/mp4,video/webm">
+        </label>
+        <button class="btn btn-danger small" data-hero-slide-delete type="button">Удалить баннер</button>
+      </div>
+    </article>`;
+  }
   function goalEditor(goal={}, index=0){
     const id = String(goal.id || `goal-${Date.now()}-${index}`);
     return `<article class="admin-block-editor" data-goal-key="${esc(id)}">
@@ -2121,6 +2267,19 @@
       label:$('[data-hero-metric-label]', card)?.value.trim() || '',
       enabled:$('[data-hero-metric-enabled]', card)?.checked !== false
     })).filter(item => item.value || item.label);
+  }
+  function collectHeroSlides(){
+    return $$('[data-hero-slide-key]').slice(0,4).map((card, index) => ({
+      id:card.dataset.heroSlideKey || `hero-${index + 1}`,
+      enabled:$('[data-hero-slide-field="enabled"]', card)?.checked !== false,
+      desktopMode:$('[data-hero-slide-field="desktopMode"]', card)?.value || 'video',
+      desktopSrc:$('[data-hero-slide-field="desktopSrc"]', card)?.value.trim() || '',
+      desktopAnimation:$('[data-hero-slide-field="desktopAnimation"]', card)?.value || 'waves',
+      mobileEnabled:$('[data-hero-slide-field="mobileEnabled"]', card)?.checked === true,
+      mobileMode:$('[data-hero-slide-field="mobileMode"]', card)?.value || 'image',
+      mobileSrc:$('[data-hero-slide-field="mobileSrc"]', card)?.value.trim() || '',
+      mobileAnimation:$('[data-hero-slide-field="mobileAnimation"]', card)?.value || 'waves'
+    })).filter(slide => slide.desktopSrc || slide.desktopMode === 'animation' || slide.mobileSrc || slide.mobileMode === 'animation');
   }
   function collectGoals(){
     return $$('[data-goal-key]').map((card, index) => ({
@@ -2393,6 +2552,20 @@
     reader.onload = () => { const hidden = $(hiddenSelector); if(hidden) hidden.value = reader.result; toast('Файл загружен'); };
     reader.readAsDataURL(file);
   }
+  function readHeroSlideFile(input){
+    const file = input.files?.[0];
+    const card = input.closest('[data-hero-slide-key]');
+    const target = input.dataset.heroSlideUpload === 'mobile' ? 'mobileSrc' : 'desktopSrc';
+    if(!file || !card) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const field = $(`[data-hero-slide-field="${target}"]`, card);
+      if(field) field.value = reader.result;
+      input.value = '';
+      toast('Файл баннера загружен');
+    };
+    reader.readAsDataURL(file);
+  }
   function updateHeroAdminControls(){
     const mode = $('#siteHeroMediaMode')?.value || 'video';
     const srcWrap = $('[data-hero-control="src"]');
@@ -2478,6 +2651,14 @@
       sitePhone:'phone'
     };
     Object.entries(map).forEach(([id,path])=>{ const el=$('#'+id); if(!el)return; const value = path.split('.').reduce((acc,key)=>acc?.[key], site); el.value = value ?? ''; });
+    const heroCopyDesktop = $('#siteHeroCopyDesktop');
+    if(heroCopyDesktop) heroCopyDesktop.checked = site.heroCopyDesktop !== false;
+    const heroActionsDesktop = $('#siteHeroActionsDesktop');
+    if(heroActionsDesktop) heroActionsDesktop.checked = site.heroActionsDesktop !== false;
+    const heroCopyMobile = $('#siteHeroCopyMobile');
+    if(heroCopyMobile) heroCopyMobile.checked = site.heroCopyMobile !== false;
+    const heroActionsMobile = $('#siteHeroActionsMobile');
+    if(heroActionsMobile) heroActionsMobile.checked = site.heroActionsMobile !== false;
     const opacityValue = $('#heroOpacityValue');
     if(opacityValue) opacityValue.textContent = `${Math.round(Number(site.heroMediaOpacity ?? .78) * 100)}%`;
     const veilValue = $('#heroVeilValue');
@@ -2507,6 +2688,10 @@
     const mobileVeilValue = $('#mobileHeroVeilValue');
     if(mobileVeilValue) mobileVeilValue.textContent = `${Math.round(Number(mobileHero.veil ?? .9) * 100)}%`;
     updateMobileHeroAdminControls();
+    const heroSlidesRoot = $('#adminHeroSlides');
+    if(heroSlidesRoot){
+      heroSlidesRoot.innerHTML = (site.heroSlides || []).slice(0,4).map(heroSlideEditor).join('');
+    }
     const metricRoot = $('#adminHeroMetrics');
     if(metricRoot){
       metricRoot.innerHTML = (site.heroMetrics || DEFAULT_HERO_METRICS).map(heroMetricEditor).join('');
@@ -2572,6 +2757,10 @@
     if($('#siteHeroTitleColor')) site.heroTitleColor = colorValue($('#siteHeroTitleColor').value, DEFAULT_HERO_COLORS.title);
     if($('#siteHeroTextColor')) site.heroTextColor = colorValue($('#siteHeroTextColor').value, DEFAULT_HERO_COLORS.text);
     if($('#siteHeroAlign')) site.heroAlign = $('#siteHeroAlign').value;
+    if($('#siteHeroCopyDesktop')) site.heroCopyDesktop = $('#siteHeroCopyDesktop').checked === true;
+    if($('#siteHeroActionsDesktop')) site.heroActionsDesktop = $('#siteHeroActionsDesktop').checked === true;
+    if($('#siteHeroCopyMobile')) site.heroCopyMobile = $('#siteHeroCopyMobile').checked === true;
+    if($('#siteHeroActionsMobile')) site.heroActionsMobile = $('#siteHeroActionsMobile').checked === true;
     if($('#siteHeroMediaMode')) site.heroMediaMode = $('#siteHeroMediaMode').value;
     if($('#siteHeroMediaSrc')) site.heroMediaSrc = $('#siteHeroMediaSrc').value || site.heroMediaSrc;
     if($('#siteHeroAnimation')) site.heroAnimation = $('#siteHeroAnimation').value;
@@ -2581,15 +2770,17 @@
     if($('#siteHeroMetricOpacity')) site.heroMetricOpacity = Number($('#siteHeroMetricOpacity').value || .72);
     if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
     if($('#siteMobileHeroMode')){
+      const mobileMode = $('#siteMobileHeroMode').value;
       site.mobileHeroMedia = {
         enabled:$('#siteMobileHeroEnabled')?.checked === true,
-        mode:$('#siteMobileHeroMode').value === 'animation' ? 'animation' : 'image',
+        mode:['image','video','animation'].includes(mobileMode) ? mobileMode : 'image',
         src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
         animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves',
         opacity:Number($('#siteMobileHeroOpacity')?.value || .28),
         veil:Number($('#siteMobileHeroVeil')?.value || .9)
       };
     }
+	    site.heroSlides = collectHeroSlides();
 	    site.heroMetrics = collectHeroMetrics();
 	    site.homeBlocks = site.homeBlocks || {};
 	    $$('[data-home-block-key]').forEach(card => {
@@ -3036,6 +3227,8 @@
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
 	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
 	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
+	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); if(root && $$('[data-hero-slide-key]', root).length < 4) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}, $$('[data-hero-slide-key]', root).length)); else toast('Максимум 4 баннера'); return; }
+	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ heroSlideDelete.closest('[data-hero-slide-key]')?.remove(); return; }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); if(input) input.value = ''; updateBrandImagePreview(block); return; }
@@ -3074,6 +3267,7 @@
 	      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
 	      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
 	      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
+	      if(event.target.matches('[data-hero-slide-upload]')){ readHeroSlideFile(event.target); return; }
 	      if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
 	    });
     document.addEventListener('input', event => {

@@ -67,7 +67,14 @@
       heroVeilOpacity:1,
       heroOverlayOpacity:0.18,
       heroMetricOpacity:0.72,
+      heroCopyDesktop:true,
+      heroActionsDesktop:true,
+      heroCopyMobile:true,
+      heroActionsMobile:true,
       mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves',opacity:0.28,veil:0.9},
+      heroSlides:[
+        {id:'hero-1',enabled:true,desktopMode:'video',desktopSrc:'assets/hero-video.mp4',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}
+      ],
       heroMetrics:[
         {id:'categories',value:'12+',label:'категорий',enabled:true},
         {id:'delivery',value:'4',label:'способа доставки',enabled:true},

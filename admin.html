@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=40">
-  <script src="js/data.js?v=40" defer></script>
-  <script src="js/app.js?v=40" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=41">
+  <script src="js/data.js?v=41" defer></script>
+  <script src="js/app.js?v=41" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -176,6 +176,26 @@
                       <input id="siteHeroTitleSize" type="number" min="28" max="86" placeholder="Размер заголовка">
                       <input id="siteHeroTextSize" type="number" min="12" max="24" placeholder="Размер текста">
                     </div>
+                    <div class="field-row">
+                      <label class="toggle-row">
+                        <span><strong>Текст на десктопе</strong><br><small>Надпись, заголовок и описание</small></span>
+                        <input id="siteHeroCopyDesktop" type="checkbox">
+                      </label>
+                      <label class="toggle-row">
+                        <span><strong>Кнопки на десктопе</strong><br><small>Переходы под текстом hero</small></span>
+                        <input id="siteHeroActionsDesktop" type="checkbox">
+                      </label>
+                    </div>
+                    <div class="field-row">
+                      <label class="toggle-row">
+                        <span><strong>Текст на телефоне</strong><br><small>Надпись, заголовок и описание</small></span>
+                        <input id="siteHeroCopyMobile" type="checkbox">
+                      </label>
+                      <label class="toggle-row">
+                        <span><strong>Кнопки на телефоне</strong><br><small>Переходы под текстом hero</small></span>
+                        <input id="siteHeroActionsMobile" type="checkbox">
+                      </label>
+                    </div>
                     <div class="hero-color-panel">
                       <h4>Цвет текста hero</h4>
                       <div class="field-row color-grid">
@@ -243,6 +263,13 @@
                     <input id="siteAnnouncement" placeholder="Текст верхней плашки">
                   </div>
 
+                  <div class="admin-form-section">
+                    <h4>Баннеры hero</h4>
+                    <p class="admin-hint">До 4 баннеров. Для каждого можно выбрать видео, изображение или анимацию отдельно для десктопа и телефона.</p>
+                    <div class="admin-blocks hero-slide-admin-list" id="adminHeroSlides"></div>
+                    <button class="btn btn-light" data-hero-slide-add type="button">Добавить баннер</button>
+                  </div>
+
                   <div class="admin-form-section mobile-home-admin">
                     <h4>Мобильный баннер</h4>
                     <label class="toggle-row">
@@ -252,6 +279,7 @@
                     <div class="field-row">
                       <select id="siteMobileHeroMode">
                         <option value="image">Изображение</option>
+                        <option value="video">Видео</option>
                         <option value="animation">Анимация</option>
                       </select>
                       <select id="siteMobileHeroAnimation" data-mobile-hero-control="animation">
@@ -261,13 +289,13 @@
                       </select>
                     </div>
                     <label class="admin-input-field" data-mobile-hero-control="src">
-                      <span>Изображение мобильного баннера</span>
-                      <input id="siteMobileHeroMediaSrc" placeholder="Ссылка или загруженное изображение">
-                      <small>Только JPG, PNG, WebP или SVG. Видео для мобильного баннера не используется.</small>
+                      <span>Медиа мобильного баннера</span>
+                      <input id="siteMobileHeroMediaSrc" placeholder="Ссылка или загруженное изображение/видео">
+                      <small>JPG, PNG, WebP, SVG, MP4 или WebM.</small>
                     </label>
                     <label class="toggle-row" data-mobile-hero-control="upload">
-                      <span><strong>Загрузить изображение</strong><br><small>Файл сохранится в браузере как отдельный мобильный баннер</small></span>
-                      <input id="siteMobileHeroMediaUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                      <span><strong>Загрузить медиа</strong><br><small>Файл сохранится в браузере как отдельный мобильный баннер</small></span>
+                      <input id="siteMobileHeroMediaUpload" type="file" accept="image/*,video/mp4,video/webm">
                     </label>
                     <label class="range-field">
                       <span>Яркость мобильного медиа <strong id="mobileHeroOpacityValue">28%</strong></span>
