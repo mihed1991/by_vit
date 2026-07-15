@@ -2055,6 +2055,9 @@
         <h4>Баннер ${index + 1}</h4>
         <label class="mini-toggle"><input type="checkbox" data-hero-slide-field="enabled" ${data.enabled !== false ? 'checked' : ''}> Включен</label>
       </div>
+      <div class="hero-slide-columns">
+        <div class="hero-slide-mode">
+          <h5>Десктоп</h5>
       <div class="field-row">
         <label class="admin-input-field">
           <span>Десктоп формат</span>
@@ -2082,6 +2085,9 @@
         <span>Загрузить десктоп</span>
         <input data-hero-slide-upload="desktop" type="file" accept="image/*,video/mp4,video/webm">
       </label>
+        </div>
+        <div class="hero-slide-mode">
+          <h5>Мобильная версия</h5>
       <label class="toggle-row">
         <span><strong>Отдельное медиа для телефона</strong><br><small>Если выключено, телефон использует десктопный баннер</small></span>
         <input data-hero-slide-field="mobileEnabled" type="checkbox" ${data.mobileEnabled ? 'checked' : ''}>
@@ -2114,6 +2120,8 @@
           <input data-hero-slide-upload="mobile" type="file" accept="image/*,video/mp4,video/webm">
         </label>
         <button class="btn btn-danger small" data-hero-slide-delete type="button">Удалить баннер</button>
+      </div>
+        </div>
       </div>
     </article>`;
   }

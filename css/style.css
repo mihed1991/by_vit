@@ -2309,3 +2309,152 @@ body[data-page="home"] #featuredProducts .product-card .badge{
     border:0!important;
   }
 }
+
+/* Admin cleanup: compact controls and separate desktop/mobile home settings. */
+body[data-page="admin"] #adminPanel.admin-shell{
+  padding-top:22px;
+}
+body[data-page="admin"] #adminPanel .section-head{
+  margin-bottom:10px;
+}
+body[data-page="admin"] #adminPanel .section-head h1{
+  font-size:30px;
+}
+body[data-page="admin"] .admin-nav{
+  padding:6px;
+  gap:5px;
+  border-radius:14px;
+}
+body[data-page="admin"] .admin-nav button{
+  padding:9px 12px;
+  border-radius:10px;
+  font-size:13px;
+}
+body[data-page="admin"] .admin-card{
+  padding:16px;
+}
+body[data-page="admin"] .admin-card h3{
+  margin-bottom:8px;
+  font-size:22px;
+}
+body[data-page="admin"] .admin-form{
+  gap:10px;
+}
+body[data-page="admin"] .admin-form-section,
+body[data-page="admin"] .admin-block-editor{
+  gap:8px;
+  padding:10px;
+  border-radius:12px;
+}
+body[data-page="admin"] .admin-form-section h4,
+body[data-page="admin"] .admin-block-editor h4{
+  font-size:11px;
+  letter-spacing:.08em;
+}
+body[data-page="admin"] .admin-form input,
+body[data-page="admin"] .admin-form textarea,
+body[data-page="admin"] .admin-form select{
+  min-height:38px;
+  padding:9px 11px;
+  border-radius:11px;
+  font-size:13px;
+}
+body[data-page="admin"] .admin-form textarea,
+body[data-page="admin"] .admin-form-section textarea{
+  min-height:70px;
+}
+body[data-page="admin"] .field-row{
+  gap:8px;
+}
+body[data-page="admin"] .toggle-row,
+body[data-page="admin"] .admin-input-field,
+body[data-page="admin"] .color-field,
+body[data-page="admin"] .range-field{
+  gap:8px;
+  padding:9px 10px;
+  border-radius:11px;
+}
+body[data-page="admin"] .toggle-row small,
+body[data-page="admin"] .admin-input-field small,
+body[data-page="admin"] .admin-hint{
+  font-size:11px;
+}
+body[data-page="admin"] .btn{
+  min-height:38px;
+  height:38px;
+  padding:0 14px;
+  font-size:13px;
+}
+body[data-page="admin"] .btn.small{
+  min-height:32px;
+  height:32px;
+  padding:0 10px;
+  font-size:11px;
+}
+body[data-page="admin"] .admin-blocks{
+  gap:8px;
+}
+body[data-page="admin"] .admin-block-head{
+  gap:8px;
+}
+body[data-page="admin"] .admin-file-field{
+  min-height:34px;
+  padding:7px 10px;
+  border-radius:11px;
+  font-size:12px;
+}
+body[data-page="admin"] .admin-home-desktop{
+  border-color:rgba(45,90,39,.22);
+  background:#fff;
+}
+body[data-page="admin"] .admin-home-mobile,
+body[data-page="admin"] .mobile-home-admin{
+  border-color:rgba(68,109,140,.24);
+  background:linear-gradient(180deg,#fff,#f4f8fb);
+}
+body[data-page="admin"] .hero-slide-columns{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+body[data-page="admin"] .hero-slide-mode{
+  display:grid;
+  gap:8px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--paper);
+}
+body[data-page="admin"] .hero-slide-mode h5{
+  margin:0;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--green);
+}
+
+@media(min-width:980px){
+  body[data-page="admin"] .admin-home-form{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-auto-flow:dense;
+    align-items:start;
+  }
+  body[data-page="admin"] .admin-home-wide{
+    grid-column:1 / -1;
+  }
+}
+
+@media(max-width:760px){
+  body[data-page="admin"] #adminPanel.admin-shell{
+    padding-top:14px;
+  }
+  body[data-page="admin"] .admin-card{
+    padding:12px;
+  }
+  body[data-page="admin"] .admin-nav{
+    margin-inline:-4px;
+  }
+  body[data-page="admin"] .hero-slide-columns{
+    grid-template-columns:1fr;
+  }
+}
