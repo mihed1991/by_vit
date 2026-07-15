@@ -2458,3 +2458,101 @@ body[data-page="admin"] .hero-slide-mode h5{
     grid-template-columns:1fr;
   }
 }
+
+/* Final admin/home fixes from review. */
+@media(max-width:760px){
+  body[data-page="home"] .hero.hero-mobile-media-enabled{
+    min-height:clamp(320px,62vh,520px);
+  }
+  body[data-page="home"] .hero.hero-mobile-media-enabled::after{
+    display:block;
+    background:rgba(0,0,0,var(--hero-mobile-overlay-opacity,0));
+  }
+  body[data-page="home"] .hero.hero-mobile-media-enabled .hero-mobile-fallback,
+  body[data-page="home"] .hero.hero-mobile-media-enabled .hero-mobile-animation{
+    object-fit:cover;
+    object-position:center;
+  }
+  body[data-page="home"] .section.dark{
+    padding-bottom:22px;
+  }
+  body[data-page="home"] #saleProducts .product-card-tags,
+  body[data-page="home"] #featuredProducts .product-card-tags{
+    display:flex;
+    min-height:20px;
+    margin-top:4px;
+    gap:4px;
+  }
+  body[data-page="home"] #saleProducts .product-card-tags span,
+  body[data-page="home"] #featuredProducts .product-card-tags span{
+    max-width:50%;
+    min-height:18px;
+    padding:2px 5px;
+    font-size:9px;
+  }
+  body[data-page="home"] #saleProducts .product-card-tags span:nth-child(n+3),
+  body[data-page="home"] #featuredProducts .product-card-tags span:nth-child(n+3){
+    display:none;
+  }
+  body[data-page="home"] #saleProducts .product-body,
+  body[data-page="home"] #featuredProducts .product-body{
+    grid-template-rows:auto auto auto auto;
+  }
+}
+
+body[data-page="admin"] .admin-home-mobile,
+body[data-page="admin"] .mobile-home-admin{
+  border-color:rgba(45,90,39,.22);
+  background:#fff;
+}
+body[data-page="admin"] .admin-form input[type="checkbox"]{
+  width:16px;
+  min-width:16px;
+  height:16px;
+  min-height:16px;
+  padding:0;
+  flex:0 0 16px;
+  accent-color:var(--green);
+}
+body[data-page="admin"] .toggle-row input[type="checkbox"],
+body[data-page="admin"] .mini-toggle input[type="checkbox"]{
+  width:16px;
+  min-width:16px;
+  height:16px;
+  min-height:16px;
+}
+body[data-page="admin"] .admin-home-form > button[type="submit"]{
+  grid-column:1 / -1;
+  order:99;
+}
+body[data-page="admin"] .hero-slide-editor{
+  padding:0;
+  overflow:hidden;
+}
+body[data-page="admin"] .hero-slide-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-height:38px;
+  padding:8px 10px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--ink);
+}
+body[data-page="admin"] .hero-slide-summary small{
+  font-size:11px;
+  text-transform:none;
+  letter-spacing:0;
+  color:var(--muted);
+}
+body[data-page="admin"] .hero-slide-editor[open]{
+  padding:10px;
+}
+body[data-page="admin"] .hero-slide-editor[open] .hero-slide-summary{
+  margin:-10px -10px 8px;
+  border-bottom:1px solid var(--line);
+}

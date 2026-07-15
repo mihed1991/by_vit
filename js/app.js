@@ -520,7 +520,8 @@
       src:String(source.src || '').trim(),
       animation:['waves','rings','grid'].includes(source.animation) ? source.animation : 'waves',
       opacity:Math.min(1, Math.max(.05, Number(source.opacity ?? .28))),
-      veil:Math.min(1, Math.max(0, Number(source.veil ?? .9)))
+      veil:Math.min(1, Math.max(0, Number(source.veil ?? .9))),
+      overlay:Math.min(.7, Math.max(0, Number(source.overlay ?? 0)))
     };
   }
   function normalizeHeroSlide(slide={}, index=0){
@@ -1142,6 +1143,7 @@
       hero.style.setProperty('--hero-metric-opacity', String(site.heroMetricOpacity ?? .72));
       hero.style.setProperty('--hero-mobile-media-opacity', String(mobileMedia.opacity ?? .28));
       hero.style.setProperty('--hero-mobile-veil-opacity', String(mobileMedia.veil ?? .9));
+      hero.style.setProperty('--hero-mobile-overlay-opacity', String(mobileMedia.overlay ?? 0));
       hero.style.setProperty('--hero-eyebrow-color', colorValue(site.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow));
       hero.style.setProperty('--hero-title-color', colorValue(site.heroTitleColor, DEFAULT_HERO_COLORS.title));
       hero.style.setProperty('--hero-text-color', colorValue(site.heroTextColor, DEFAULT_HERO_COLORS.text));
@@ -2050,9 +2052,14 @@
   }
   function heroSlideEditor(slide={}, index=0){
     const data = normalizeHeroSlide(slide, index);
-    return `<article class="admin-block-editor hero-slide-editor" data-hero-slide-key="${esc(data.id)}">
+    const modeLabel = value => ({video:'Видео',image:'Изображение',animation:'Анимация',file:'Файл'}[value] || value);
+    return `<details class="admin-block-editor hero-slide-editor" data-hero-slide-key="${esc(data.id)}">
+      <summary class="hero-slide-summary">
+        <span>Баннер ${index + 1}</span>
+        <small>${esc(modeLabel(data.desktopMode))}${data.mobileEnabled ? ` / моб: ${esc(modeLabel(data.mobileMode))}` : ''}</small>
+      </summary>
       <div class="admin-block-head">
-        <h4>Баннер ${index + 1}</h4>
+        <h4>Настройка баннера</h4>
         <label class="mini-toggle"><input type="checkbox" data-hero-slide-field="enabled" ${data.enabled !== false ? 'checked' : ''}> Включен</label>
       </div>
       <div class="hero-slide-columns">
@@ -2123,7 +2130,7 @@
       </div>
         </div>
       </div>
-    </article>`;
+    </details>`;
   }
   function goalEditor(goal={}, index=0){
     const id = String(goal.id || `goal-${Date.now()}-${index}`);
@@ -2691,10 +2698,14 @@
     if(mobileHeroOpacity) mobileHeroOpacity.value = mobileHero.opacity ?? .28;
     const mobileHeroVeil = $('#siteMobileHeroVeil');
     if(mobileHeroVeil) mobileHeroVeil.value = mobileHero.veil ?? .9;
+    const mobileHeroOverlay = $('#siteMobileHeroOverlay');
+    if(mobileHeroOverlay) mobileHeroOverlay.value = mobileHero.overlay ?? 0;
     const mobileOpacityValue = $('#mobileHeroOpacityValue');
     if(mobileOpacityValue) mobileOpacityValue.textContent = `${Math.round(Number(mobileHero.opacity ?? .28) * 100)}%`;
     const mobileVeilValue = $('#mobileHeroVeilValue');
     if(mobileVeilValue) mobileVeilValue.textContent = `${Math.round(Number(mobileHero.veil ?? .9) * 100)}%`;
+    const mobileOverlayValue = $('#mobileHeroOverlayValue');
+    if(mobileOverlayValue) mobileOverlayValue.textContent = `${Math.round(Number(mobileHero.overlay ?? 0) * 100)}%`;
     updateMobileHeroAdminControls();
     const heroSlidesRoot = $('#adminHeroSlides');
     if(heroSlidesRoot){
@@ -2785,7 +2796,8 @@
         src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
         animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves',
         opacity:Number($('#siteMobileHeroOpacity')?.value || .28),
-        veil:Number($('#siteMobileHeroVeil')?.value || .9)
+        veil:Number($('#siteMobileHeroVeil')?.value || .9),
+        overlay:Number($('#siteMobileHeroOverlay')?.value || 0)
       };
     }
 	    site.heroSlides = collectHeroSlides();
@@ -3304,6 +3316,7 @@
     $('#siteHeroMetricOpacity')?.addEventListener('input', e=>{ const node = $('#heroMetricOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroOpacity')?.addEventListener('input', e=>{ const node = $('#mobileHeroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroVeil')?.addEventListener('input', e=>{ const node = $('#mobileHeroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $('#siteMobileHeroOverlay')?.addEventListener('input', e=>{ const node = $('#mobileHeroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#quickContactOpacity')?.addEventListener('input', e=>{ const node = $('#quickContactOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#adminSiteForm')?.addEventListener('submit', saveAdminSite);
     $('#adminBrandsForm')?.addEventListener('submit', saveAdminBrands);
