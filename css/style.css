@@ -2221,6 +2221,12 @@ body[data-page="catalog"] #catalogProducts .product-card-tags span{
 .hero-slide.active{
   opacity:1;
 }
+.hero-slide-link{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  display:block;
+}
 .hero-slide .hero-desktop-media,
 .hero-slide .hero-mobile-fallback{
   position:absolute;
@@ -2555,4 +2561,39 @@ body[data-page="admin"] .hero-slide-editor[open]{
 body[data-page="admin"] .hero-slide-editor[open] .hero-slide-summary{
   margin:-10px -10px 8px;
   border-bottom:1px solid var(--line);
+}
+
+body[data-page="admin"] .admin-home-metrics{
+  align-items:start;
+}
+
+@media(min-width:980px){
+  body[data-page="admin"] .admin-home-metrics{
+    grid-template-columns:minmax(230px,.34fr) minmax(0,1fr);
+  }
+  body[data-page="admin"] .admin-home-metrics h4{
+    grid-column:1 / -1;
+  }
+  body[data-page="admin"] .admin-home-metrics .range-field{
+    grid-column:1;
+  }
+  body[data-page="admin"] .admin-home-metrics [data-hero-metric-add]{
+    grid-column:1;
+    align-self:start;
+  }
+  body[data-page="admin"] #adminHeroMetrics{
+    grid-column:2;
+    grid-row:2 / span 2;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    align-items:start;
+  }
+  body[data-page="admin"] #adminHeroMetrics .admin-block-editor{
+    min-height:100%;
+  }
+}
+
+@media(max-width:979px){
+  body[data-page="admin"] #adminHeroMetrics{
+    grid-template-columns:1fr;
+  }
 }

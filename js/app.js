@@ -530,6 +530,7 @@
     return {
       id:String(slide.id || `hero-${index + 1}`),
       enabled:slide.enabled !== false,
+      href:String(slide.href || '').trim(),
       desktopMode,
       desktopSrc:String(slide.desktopSrc || slide.src || '').trim(),
       desktopAnimation:['waves','rings','grid'].includes(slide.desktopAnimation) ? slide.desktopAnimation : 'waves',
@@ -1164,7 +1165,8 @@
       const mobile = slide.mobileEnabled
         ? mediaHtml(slide.mobileMode, slide.mobileSrc, slide.mobileAnimation, true)
         : needsMobileFallback ? `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">` : '';
-      return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}</div>`;
+      const link = slide.href ? `<a class="hero-slide-link" href="${esc(slide.href)}" aria-label="Открыть баннер ${index + 1}"></a>` : '';
+      return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
     }).join('');
     if(activeSlides.length > 1){
       let index = 0;
@@ -2062,6 +2064,10 @@
         <h4>Настройка баннера</h4>
         <label class="mini-toggle"><input type="checkbox" data-hero-slide-field="enabled" ${data.enabled !== false ? 'checked' : ''}> Включен</label>
       </div>
+      <label class="admin-input-field">
+        <span>Ссылка баннера</span>
+        <input data-hero-slide-field="href" value="${esc(data.href)}" placeholder="catalog.html, sale.html или https://...">
+      </label>
       <div class="hero-slide-columns">
         <div class="hero-slide-mode">
           <h5>Десктоп</h5>
@@ -2287,6 +2293,7 @@
     return $$('[data-hero-slide-key]').slice(0,4).map((card, index) => ({
       id:card.dataset.heroSlideKey || `hero-${index + 1}`,
       enabled:$('[data-hero-slide-field="enabled"]', card)?.checked !== false,
+      href:$('[data-hero-slide-field="href"]', card)?.value.trim() || '',
       desktopMode:$('[data-hero-slide-field="desktopMode"]', card)?.value || 'video',
       desktopSrc:$('[data-hero-slide-field="desktopSrc"]', card)?.value.trim() || '',
       desktopAnimation:$('[data-hero-slide-field="desktopAnimation"]', card)?.value || 'waves',
