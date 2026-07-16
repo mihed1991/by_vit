@@ -1274,9 +1274,7 @@
 	        }).join('')}
 	      </div>`;
 	  }
-  function renderCatalogSuggestions(){
-    const root = $('#catalogSuggestions');
-    if(!root) return;
+  function catalogSuggestionValues(){
     const values = new Set();
     getProducts().forEach(product => {
       [product.name, product.brand, categoryName(product.category), formTypeLabel(product.formType)].filter(Boolean).forEach(value => values.add(String(value).trim()));
@@ -1285,7 +1283,32 @@
     });
     getCategories().forEach(category => values.add(category.name));
     brands().forEach(brand => values.add(brand));
-    root.innerHTML = [...values].filter(Boolean).slice(0,80).sort((a,b)=>a.localeCompare(b,'ru')).map(value => `<option value="${esc(value)}"></option>`).join('');
+    return [...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')).slice(0,80);
+  }
+  function renderCatalogSuggestions(){
+    const root = $('#catalogSuggestions');
+    const values = catalogSuggestionValues();
+    if(root) root.innerHTML = values.map(value => `<option value="${esc(value)}"></option>`).join('');
+    updateCatalogSuggestPanel(values);
+  }
+  function updateCatalogSuggestPanel(values=catalogSuggestionValues()){
+    const input = $('#catalogSearch');
+    const panel = $('#catalogSearchPanel');
+    if(!input || !panel) return;
+    const q = slugText(input.value);
+    if(!q){ panel.hidden = true; panel.innerHTML = ''; return; }
+    const matches = values.filter(value => slugText(value).includes(q)).slice(0,7);
+    panel.hidden = !matches.length;
+    panel.innerHTML = matches.map(value => `<button type="button" data-catalog-suggestion="${esc(value)}">${esc(value)}</button>`).join('');
+  }
+  function chooseCatalogSuggestion(value){
+    const input = $('#catalogSearch');
+    const panel = $('#catalogSearchPanel');
+    if(!input) return;
+    input.value = value;
+    if(panel) panel.hidden = true;
+    syncCatalogUrl();
+    renderCatalogProducts();
   }
 	  function renderHome(){
     const site = getSite();
@@ -1399,9 +1422,23 @@
     const sortParam = params.get('sort');
     if(sortParam && $('#catalogSort')) $('#catalogSort').value = sortParam;
     const apply = () => { syncCatalogUrl(); renderCatalogProducts(); };
-    ['catalogSearch','catalogSort'].forEach(id => {
-      const el = $('#'+id);
-      if(el) el.addEventListener(id === 'catalogSearch' ? 'input' : 'change', apply);
+    const searchEl = $('#catalogSearch');
+    if(searchEl){
+      searchEl.addEventListener('input', () => { updateCatalogSuggestPanel(); apply(); });
+      searchEl.addEventListener('focus', () => updateCatalogSuggestPanel());
+      searchEl.addEventListener('keydown', event => { if(event.key === 'Escape' && $('#catalogSearchPanel')) $('#catalogSearchPanel').hidden = true; });
+    }
+    const sortEl = $('#catalogSort');
+    if(sortEl) sortEl.addEventListener('change', apply);
+    $('#catalogSearchPanel')?.addEventListener('click', event => {
+      const item = event.target.closest('[data-catalog-suggestion]');
+      if(!item) return;
+      chooseCatalogSuggestion(item.dataset.catalogSuggestion || '');
+    });
+    document.addEventListener('click', event => {
+      if(event.target.closest('.catalog-search-wrap')) return;
+      const panel = $('#catalogSearchPanel');
+      if(panel) panel.hidden = true;
     });
     if(filters){
       filters.addEventListener('input', apply);
