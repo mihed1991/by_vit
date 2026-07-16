@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=45">
-  <script src="js/data.js?v=45" defer></script>
-  <script src="js/app.js?v=45" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=46">
+  <script src="js/data.js?v=46" defer></script>
+  <script src="js/app.js?v=46" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -173,6 +173,7 @@
                     <input id="siteHeroEyebrow" placeholder="Надпись над заголовком">
                     <input id="siteHeroTitle" placeholder="Заголовок hero">
                     <textarea id="siteHeroText" placeholder="Текст hero"></textarea>
+                    <input id="siteHeroHref" placeholder="Ссылка основного баннера: catalog.html, sale.html или https://...">
                     <div class="field-row">
                       <input id="siteHeroTitleSize" type="number" min="28" max="86" placeholder="Размер заголовка">
                       <input id="siteHeroTextSize" type="number" min="12" max="24" placeholder="Размер текста">
@@ -259,8 +260,8 @@
                   </div>
 
                   <div class="admin-form-section admin-home-wide">
-                    <h4>Слайды hero</h4>
-                    <p class="admin-hint">До 4 баннеров. Для каждого можно выбрать видео, изображение или анимацию отдельно для десктопа и телефона.</p>
+                    <h4>Дополнительные баннеры hero</h4>
+                    <p class="admin-hint">Основной баннер редактируется в блоках «Десктопная версия» и «Мобильная версия». Здесь можно добавить ещё до 3 баннеров.</p>
                     <div class="admin-blocks hero-slide-admin-list" id="adminHeroSlides"></div>
                     <button class="btn btn-light" data-hero-slide-add type="button">Добавить баннер</button>
                   </div>

@@ -547,6 +547,7 @@
     const fallback = {
       id:'hero-1',
       enabled:true,
+      href:site?.heroHref || defaults.heroHref || '',
       desktopMode:site?.heroMediaMode || defaults.heroMediaMode || 'video',
       desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-video.mp4',
       desktopAnimation:site?.heroAnimation || defaults.heroAnimation || 'waves',
@@ -592,6 +593,7 @@
     merged.heroTitleSize = Number(merged.heroTitleSize || 44);
     merged.heroTextSize = Number(merged.heroTextSize || 16);
     merged.heroAlign = merged.heroAlign || 'right';
+    merged.heroHref = String(merged.heroHref || '').trim();
     merged.heroMediaMode = merged.heroMediaMode || 'video';
     merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-video.mp4';
     merged.heroAnimation = merged.heroAnimation || 'waves';
@@ -1122,6 +1124,7 @@
     const mobileMedia = site.mobileHeroMedia || {};
     const slides = (site.heroSlides || []).filter(slide => slide.enabled !== false).slice(0,4);
     const activeSlides = slides.length ? slides : [normalizeHeroSlide({
+      href:site.heroHref || '',
       desktopMode:site.heroMediaMode || 'video',
       desktopSrc:site.heroMediaSrc || 'assets/hero-video.mp4',
       desktopAnimation:site.heroAnimation || 'waves',
@@ -2303,6 +2306,24 @@
       mobileAnimation:$('[data-hero-slide-field="mobileAnimation"]', card)?.value || 'waves'
     })).filter(slide => slide.desktopSrc || slide.desktopMode === 'animation' || slide.mobileSrc || slide.mobileMode === 'animation');
   }
+  function primaryHeroSlideFromAdmin(site){
+    const existing = normalizeHeroSlide(site.heroSlides?.[0] || {}, 0);
+    const desktopMode = $('#siteHeroMediaMode')?.value || existing.desktopMode || 'video';
+    const mobileMode = $('#siteMobileHeroMode')?.value || existing.mobileMode || 'image';
+    return normalizeHeroSlide({
+      ...existing,
+      id:existing.id || 'hero-1',
+      enabled:true,
+      href:$('#siteHeroHref')?.value.trim() || '',
+      desktopMode,
+      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-video.mp4',
+      desktopAnimation:$('#siteHeroAnimation')?.value || existing.desktopAnimation || 'waves',
+      mobileEnabled:$('#siteMobileHeroEnabled')?.checked === true,
+      mobileMode:['image','video','animation'].includes(mobileMode) ? mobileMode : 'image',
+      mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
+      mobileAnimation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves'
+    }, 0);
+  }
   function collectGoals(){
     return $$('[data-goal-key]').map((card, index) => ({
       id:card.dataset.goalKey || `goal-${index + 1}`,
@@ -2673,6 +2694,24 @@
       sitePhone:'phone'
     };
     Object.entries(map).forEach(([id,path])=>{ const el=$('#'+id); if(!el)return; const value = path.split('.').reduce((acc,key)=>acc?.[key], site); el.value = value ?? ''; });
+    const primarySlide = normalizeHeroSlide(site.heroSlides?.[0] || {
+      href:site.heroHref || '',
+      desktopMode:site.heroMediaMode,
+      desktopSrc:site.heroMediaSrc,
+      desktopAnimation:site.heroAnimation,
+      mobileEnabled:site.mobileHeroMedia?.enabled === true,
+      mobileMode:site.mobileHeroMedia?.mode,
+      mobileSrc:site.mobileHeroMedia?.src,
+      mobileAnimation:site.mobileHeroMedia?.animation
+    }, 0);
+    const heroHref = $('#siteHeroHref');
+    if(heroHref) heroHref.value = primarySlide.href || site.heroHref || '';
+    const heroMode = $('#siteHeroMediaMode');
+    if(heroMode) heroMode.value = primarySlide.desktopMode || site.heroMediaMode || 'video';
+    const heroSrc = $('#siteHeroMediaSrc');
+    if(heroSrc) heroSrc.value = primarySlide.desktopSrc || site.heroMediaSrc || '';
+    const heroAnimation = $('#siteHeroAnimation');
+    if(heroAnimation) heroAnimation.value = primarySlide.desktopAnimation || site.heroAnimation || 'waves';
     const heroCopyDesktop = $('#siteHeroCopyDesktop');
     if(heroCopyDesktop) heroCopyDesktop.checked = site.heroCopyDesktop !== false;
     const heroActionsDesktop = $('#siteHeroActionsDesktop');
@@ -2694,13 +2733,13 @@
     updateHeroAdminControls();
     const mobileHero = site.mobileHeroMedia || {};
     const mobileHeroEnabled = $('#siteMobileHeroEnabled');
-    if(mobileHeroEnabled) mobileHeroEnabled.checked = mobileHero.enabled === true;
+    if(mobileHeroEnabled) mobileHeroEnabled.checked = primarySlide.mobileEnabled === true;
     const mobileHeroMode = $('#siteMobileHeroMode');
-    if(mobileHeroMode) mobileHeroMode.value = mobileHero.mode || 'image';
+    if(mobileHeroMode) mobileHeroMode.value = primarySlide.mobileMode || mobileHero.mode || 'image';
     const mobileHeroSrc = $('#siteMobileHeroMediaSrc');
-    if(mobileHeroSrc) mobileHeroSrc.value = mobileHero.src || '';
+    if(mobileHeroSrc) mobileHeroSrc.value = primarySlide.mobileSrc || mobileHero.src || '';
     const mobileHeroAnimation = $('#siteMobileHeroAnimation');
-    if(mobileHeroAnimation) mobileHeroAnimation.value = mobileHero.animation || 'waves';
+    if(mobileHeroAnimation) mobileHeroAnimation.value = primarySlide.mobileAnimation || mobileHero.animation || 'waves';
     const mobileHeroOpacity = $('#siteMobileHeroOpacity');
     if(mobileHeroOpacity) mobileHeroOpacity.value = mobileHero.opacity ?? .28;
     const mobileHeroVeil = $('#siteMobileHeroVeil');
@@ -2716,7 +2755,10 @@
     updateMobileHeroAdminControls();
     const heroSlidesRoot = $('#adminHeroSlides');
     if(heroSlidesRoot){
-      heroSlidesRoot.innerHTML = (site.heroSlides || []).slice(0,4).map(heroSlideEditor).join('');
+      const extraSlides = (site.heroSlides || []).slice(1,4);
+      heroSlidesRoot.innerHTML = extraSlides.length
+        ? extraSlides.map((slide, index) => heroSlideEditor(slide, index + 1)).join('')
+        : '<p class="admin-hint admin-empty-note">Дополнительных баннеров пока нет. Основной баннер настраивается выше.</p>';
     }
     const metricRoot = $('#adminHeroMetrics');
     if(metricRoot){
@@ -2779,6 +2821,7 @@
     if($('#siteHeroText')) site.heroText = $('#siteHeroText').value;
     if($('#siteHeroTitleSize')) site.heroTitleSize = Number($('#siteHeroTitleSize').value || 44);
     if($('#siteHeroTextSize')) site.heroTextSize = Number($('#siteHeroTextSize').value || 16);
+    if($('#siteHeroHref')) site.heroHref = $('#siteHeroHref').value.trim();
     if($('#siteHeroEyebrowColor')) site.heroEyebrowColor = colorValue($('#siteHeroEyebrowColor').value, DEFAULT_HERO_COLORS.eyebrow);
     if($('#siteHeroTitleColor')) site.heroTitleColor = colorValue($('#siteHeroTitleColor').value, DEFAULT_HERO_COLORS.title);
     if($('#siteHeroTextColor')) site.heroTextColor = colorValue($('#siteHeroTextColor').value, DEFAULT_HERO_COLORS.text);
@@ -2807,7 +2850,12 @@
         overlay:Number($('#siteMobileHeroOverlay')?.value || 0)
       };
     }
-	    site.heroSlides = collectHeroSlides();
+    const primarySlide = primaryHeroSlideFromAdmin(site);
+    site.heroMediaMode = primarySlide.desktopMode;
+    site.heroMediaSrc = primarySlide.desktopSrc;
+    site.heroAnimation = primarySlide.desktopAnimation;
+    site.heroHref = primarySlide.href;
+    site.heroSlides = [primarySlide, ...collectHeroSlides()].slice(0,4);
 	    site.heroMetrics = collectHeroMetrics();
 	    site.homeBlocks = site.homeBlocks || {};
 	    $$('[data-home-block-key]').forEach(card => {
@@ -3254,7 +3302,7 @@
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
 	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
 	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
-	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); if(root && $$('[data-hero-slide-key]', root).length < 4) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}, $$('[data-hero-slide-key]', root).length)); else toast('Максимум 4 баннера'); return; }
+	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
 	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ heroSlideDelete.closest('[data-hero-slide-key]')?.remove(); return; }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }

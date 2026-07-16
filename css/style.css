@@ -2220,12 +2220,14 @@ body[data-page="catalog"] #catalogProducts .product-card-tags span{
 }
 .hero-slide.active{
   opacity:1;
+  pointer-events:auto;
 }
 .hero-slide-link{
   position:absolute;
   inset:0;
   z-index:1;
   display:block;
+  cursor:pointer;
 }
 .hero-slide .hero-desktop-media,
 .hero-slide .hero-mobile-fallback{
@@ -2566,8 +2568,28 @@ body[data-page="admin"] .hero-slide-editor[open] .hero-slide-summary{
 body[data-page="admin"] .admin-home-metrics{
   align-items:start;
 }
+body[data-page="admin"] .admin-empty-note{
+  padding:10px 12px;
+  border:1px dashed var(--line);
+  border-radius:12px;
+  background:#fff;
+}
+body[data-page="admin"] .hero-slide-admin-list{
+  gap:6px;
+}
 
 @media(min-width:980px){
+  body[data-page="admin"] .admin-home-common{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  body[data-page="admin"] .admin-home-common h4,
+  body[data-page="admin"] .admin-home-common textarea,
+  body[data-page="admin"] .admin-home-common .field-row,
+  body[data-page="admin"] .admin-home-common .hero-color-panel,
+  body[data-page="admin"] .admin-home-common #siteHeroHref,
+  body[data-page="admin"] .admin-home-common #siteAnnouncement{
+    grid-column:1 / -1;
+  }
   body[data-page="admin"] .admin-home-metrics{
     grid-template-columns:minmax(230px,.34fr) minmax(0,1fr);
   }

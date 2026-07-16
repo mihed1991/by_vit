@@ -57,6 +57,7 @@
       heroTitleSize:44,
       heroTextSize:16,
       heroAlign:'right',
+      heroHref:'',
       heroMediaMode:'video',
       heroMediaSrc:'assets/hero-video.mp4',
       heroAnimation:'waves',
