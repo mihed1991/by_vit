@@ -2975,3 +2975,131 @@ body[data-page="admin"] .hero-slide-admin-list{
     grid-template-columns:54px 82px minmax(62px,1fr);
   }
 }
+
+/* Stage 3: compact admin and safer data-management surface. */
+body[data-page="admin"] #adminPanel.admin-shell{
+  padding-top:24px;
+}
+body[data-page="admin"] #adminPanel .section-head{
+  margin-bottom:10px;
+}
+body[data-page="admin"] #adminPanel .section-head h1{
+  font-size:30px;
+}
+body[data-page="admin"] #adminPanel .section-head p{
+  max-width:560px;
+  font-size:13px;
+}
+body[data-page="admin"] .admin-layout{
+  gap:10px;
+}
+body[data-page="admin"] .admin-tools{
+  position:sticky;
+  top:110px;
+  z-index:7;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(12px);
+}
+body[data-page="admin"] .admin-tools input{
+  width:100%;
+  height:36px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:0 14px;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:13px;
+  outline:none;
+}
+body[data-page="admin"] .admin-tools input:focus{
+  border-color:var(--green);
+  box-shadow:0 0 0 3px var(--green-soft);
+}
+body[data-page="admin"] .admin-nav{
+  top:166px;
+  gap:5px;
+  padding:7px;
+  border-radius:16px;
+}
+body[data-page="admin"] .admin-nav button{
+  min-height:34px;
+  padding:0 11px;
+  border-radius:10px;
+  font-size:12px;
+}
+body[data-page="admin"] .admin-card{
+  padding:14px;
+}
+body[data-page="admin"] .admin-card h3{
+  margin-bottom:6px;
+  font-size:20px;
+}
+body[data-page="admin"] .admin-form{
+  gap:8px;
+}
+body[data-page="admin"] .admin-form-section,
+body[data-page="admin"] .admin-block-editor{
+  gap:7px;
+  padding:9px;
+  border-radius:12px;
+}
+body[data-page="admin"] .admin-form input,
+body[data-page="admin"] .admin-form textarea,
+body[data-page="admin"] .admin-form select{
+  min-height:34px;
+  padding:7px 10px;
+  border-radius:10px;
+  font-size:12px;
+}
+body[data-page="admin"] .admin-form textarea,
+body[data-page="admin"] .admin-form-section textarea{
+  min-height:58px;
+}
+body[data-page="admin"] .toggle-row,
+body[data-page="admin"] .admin-input-field,
+body[data-page="admin"] .color-field,
+body[data-page="admin"] .range-field{
+  min-height:34px;
+  padding:8px 9px;
+  border-radius:10px;
+}
+body[data-page="admin"] .admin-input-field{
+  gap:5px;
+}
+body[data-page="admin"] .admin-blocks{
+  gap:7px;
+}
+body[data-page="admin"] .brand-image-admin-list{
+  grid-template-columns:repeat(auto-fit,minmax(205px,1fr));
+}
+body[data-page="admin"] .brand-image-editor{
+  align-content:start;
+}
+body[data-page="admin"] .brand-image-admin-preview{
+  height:62px;
+  border-radius:12px;
+  padding:8px;
+}
+body[data-page="admin"] .brand-image-advanced summary{
+  min-height:34px;
+  padding:0 10px;
+  font-size:12px;
+}
+body[data-page="admin"] .admin-actions{
+  gap:8px;
+}
+
+@media(max-width:760px){
+  body[data-page="admin"] .admin-tools{
+    position:static;
+    margin-inline:-4px;
+  }
+  body[data-page="admin"] .admin-nav{
+    position:sticky;
+    top:68px;
+    margin-inline:-4px;
+  }
+}

@@ -8,10 +8,12 @@ const vm = require('vm');
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_PASSWORD_HASH = '8e9b669109df89620b94f2387dc53206a82ddc71d658f8f7a2b3a9b417370d3e';
 const SESSION_COOKIE = 'byvit_admin_session';
 const MAX_BODY = 35 * 1024 * 1024;
+const MAX_BACKUPS = 12;
 
 const sessions = new Map();
 
@@ -29,6 +31,19 @@ function clone(value){
 
 function ensureDataDir(){
   fs.mkdirSync(DATA_DIR, {recursive:true});
+}
+
+function backupStore(){
+  if(!fs.existsSync(STORE_PATH)) return;
+  fs.mkdirSync(BACKUP_DIR, {recursive:true});
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  fs.copyFileSync(STORE_PATH, path.join(BACKUP_DIR, `store-${stamp}.json`));
+  const files = fs.readdirSync(BACKUP_DIR)
+    .filter(name => /^store-.+\.json$/.test(name))
+    .sort();
+  files.slice(0, Math.max(0, files.length - MAX_BACKUPS)).forEach(name => {
+    fs.unlinkSync(path.join(BACKUP_DIR, name));
+  });
 }
 
 function loadStore(){
@@ -55,6 +70,7 @@ function loadStore(){
 
 function saveStore(store){
   ensureDataDir();
+  backupStore();
   const temp = `${STORE_PATH}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(store, null, 2));
   fs.renameSync(temp, STORE_PATH);

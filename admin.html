@@ -6,9 +6,9 @@
   <meta name="description" content="ByVit — современный магазин спортивного питания и БАДов.">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=47">
-  <script src="js/data.js?v=47" defer></script>
-  <script src="js/app.js?v=47" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=48">
+  <script src="js/data.js?v=48" defer></script>
+  <script src="js/app.js?v=48" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -50,6 +50,9 @@
         </div>
 
         <div class="admin-layout">
+          <div class="admin-tools">
+            <input id="adminSectionSearch" type="search" placeholder="Быстрый поиск раздела: товары, баннер, доставка...">
+          </div>
           <nav class="admin-nav">
             <button class="active" data-admin-tab="site">Главная</button>
             <button data-admin-tab="brands">Бренды</button>
@@ -662,6 +665,8 @@
                 </form>
                 <div class="admin-actions">
                   <button class="btn btn-dark" data-export type="button">Экспорт JSON</button>
+                  <button class="btn btn-light" data-import-trigger type="button">Импорт JSON</button>
+                  <input id="adminImportFile" type="file" accept="application/json,.json" hidden>
                   <button class="btn btn-danger" data-reset-all type="button">Сбросить демо</button>
                   <button class="btn btn-light" data-admin-logout type="button">Выйти</button>
                 </div>

@@ -89,6 +89,9 @@
     positionY:50,
     scale:1
   };
+  const MAX_INLINE_VIDEO_BYTES = 18 * 1024 * 1024;
+  const MAX_IMAGE_EDGE = 1600;
+  const INLINE_IMAGE_QUALITY = .84;
   const DEFAULT_STORE_BLOCKS = [
     {id:'showroom',title:'Шоурум ByVit',text:'Минский район, Боровлянский сельсовет, 743этаж 1\nТелефон: +375 29 000-00-00\nГрафик: 10:00–20:00',enabled:true},
     {id:'pickup',title:'Самовывоз',text:'Выберите самовывоз в корзине и дождитесь подтверждения заказа.',enabled:true},
@@ -140,7 +143,12 @@
       serverState[stateKey] = clone(value);
       schedulePersist();
     }
-    localStorage.setItem(key, JSON.stringify(value));
+    try{
+      localStorage.setItem(key, JSON.stringify(value));
+    }catch(error){
+      console.warn('Local storage quota exceeded', error);
+      if(!serverState) toast('Данные слишком большие для браузера. Используйте сервер или JSON-экспорт.');
+    }
   }
   function esc(value){
     return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
@@ -2003,19 +2011,23 @@
     const text = $('[data-footer-badge-text]', block)?.value.trim() || 'Текстовый значок';
     preview.innerHTML = image ? `<img src="${esc(image)}" alt="${esc(text)}">` : `<span>${esc(text)}</span>`;
   }
-  function readFooterBadgeFile(input){
+  async function readFooterBadgeFile(input){
     const file = input.files?.[0];
     const block = input.closest('[data-footer-badge-key]');
     if(!file || !block) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    try{
+      const source = await fileToStoredSource(file, {maxEdge:900});
+      if(!source) return;
       const target = $('[data-footer-badge-image]', block);
-      if(target) target.value = reader.result;
+      if(target) target.value = source;
       updateFooterBadgePreview(block);
+      toast('Значок подготовлен');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось загрузить значок');
+    }finally{
       input.value = '';
-      toast('Значок загружен');
-    };
-    reader.readAsDataURL(file);
+    }
   }
   function collectBrandImageEditorValue(block){
     if(!block) return {...DEFAULT_BRAND_IMAGE};
@@ -2054,19 +2066,23 @@
     if(yValue) yValue.textContent = `${Math.round(image.positionY)}%`;
     if(scaleValue) scaleValue.textContent = `${Math.round(image.scale * 100)}%`;
   }
-  function readBrandImageFile(input){
+  async function readBrandImageFile(input){
     const file = input.files?.[0];
     const block = input.closest('[data-brand-image-key]');
     if(!file || !block) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    try{
+      const source = await fileToStoredSource(file, {maxEdge:900});
+      if(!source) return;
       const target = $('[data-brand-image-src]', block);
-      if(target) target.value = reader.result;
+      if(target) target.value = source;
       updateBrandImagePreview(block);
+      toast('Изображение бренда подготовлено');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось загрузить изображение бренда');
+    }finally{
       input.value = '';
-      toast('Изображение бренда загружено');
-    };
-    reader.readAsDataURL(file);
+    }
   }
   async function sha256(value){
     if(!window.crypto?.subtle) return '';
@@ -2491,6 +2507,13 @@
     $$('.admin-nav button').forEach(b=>b.classList.toggle('active', b.dataset.adminTab === tab));
     $$('.admin-section').forEach(s=>s.classList.toggle('active', s.id === `admin-${tab}`));
   }
+  function filterAdminSections(value){
+    const q = slugText(value);
+    $$('.admin-nav [data-admin-tab]').forEach(button => {
+      const text = `${button.textContent || ''} ${button.dataset.adminTab || ''}`;
+      button.hidden = Boolean(q && !slugText(text).includes(q));
+    });
+  }
   function renderAdminProducts(){
     const products = getProducts();
     const table = $('#adminProductsTable');
@@ -2626,25 +2649,89 @@
     saveProducts(getProducts().filter(p => !selected.includes(String(p.id))));
     renderAdminProducts(); toast('Выбранные товары удалены');
   }
-  function readFileToHidden(input, hiddenSelector){
-    const file = input.files?.[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => { const hidden = $(hiddenSelector); if(hidden) hidden.value = reader.result; toast('Файл загружен'); };
-    reader.readAsDataURL(file);
+  function readFileAsDataUrl(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Не удалось прочитать файл'));
+      reader.readAsDataURL(file);
+    });
   }
-  function readHeroSlideFile(input){
+  function loadImage(src){
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Не удалось открыть изображение'));
+      image.src = src;
+    });
+  }
+  async function imageFileToStoredSource(file, options={}){
+    const original = await readFileAsDataUrl(file);
+    if(file.type === 'image/svg+xml' || file.type === 'image/gif') return original;
+    const image = await loadImage(original);
+    const maxEdge = Number(options.maxEdge || MAX_IMAGE_EDGE);
+    const largest = Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height);
+    const ratio = largest > maxEdge ? maxEdge / largest : 1;
+    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * ratio));
+    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if(!context) return original;
+    context.drawImage(image, 0, 0, width, height);
+    const webp = canvas.toDataURL('image/webp', Number(options.quality || INLINE_IMAGE_QUALITY));
+    if(webp.startsWith('data:image/webp') && webp.length < original.length) return webp;
+    const jpeg = canvas.toDataURL('image/jpeg', Number(options.quality || INLINE_IMAGE_QUALITY));
+    return jpeg.length < original.length ? jpeg : original;
+  }
+  async function fileToStoredSource(file, options={}){
+    if(!file) return '';
+    if(file.type.startsWith('image/')) return imageFileToStoredSource(file, options);
+    if(file.type.startsWith('video/')){
+      if(file.size > MAX_INLINE_VIDEO_BYTES){
+        toast('Видео слишком большое. Лучше вставить ссылку на MP4/WebM.');
+        return '';
+      }
+      if(!serverAvailable && file.size > 4 * 1024 * 1024){
+        toast('Большое видео может не сохраниться без серверного режима.');
+      }
+      return readFileAsDataUrl(file);
+    }
+    return readFileAsDataUrl(file);
+  }
+  async function readFileToHidden(input, hiddenSelector){
+    const file = input.files?.[0]; if(!file) return;
+    try{
+      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE});
+      if(!source) return;
+      const hidden = $(hiddenSelector);
+      if(hidden) hidden.value = source;
+      toast(file.type.startsWith('image/') ? 'Изображение подготовлено' : 'Файл загружен');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось загрузить файл');
+    }finally{
+      input.value = '';
+    }
+  }
+  async function readHeroSlideFile(input){
     const file = input.files?.[0];
     const card = input.closest('[data-hero-slide-key]');
     const target = input.dataset.heroSlideUpload === 'mobile' ? 'mobileSrc' : 'desktopSrc';
     if(!file || !card) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    try{
+      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE});
+      if(!source) return;
       const field = $(`[data-hero-slide-field="${target}"]`, card);
-      if(field) field.value = reader.result;
+      if(field) field.value = source;
+      toast(file.type.startsWith('image/') ? 'Изображение баннера подготовлено' : 'Файл баннера загружен');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось загрузить баннер');
+    }finally{
       input.value = '';
-      toast('Файл баннера загружен');
-    };
-    reader.readAsDataURL(file);
+    }
   }
   function updateHeroAdminControls(){
     const mode = $('#siteHeroMediaMode')?.value || 'video';
@@ -3236,10 +3323,69 @@
   }
   function updateOrder(id,status){ const orders=getOrders(); const o=orders.find(x=>String(x.id)===String(id)); if(o){o.status=status;saveOrders(orders);renderAdminOrders();} }
   function deleteOrder(id){ saveOrders(getOrders().filter(o=>String(o.id)!==String(id))); renderAdminOrders(); }
+  function exportFileName(){
+    const stamp = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
+    return `byvit-backup-${stamp}.json`;
+  }
   function exportData(){
-    const data = {products:getProducts(),site:getSite(),orders:getOrders(),reviews:getReviews()};
+    const data = {
+      version:3,
+      exportedAt:new Date().toISOString(),
+      products:getProducts(),
+      site:getSite(),
+      orders:getOrders(),
+      reviews:getReviews()
+    };
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'byvit-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = exportFileName(); a.click(); URL.revokeObjectURL(a.href);
+  }
+  function normalizeImportedData(data){
+    const source = data && typeof data === 'object' && data.data && typeof data.data === 'object' ? data.data : data;
+    if(!source || typeof source !== 'object') throw new Error('Неверный формат JSON');
+    return {
+      products:Array.isArray(source.products) ? source.products : getProducts(),
+      site:source.site && typeof source.site === 'object' ? normalizeSite(source.site) : getSite(),
+      orders:Array.isArray(source.orders) ? source.orders : getOrders(),
+      reviews:Array.isArray(source.reviews) ? source.reviews : getReviews()
+    };
+  }
+  async function applyImportedData(data){
+    const next = normalizeImportedData(data);
+    if(!confirm('Импорт заменить текущие товары, настройки, заказы и отзывы данными из файла?')) return;
+    saveProducts(next.products);
+    saveSite(next.site);
+    saveOrders(next.orders);
+    saveReviews(next.reviews);
+    if(serverAvailable && isAdminSession()){
+      serverState = clone(next);
+      try{
+        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)});
+      }catch(error){
+        console.warn(error);
+        toast('Импорт сохранён локально, но сервер не обновился');
+        return;
+      }
+    }
+    renderAdmin();
+    refreshCurrentPage();
+    toast('Импорт выполнен');
+  }
+  function importDataFile(input){
+    const file = input.files?.[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try{
+        await applyImportedData(JSON.parse(String(reader.result || '{}')));
+      }catch(error){
+        console.warn(error);
+        toast('Не удалось импортировать JSON');
+      }finally{
+        input.value = '';
+      }
+    };
+    reader.onerror = () => { toast('Не удалось прочитать файл'); input.value = ''; };
+    reader.readAsText(file);
   }
   async function resetAll(){
     if(!confirm('Сбросить товары и настройки к демо-версии?')) return;
@@ -3367,22 +3513,25 @@
       const tab = event.target.closest('[data-admin-tab]'); if(tab){ adminSwitch(tab.dataset.adminTab); return; }
       const reset = event.target.closest('[data-reset-all]'); if(reset){ resetAll(); return; }
       const exp = event.target.closest('[data-export]'); if(exp){ exportData(); return; }
+      const importTrigger = event.target.closest('[data-import-trigger]'); if(importTrigger){ $('#adminImportFile')?.click(); return; }
       const logout = event.target.closest('[data-admin-logout]'); if(logout){ adminLogout(); return; }
     });
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
-	    });
+    });
     document.addEventListener('pointerdown', startQuickContactDrag);
     document.addEventListener('pointermove', moveQuickContactDrag, {passive:false});
     document.addEventListener('pointerup', endQuickContactDrag);
     document.addEventListener('change', event => {
-	      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
-	      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
-	      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
-	      if(event.target.matches('[data-hero-slide-upload]')){ readHeroSlideFile(event.target); return; }
-	      if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
-	    });
+      if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
+      if(event.target.matches('#adminImportFile')){ importDataFile(event.target); return; }
+      if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
+      if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
+      if(event.target.matches('[data-hero-slide-upload]')){ readHeroSlideFile(event.target); return; }
+      if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
+    });
     document.addEventListener('input', event => {
+      if(event.target.matches('#adminSectionSearch')){ filterAdminSections(event.target.value); return; }
       if(event.target.matches('[data-brand-image-src],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
