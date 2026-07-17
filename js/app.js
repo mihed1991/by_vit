@@ -198,11 +198,20 @@
     return data;
   }
   function applyServerState(data){
+    const defaults = getDefaults();
+    const incomingProducts = Array.isArray(data.products) ? data.products : null;
+    const allowEmptyCatalog = data.catalogEmptyAllowed === true || data.site?.allowEmptyCatalog === true;
+    const products = incomingProducts && (incomingProducts.length || allowEmptyCatalog || !(defaults.products || []).length)
+      ? incomingProducts
+      : defaults.products;
+    if(incomingProducts && !incomingProducts.length && products.length){
+      console.warn(`Empty API catalog ignored; showing ${products.length} default products.`);
+    }
     serverState = {
-      products:Array.isArray(data.products) ? data.products : getDefaults().products,
-      site:data.site || getDefaults().site,
+      products:clone(products || []),
+      site:data.site || defaults.site,
       orders:Array.isArray(data.orders) ? data.orders : [],
-      reviews:Array.isArray(data.reviews) ? data.reviews : (getDefaults().reviews || [])
+      reviews:Array.isArray(data.reviews) ? data.reviews : (defaults.reviews || [])
     };
   }
   async function loadServerState(){
@@ -1167,7 +1176,7 @@
       const mediaClass = mobile ? 'hero-mobile-fallback' : 'hero-desktop-media';
       if(mode === 'animation') return `<div class="${mediaClass} hero-animation ${mobile ? 'hero-mobile-animation' : ''} ${classToken(animation, 'waves')}"><span></span><span></span><span></span></div>`;
       if(mode === 'image' || (mode === 'file' && !isVideoSource(src))) return `<img class="${mediaClass} ${mobile ? 'hero-mobile-custom' : ''}" src="${esc(src || imageFallback)}" alt="">`;
-      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
+      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="metadata" poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
     };
     root.dataset.slideCount = String(activeSlides.length);
     root.innerHTML = activeSlides.map((slide, index) => {
@@ -1179,6 +1188,15 @@
       const link = slide.href ? `<a class="hero-slide-link" href="${esc(slide.href)}" aria-label="Открыть баннер ${index + 1}"></a>` : '';
       return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
     }).join('');
+    $$('video', root).forEach(video => {
+      const markReady = () => video.classList.add('is-ready');
+      if(video.readyState >= 2) markReady();
+      else{
+        video.addEventListener('loadeddata', markReady, {once:true});
+        video.addEventListener('canplay', markReady, {once:true});
+      }
+      video.addEventListener('error', () => video.classList.add('media-error'), {once:true});
+    });
     if(activeSlides.length > 1){
       let index = 0;
       heroSlideTimer = setInterval(() => {

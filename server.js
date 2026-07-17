@@ -6,7 +6,9 @@ const crypto = require('crypto');
 const vm = require('vm');
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, 'data');
+const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
+const VOLUME_DATA_DIR = String(process.env.BYVIT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || '').trim();
+const DATA_DIR = path.resolve(VOLUME_DATA_DIR || DEFAULT_DATA_DIR);
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const PORT = Number(process.env.PORT || 3000);
@@ -33,6 +35,16 @@ function ensureDataDir(){
   fs.mkdirSync(DATA_DIR, {recursive:true});
 }
 
+function initialStore(defaults){
+  return {
+    products:clone(defaults.products || []),
+    site:clone(defaults.site || {}),
+    reviews:clone(defaults.reviews || []),
+    orders:[],
+    meta:{createdAt:new Date().toISOString(), recoveredCatalogAt:''}
+  };
+}
+
 function backupStore(){
   if(!fs.existsSync(STORE_PATH)) return;
   fs.mkdirSync(BACKUP_DIR, {recursive:true});
@@ -50,22 +62,34 @@ function loadStore(){
   const defaults = loadDefaults();
   ensureDataDir();
   if(!fs.existsSync(STORE_PATH)){
-    const initial = {
-      products:clone(defaults.products || []),
-      site:clone(defaults.site || {}),
-      reviews:clone(defaults.reviews || []),
-      orders:[]
-    };
+    const initial = initialStore(defaults);
     saveStore(initial);
     return initial;
   }
-  const stored = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
-  return {
+  let stored;
+  try{
+    stored = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+  }catch(error){
+    console.error('Store is corrupted, restoring defaults:', error.message);
+    const initial = initialStore(defaults);
+    saveStore(initial);
+    return initial;
+  }
+  const normalized = {
     products:Array.isArray(stored.products) ? stored.products : clone(defaults.products || []),
     site:stored.site && typeof stored.site === 'object' ? stored.site : clone(defaults.site || {}),
     reviews:Array.isArray(stored.reviews) ? stored.reviews : clone(defaults.reviews || []),
-    orders:Array.isArray(stored.orders) ? stored.orders : []
+    orders:Array.isArray(stored.orders) ? stored.orders : [],
+    meta:stored.meta && typeof stored.meta === 'object' ? stored.meta : {}
   };
+  const canRecoverCatalog = normalized.site.allowEmptyCatalog !== true && (defaults.products || []).length > 0;
+  if(!normalized.products.length && canRecoverCatalog){
+    normalized.products = clone(defaults.products);
+    normalized.meta.recoveredCatalogAt = new Date().toISOString();
+    console.warn(`Empty catalog recovered with ${normalized.products.length} default products.`);
+    saveStore(normalized);
+  }
+  return normalized;
 }
 
 function saveStore(store){
@@ -88,7 +112,8 @@ function publicState(store){
     products:store.products,
     site:publicSite(store.site),
     reviews:store.reviews.filter(review => review.status === 'approved'),
-    orders:[]
+    orders:[],
+    catalogEmptyAllowed:store.site?.allowEmptyCatalog === true
   };
 }
 
@@ -252,7 +277,12 @@ async function handleApi(req, res){
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try{
     if(req.method === 'GET' && url.pathname === '/api/health'){
-      send(res, 200, {ok:true});
+      send(res, 200, {
+        ok:true,
+        products:store.products.length,
+        storage:VOLUME_DATA_DIR ? 'volume' : 'ephemeral',
+        recoveredCatalogAt:store.meta?.recoveredCatalogAt || ''
+      });
       return;
     }
     if(req.method === 'GET' && url.pathname === '/api/state'){
@@ -286,7 +316,14 @@ async function handleApi(req, res){
     if(req.method === 'PUT' && url.pathname === '/api/admin/state'){
       if(!requireAdmin(req, res)) return;
       const body = await readJson(req);
-      if(Array.isArray(body.products)) store.products = body.products;
+      if(Array.isArray(body.products)){
+        const allowEmptyCatalog = body.allowEmptyCatalog === true || body.site?.allowEmptyCatalog === true;
+        if(!body.products.length && !allowEmptyCatalog){
+          send(res, 400, {error:'Каталог не может быть пустым. Включите allowEmptyCatalog только для намеренного отключения витрины.'});
+          return;
+        }
+        store.products = body.products;
+      }
       if(body.site && typeof body.site === 'object') store.site = body.site;
       if(Array.isArray(body.reviews)) store.reviews = body.reviews;
       if(Array.isArray(body.orders)) store.orders = body.orders;
