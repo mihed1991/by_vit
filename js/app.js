@@ -24,8 +24,9 @@
     bar:'Батончик',
     accessory:'Аксессуар'
   };
-  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'categories', 'goals', 'featured', 'service', 'brands'];
+  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'trust', 'categories', 'goals', 'featured', 'service', 'brands'];
   const DEFAULT_HOME_BLOCKS = {
+    trust:{visible:true,order:2,eyebrow:'Почему ByVit',title:'Покупка без сюрпризов',text:'Важные условия видны до оформления заказа.',titleSize:36,textSize:15,featureOneTitle:'Понятный товар',featureOneText:'Бренд, страна, состав, фасовка и остаток указаны в карточке.',featureTwoTitle:'Удобное получение',featureTwoText:'Самовывоз, курьер, Европочта или почта по Беларуси.',featureThreeTitle:'Подтверждение заказа',featureThreeText:'Магазин уточняет детали заказа и способ оплаты до отправки.'},
     categories:{visible:true,order:2,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
     goals:{visible:true,order:3,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
     featured:{visible:true,order:4,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
@@ -161,7 +162,14 @@
   function slugText(value){ return String(value || '').toLowerCase().trim(); }
   function toast(message){
     let node = $('#toast');
-    if(!node){ node = document.createElement('div'); node.id = 'toast'; node.className = 'toast'; document.body.appendChild(node); }
+    if(!node){
+      node = document.createElement('div');
+      node.id = 'toast';
+      node.className = 'toast';
+      node.setAttribute('role', 'status');
+      node.setAttribute('aria-live', 'polite');
+      document.body.appendChild(node);
+    }
     node.textContent = message;
     node.classList.add('show');
     clearTimeout(node._timer);
@@ -1370,6 +1378,19 @@
     if(serviceOneText) serviceOneText.textContent = service.featureOneText || '';
     if(serviceTwoTitle) serviceTwoTitle.textContent = service.featureTwoTitle || 'Контроль товара';
     if(serviceTwoText) serviceTwoText.textContent = service.featureTwoText || '';
+    const trust = blocks.trust || {};
+    const trustFields = {
+      trustFeatureOneTitle:trust.featureOneTitle,
+      trustFeatureOneText:trust.featureOneText,
+      trustFeatureTwoTitle:trust.featureTwoTitle,
+      trustFeatureTwoText:trust.featureTwoText,
+      trustFeatureThreeTitle:trust.featureThreeTitle,
+      trustFeatureThreeText:trust.featureThreeText
+    };
+    Object.entries(trustFields).forEach(([id, value]) => {
+      const field = $('#'+id);
+      if(field && value) field.textContent = value;
+    });
     const catGrid = $('#homeCategories');
 	    if(catGrid){
 	      catGrid.innerHTML = getCategories().slice(0,8).map((c,i)=>`
@@ -2908,7 +2929,7 @@
     }
 	    const homeRoot = $('#adminHomeBlocks');
 	    if(homeRoot){
-		      const titles = {categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
+		      const titles = {trust:'Доверие',categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
 	      homeRoot.innerHTML = Object.entries(site.homeBlocks || DEFAULT_HOME_BLOCKS).sort(([keyA, blockA], [keyB, blockB]) => homeBlockOrder(keyA, blockA) - homeBlockOrder(keyB, blockB)).map(([key, block])=>`
 	        <article class="admin-block-editor" data-home-block-key="${esc(key)}">
 	          <div class="admin-block-head">
@@ -2928,10 +2949,15 @@
             <input data-block-field="titleSize" type="number" min="24" max="72" value="${esc(block.titleSize || 36)}" placeholder="Размер заголовка">
             <input data-block-field="textSize" type="number" min="12" max="22" value="${esc(block.textSize || 15)}" placeholder="Размер текста">
           </div>
-          ${key !== 'service' ? `<div class="field-row"><input data-block-field="buttonText" value="${esc(block.buttonText || '')}" placeholder="Текст кнопки"><input data-block-field="buttonUrl" value="${esc(block.buttonUrl || '')}" placeholder="Ссылка кнопки"></div>` : `
+          ${key === 'service' ? `
             <div class="field-row"><input data-block-field="featureOneTitle" value="${esc(block.featureOneTitle || '')}" placeholder="Заголовок карточки 1"><input data-block-field="featureTwoTitle" value="${esc(block.featureTwoTitle || '')}" placeholder="Заголовок карточки 2"></div>
             <div class="field-row"><textarea data-block-field="featureOneText" placeholder="Текст карточки 1">${esc(block.featureOneText || '')}</textarea><textarea data-block-field="featureTwoText" placeholder="Текст карточки 2">${esc(block.featureTwoText || '')}</textarea></div>
-	          `}
+	          ` : key === 'trust' ? `
+            <div class="field-row"><input data-block-field="featureOneTitle" value="${esc(block.featureOneTitle || '')}" placeholder="Заголовок пункта 1"><input data-block-field="featureTwoTitle" value="${esc(block.featureTwoTitle || '')}" placeholder="Заголовок пункта 2"></div>
+            <div class="field-row"><textarea data-block-field="featureOneText" placeholder="Текст пункта 1">${esc(block.featureOneText || '')}</textarea><textarea data-block-field="featureTwoText" placeholder="Текст пункта 2">${esc(block.featureTwoText || '')}</textarea></div>
+            <input data-block-field="featureThreeTitle" value="${esc(block.featureThreeTitle || '')}" placeholder="Заголовок пункта 3">
+            <textarea data-block-field="featureThreeText" placeholder="Текст пункта 3">${esc(block.featureThreeText || '')}</textarea>
+	          ` : `<div class="field-row"><input data-block-field="buttonText" value="${esc(block.buttonText || '')}" placeholder="Текст кнопки"><input data-block-field="buttonUrl" value="${esc(block.buttonUrl || '')}" placeholder="Ссылка кнопки"></div>`}
 	        </article>`).join('');
 	    }
 	    const goalsRoot = $('#adminGoalsList');
