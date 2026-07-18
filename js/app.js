@@ -105,6 +105,7 @@
     scale:1
   };
   const MAX_INLINE_VIDEO_BYTES = 18 * 1024 * 1024;
+  const MAX_SERVER_UPLOAD_BYTES = 25 * 1024 * 1024;
   const MAX_IMAGE_EDGE = 1600;
   const INLINE_IMAGE_QUALITY = .84;
   const DEFAULT_STORE_BLOCKS = [
@@ -316,6 +317,7 @@
   let serverState = null;
   let serverAvailable = false;
   let persistTimer = null;
+  const pendingMediaDeletes = new Set();
   let quickContactDrag = null;
   let heroSlideTimer = null;
   function canUseServer(){
@@ -398,6 +400,7 @@
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)})
+        .then(() => flushPendingMediaDeletes())
         .catch(error => console.warn('Не удалось сохранить на сервер', error));
     }, 250);
   }
@@ -2214,7 +2217,7 @@
         ${image ? `<img src="${esc(image)}" alt="${esc(badge.text || 'Значок')}">` : `<span>${esc(badge.text || 'Текстовый значок')}</span>`}
       </div>
       <label class="admin-input-field">
-        <span><strong>Файл значка</strong><br><small>PNG/JPG/SVG сохранится в браузере для этого футера.</small></span>
+        <span><strong>Файл значка</strong><br><small>PNG/JPG/SVG загрузится в хранилище сайта.</small></span>
         <input type="file" accept="image/*" data-footer-badge-upload>
       </label>
       <button class="btn btn-danger small" data-footer-badge-delete type="button">Удалить значок</button>
@@ -2245,17 +2248,21 @@
     const file = input.files?.[0];
     const block = input.closest('[data-footer-badge-key]');
     if(!file || !block) return;
+    setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:900});
+      const source = await fileToStoredSource(file, {maxEdge:900, scope:'footer'});
       if(!source) return;
       const target = $('[data-footer-badge-image]', block);
+      const previous = target?.value.trim() || '';
       if(target) target.value = source;
+      if(previous !== source) deleteUploadedSource(previous);
       updateFooterBadgePreview(block);
       toast('Значок подготовлен');
     }catch(error){
       console.warn(error);
       toast('Не удалось загрузить значок');
     }finally{
+      setUploadBusy(input, false);
       input.value = '';
     }
   }
@@ -2300,17 +2307,21 @@
     const file = input.files?.[0];
     const block = input.closest('[data-brand-image-key]');
     if(!file || !block) return;
+    setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:900});
+      const source = await fileToStoredSource(file, {maxEdge:900, scope:'brands'});
       if(!source) return;
       const target = $('[data-brand-image-src]', block);
+      const previous = target?.value.trim() || '';
       if(target) target.value = source;
+      if(previous !== source) deleteUploadedSource(previous);
       updateBrandImagePreview(block);
       toast('Изображение бренда подготовлено');
     }catch(error){
       console.warn(error);
       toast('Не удалось загрузить изображение бренда');
     }finally{
+      setUploadBusy(input, false);
       input.value = '';
     }
   }
@@ -2808,6 +2819,8 @@
     $('#adminFormType').value = 'powder';
     $('#adminCustomFormType').value = '';
     $('#adminImageData').value = '';
+    $('#adminExistingImage').value = '';
+    $('#adminImageRemoved').value = '0';
     $('#adminPopular').checked = false;
     $('#adminRecommendationTags').value = '';
     $('#adminRelatedAuto').checked = true;
@@ -2838,6 +2851,8 @@
     $('#adminPackageOptions').value = packageOptionsToLines(product.packageOptions, product.price);
     $('#adminFlavors').value = (product.flavors || []).join(', ');
     $('#adminImageData').value = '';
+    $('#adminExistingImage').value = firstImage(product) || '';
+    $('#adminImageRemoved').value = '0';
     $('#adminPopular').checked = product.popular === true;
     $('#adminRecommendationTags').value = (Array.isArray(product.recommendationTags) ? product.recommendationTags : parseList(product.recommendationTags || '')).join(', ');
     $('#adminRelatedAuto').checked = product.relatedAuto !== false;
@@ -2876,7 +2891,7 @@
       relatedAuto:$('#adminRelatedAuto').checked,
       relatedProductIds:$$('[data-related-product]:checked').map(input => Number(input.value)).filter(Boolean).slice(0,4),
       rating:existing.rating || 4.7,
-      images:[$('#adminImageData').value || firstImage(existing) || 'assets/product-whey.jpg'],
+      images:[$('#adminImageData').value || ($('#adminImageRemoved').value !== '1' ? ($('#adminExistingImage').value || firstImage(existing)) : '') || 'assets/product-whey.jpg'],
       flavors:parseList($('#adminFlavors').value),
       packageOptions,
       shortDescription:$('#adminShortDescription').value.trim(),
@@ -2909,6 +2924,52 @@
       reader.readAsDataURL(file);
     });
   }
+  function dataUrlToBlob(source){
+    const [header, payload=''] = String(source || '').split(',', 2);
+    const mime = /^data:([^;,]+)/.exec(header)?.[1] || 'application/octet-stream';
+    const binary = header.includes(';base64') ? atob(payload) : decodeURIComponent(payload);
+    const bytes = new Uint8Array(binary.length);
+    for(let index=0; index<binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], {type:mime});
+  }
+  function isUploadedSource(source){
+    try{ return new URL(String(source || ''), location.href).pathname.startsWith('/uploads/'); }
+    catch(error){ return false; }
+  }
+  async function uploadAdminFile(body, file, scope='misc'){
+    const result = await fetchJson('/api/admin/uploads', {
+      method:'POST',
+      headers:{
+        'Content-Type':body.type || file.type || 'application/octet-stream',
+        'X-File-Name':encodeURIComponent(file.name || 'file'),
+        'X-Upload-Scope':scope
+      },
+      body
+    });
+    return result.file?.url || '';
+  }
+  function deleteUploadedSource(source){
+    if(!serverAvailable || !isAdminSession() || !isUploadedSource(source)) return false;
+    pendingMediaDeletes.add(String(source));
+    return true;
+  }
+  async function flushPendingMediaDeletes(){
+    if(!serverAvailable || !isAdminSession() || !pendingMediaDeletes.size) return;
+    const sources = Array.from(pendingMediaDeletes);
+    await Promise.all(sources.map(async source => {
+      try{
+        await fetchJson('/api/admin/uploads', {method:'DELETE', body:JSON.stringify({url:source})});
+        pendingMediaDeletes.delete(source);
+      }catch(error){
+        console.warn('Не удалось удалить медиа', error);
+      }
+    }));
+  }
+  function setUploadBusy(input, busy){
+    if(!input) return;
+    input.disabled = busy;
+    input.closest('label')?.classList.toggle('is-uploading', busy);
+  }
   function loadImage(src){
     return new Promise((resolve, reject) => {
       const image = new Image();
@@ -2939,8 +3000,17 @@
   }
   async function fileToStoredSource(file, options={}){
     if(!file) return '';
-    if(file.type.startsWith('image/')) return imageFileToStoredSource(file, options);
+    if(file.size > MAX_SERVER_UPLOAD_BYTES && serverAvailable){
+      toast('Файл больше 25 МБ. Уменьшите его перед загрузкой.');
+      return '';
+    }
+    if(file.type.startsWith('image/')){
+      const source = await imageFileToStoredSource(file, options);
+      if(serverAvailable && isAdminSession()) return uploadAdminFile(dataUrlToBlob(source), file, options.scope);
+      return source;
+    }
     if(file.type.startsWith('video/')){
+      if(serverAvailable && isAdminSession()) return uploadAdminFile(file, file, options.scope);
       if(file.size > MAX_INLINE_VIDEO_BYTES){
         toast('Видео слишком большое. Лучше вставить ссылку на MP4/WebM.');
         return '';
@@ -2950,20 +3020,28 @@
       }
       return readFileAsDataUrl(file);
     }
-    return readFileAsDataUrl(file);
+    throw new Error('Неподдерживаемый формат файла');
   }
-  async function readFileToHidden(input, hiddenSelector){
+  async function readFileToHidden(input, hiddenSelector, options={}){
     const file = input.files?.[0]; if(!file) return;
+    setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE});
+      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE, ...options});
       if(!source) return;
       const hidden = $(hiddenSelector);
+      const previous = hidden?.value.trim() || '';
       if(hidden) hidden.value = source;
-      toast(file.type.startsWith('image/') ? 'Изображение подготовлено' : 'Файл загружен');
+      if(hiddenSelector === '#adminImageData'){
+        const removed = $('#adminImageRemoved');
+        if(removed) removed.value = '0';
+      }
+      if(previous !== source) deleteUploadedSource(previous);
+      toast(serverAvailable ? 'Файл загружен в хранилище' : 'Файл подготовлен локально');
     }catch(error){
       console.warn(error);
       toast('Не удалось загрузить файл');
     }finally{
+      setUploadBusy(input, false);
       input.value = '';
     }
   }
@@ -2973,15 +3051,19 @@
     const target = input.dataset.heroSlideUpload === 'mobile' ? 'mobileSrc' : 'desktopSrc';
     if(!file || !card) return;
     try{
-      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE});
+      setUploadBusy(input, true);
+      const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE, scope:'hero'});
       if(!source) return;
       const field = $(`[data-hero-slide-field="${target}"]`, card);
+      const previous = field?.value.trim() || '';
       if(field) field.value = source;
+      if(previous !== source) deleteUploadedSource(previous);
       toast(file.type.startsWith('image/') ? 'Изображение баннера подготовлено' : 'Файл баннера загружен');
     }catch(error){
       console.warn(error);
       toast('Не удалось загрузить баннер');
     }finally{
+      setUploadBusy(input, false);
       input.value = '';
     }
   }
@@ -3336,6 +3418,7 @@
   }
   function resetHeroDefaultVideo(){
     const defaults = getDefaults().site || {};
+    const previous = $('#siteHeroMediaSrc')?.value.trim() || '';
     const values = {
       siteHeroMediaMode:defaults.heroMediaMode || 'video',
       siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-video.mp4',
@@ -3347,6 +3430,7 @@
     });
     const upload = $('#siteHeroMediaUpload');
     if(upload) upload.value = '';
+    deleteUploadedSource(previous);
     updateHeroAdminControls();
     toast('Выбрано видео по умолчанию. Сохраните настройки');
   }
@@ -3637,11 +3721,14 @@
     try{
       const data = await fetchJson('/api/admin/backups');
       const info = data.storage || {};
+      const mediaInfo = data.media || {};
       statusRoot.innerHTML = `
         <span><small>Режим</small><strong>${info.persistent ? 'Постоянное' : 'Временное'}</strong></span>
         <span><small>Драйвер</small><strong>${esc(info.driver || 'file')}</strong></span>
         <span><small>Обновлено</small><strong>${esc(storageDate(info.updatedAt))}</strong></span>
-        <span><small>Копии</small><strong>${esc(info.backups || 0)} / ${esc(info.maxBackups || 0)}</strong></span>`;
+        <span><small>Копии</small><strong>${esc(info.backups || 0)} / ${esc(info.maxBackups || 0)}</strong></span>
+        <span><small>Медиа</small><strong>${esc(mediaInfo.files || 0)} · ${esc(storageFileSize(mediaInfo.size))}</strong></span>
+        <span><small>Файлы</small><strong>${mediaInfo.persistent ? 'Постоянные' : 'Временные'}</strong></span>`;
       const backups = Array.isArray(data.backups) ? data.backups : [];
       backupsRoot.innerHTML = backups.length ? backups.map(item => `
         <div class="admin-backup-item">
@@ -3851,10 +3938,10 @@
 	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
 	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
 	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
-	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ heroSlideDelete.closest('[data-hero-slide-key]')?.remove(); return; }
+	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ const block = heroSlideDelete.closest('[data-hero-slide-key]'); deleteUploadedSource($('[data-hero-slide-field="desktopSrc"]', block)?.value); deleteUploadedSource($('[data-hero-slide-field="mobileSrc"]', block)?.value); block?.remove(); return; }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
-	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); if(input) input.value = ''; updateBrandImagePreview(block); return; }
+	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); deleteUploadedSource(input?.value); if(input) input.value = ''; updateBrandImagePreview(block); return; }
 	      const brandImageReset = event.target.closest('[data-brand-image-reset]'); if(brandImageReset){ resetBrandImageControls(brandImageReset.closest('[data-brand-image-key]')); return; }
 	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
       const storeDelete = event.target.closest('[data-store-block-delete]'); if(storeDelete){ storeDelete.closest('[data-store-block-key]')?.remove(); return; }
@@ -3869,7 +3956,11 @@
       const aboutAdd = event.target.closest('[data-about-card-add]'); if(aboutAdd){ const root = $('#adminAboutCards'); if(root) root.insertAdjacentHTML('beforeend', contentItemEditor('about', {title:'',text:'',enabled:true}, $$('[data-content-item="about"]', root).length)); return; }
       const contentDelete = event.target.closest('[data-content-delete]'); if(contentDelete){ contentDelete.closest('[data-content-item]')?.remove(); return; }
       const footerBadgeAdd = event.target.closest('[data-footer-badge-add]'); if(footerBadgeAdd){ const root = $('#footerBadgesList'); if(root) root.insertAdjacentHTML('beforeend', footerBadgeEditor({enabled:true}, $$('[data-footer-badge-key]', root).length)); return; }
-      const footerBadgeDelete = event.target.closest('[data-footer-badge-delete]'); if(footerBadgeDelete){ footerBadgeDelete.closest('[data-footer-badge-key]')?.remove(); return; }
+      const footerBadgeDelete = event.target.closest('[data-footer-badge-delete]'); if(footerBadgeDelete){ const block = footerBadgeDelete.closest('[data-footer-badge-key]'); deleteUploadedSource($('[data-footer-badge-image]', block)?.value); block?.remove(); return; }
+      const adminImageClear = event.target.closest('[data-admin-image-clear]'); if(adminImageClear){ const uploaded = $('#adminImageData'); const existing = $('#adminExistingImage'); deleteUploadedSource(uploaded?.value || existing?.value); if(uploaded) uploaded.value = ''; if(existing) existing.value = ''; const removed = $('#adminImageRemoved'); if(removed) removed.value = '1'; toast('Изображение убрано. Сохраните товар'); return; }
+      const mobileHeroClear = event.target.closest('[data-mobile-hero-clear]'); if(mobileHeroClear){ const field = $('#siteMobileHeroMediaSrc'); deleteUploadedSource(field?.value); if(field) field.value = ''; const upload = $('#siteMobileHeroMediaUpload'); if(upload) upload.value = ''; toast('Мобильное медиа убрано. Сохраните настройки'); return; }
+      const headerLogoClear = event.target.closest('[data-header-logo-clear]'); if(headerLogoClear){ const field = $('#headerLogoImage'); deleteUploadedSource(field?.value); if(field) field.value = ''; toast('Файл значка убран. Сохраните хэдер'); return; }
+      const headerBrandClear = event.target.closest('[data-header-brand-clear]'); if(headerBrandClear){ const field = $('#headerBrandImage'); deleteUploadedSource(field?.value); if(field) field.value = ''; toast('Файл названия убран. Сохраните хэдер'); return; }
       const orderDone = event.target.closest('[data-order-done]'); if(orderDone){ updateOrder(orderDone.dataset.orderDone,'completed'); return; }
       const orderDelete = event.target.closest('[data-order-delete]'); if(orderDelete){ deleteOrder(orderDelete.dataset.orderDelete); return; }
       const reviewEdit = event.target.closest('[data-review-edit]'); if(reviewEdit){ editReview(reviewEdit.dataset.reviewEdit); return; }
@@ -3915,11 +4006,11 @@
     $('#adminProductForm')?.addEventListener('submit', saveProduct);
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
-    $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData'));
-    $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc'));
-    $('#siteMobileHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteMobileHeroMediaSrc'));
-    $('#headerLogoImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerLogoImage'));
-    $('#headerBrandImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerBrandImage'));
+    $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData', {scope:'products'}));
+    $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc', {scope:'hero'}));
+    $('#siteMobileHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteMobileHeroMediaSrc', {scope:'hero'}));
+    $('#headerLogoImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerLogoImage', {scope:'header'}));
+    $('#headerBrandImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerBrandImage', {scope:'header'}));
     $('#siteHeroMediaMode')?.addEventListener('change', updateHeroAdminControls);
     $('#siteMobileHeroMode')?.addEventListener('change', updateMobileHeroAdminControls);
     $('[data-hero-colors-reset]')?.addEventListener('click', resetHeroColors);

@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 const {createStorage} = require('./lib/storage');
+const {createMedia} = require('./lib/media');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -20,6 +21,11 @@ const BACKUP_TOKEN = String(process.env.BYVIT_BACKUP_TOKEN || '').trim();
 const STORAGE_DRIVER = String(process.env.BYVIT_STORAGE_DRIVER || 'file').trim().toLowerCase();
 const STORAGE_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_STORAGE_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
 const storage = createStorage({driver:STORAGE_DRIVER, dataDir:DATA_DIR, backupDir:BACKUP_DIR, maxBackups:MAX_BACKUPS, persistent:STORAGE_PERSISTENT});
+const MEDIA_DRIVER = String(process.env.BYVIT_MEDIA_DRIVER || 'file').trim().toLowerCase();
+const UPLOAD_DIR = path.resolve(String(process.env.BYVIT_UPLOAD_DIR || '').trim() || path.join(DATA_DIR, 'uploads'));
+const MAX_UPLOAD_BYTES = Math.max(1024, Number(process.env.BYVIT_UPLOAD_MAX_BYTES || 25 * 1024 * 1024));
+const MEDIA_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_MEDIA_PERSISTENT || '')) || STORAGE_PERSISTENT;
+const media = createMedia({driver:MEDIA_DRIVER, uploadDir:UPLOAD_DIR, publicPath:'/uploads', maxBytes:MAX_UPLOAD_BYTES, persistent:MEDIA_PERSISTENT});
 
 const sessions = new Map();
 
@@ -309,6 +315,25 @@ function readJson(req){
   });
 }
 
+function readBuffer(req, maxBytes=MAX_BODY){
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let failed = false;
+    const chunks = [];
+    req.on('data', chunk => {
+      size += chunk.length;
+      if(size > maxBytes){
+        if(!failed) reject(new Error(`Файл больше ${Math.round(maxBytes / 1024 / 1024)} МБ`));
+        failed = true;
+        return;
+      }
+      if(!failed) chunks.push(chunk);
+    });
+    req.on('end', () => { if(!failed) resolve(Buffer.concat(chunks)); });
+    req.on('error', reject);
+  });
+}
+
 function sha256(value){
   return crypto.createHash('sha256').update(String(value || '')).digest('hex');
 }
@@ -393,10 +418,44 @@ function contentType(filePath){
     '.jpg':'image/jpeg',
     '.jpeg':'image/jpeg',
     '.svg':'image/svg+xml',
+    '.gif':'image/gif',
     '.webp':'image/webp',
     '.mp4':'video/mp4',
+    '.webm':'video/webm',
     '.txt':'text/plain; charset=utf-8'
   }[ext] || 'application/octet-stream';
+}
+
+function serveUpload(req, res){
+  const target = media.resolve(req.url);
+  if(!target) return false;
+  let stats;
+  try{ stats = fs.statSync(target); }
+  catch(error){ send(res, 404, 'Not found'); return true; }
+  if(!stats.isFile()){ send(res, 404, 'Not found'); return true; }
+  const headers = {
+    'Content-Type':contentType(target),
+    'Cache-Control':'public, max-age=31536000, immutable',
+    'Accept-Ranges':'bytes',
+    'X-Content-Type-Options':'nosniff'
+  };
+  if(path.extname(target).toLowerCase() === '.svg') headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+  const range = String(req.headers.range || '');
+  if(range){
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if(!match){ res.writeHead(416, {'Content-Range':`bytes */${stats.size}`}); res.end(); return true; }
+    const start = match[1] ? Number(match[1]) : 0;
+    const end = match[2] ? Math.min(Number(match[2]), stats.size - 1) : stats.size - 1;
+    if(!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= stats.size){
+      res.writeHead(416, {'Content-Range':`bytes */${stats.size}`}); res.end(); return true;
+    }
+    res.writeHead(206, {...headers, 'Content-Range':`bytes ${start}-${end}/${stats.size}`, 'Content-Length':end - start + 1});
+    fs.createReadStream(target, {start, end}).pipe(res);
+    return true;
+  }
+  res.writeHead(200, {...headers, 'Content-Length':stats.size});
+  fs.createReadStream(target).pipe(res);
+  return true;
 }
 
 function serveStatic(req, res){
@@ -420,6 +479,7 @@ async function handleApi(req, res){
   try{
     if(req.method === 'GET' && url.pathname === '/api/health'){
       const storageInfo = storage.info();
+      const mediaInfo = media.info();
       send(res, 200, {
         ok:true,
         products:store.products.length,
@@ -427,6 +487,10 @@ async function handleApi(req, res){
         storageDriver:storageInfo.driver,
         storageUpdatedAt:storageInfo.updatedAt,
         backups:storageInfo.backups,
+        mediaDriver:mediaInfo.driver,
+        mediaStorage:mediaInfo.persistent ? 'persistent' : 'ephemeral',
+        mediaFiles:mediaInfo.files,
+        mediaSize:mediaInfo.size,
         recoveredCatalogAt:store.meta?.recoveredCatalogAt || ''
       });
       return;
@@ -445,9 +509,35 @@ async function handleApi(req, res){
       send(res, 200, store);
       return;
     }
+    if(req.method === 'GET' && url.pathname === '/api/admin/uploads'){
+      if(!requireAdmin(req, res)) return;
+      send(res, 200, {media:media.info(), files:media.list()});
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/uploads'){
+      if(!requireAdmin(req, res)) return;
+      const buffer = await readBuffer(req, MAX_UPLOAD_BYTES);
+      let originalName = String(req.headers['x-file-name'] || 'file');
+      try{ originalName = decodeURIComponent(originalName); }catch(error){}
+      const file = media.save({
+        buffer,
+        originalName,
+        contentType:req.headers['content-type'],
+        scope:req.headers['x-upload-scope']
+      });
+      send(res, 201, {ok:true, file, media:media.info()});
+      return;
+    }
+    if(req.method === 'DELETE' && url.pathname === '/api/admin/uploads'){
+      if(!requireAdmin(req, res)) return;
+      const body = await readJson(req);
+      const deleted = media.delete(body.url);
+      send(res, 200, {ok:true, deleted, media:media.info()});
+      return;
+    }
     if(req.method === 'GET' && url.pathname === '/api/admin/backups'){
       if(!requireAdmin(req, res)) return;
-      send(res, 200, {storage:storage.info(), backups:storage.listBackups(), externalExport:Boolean(BACKUP_TOKEN)});
+      send(res, 200, {storage:storage.info(), media:media.info(), backups:storage.listBackups(), externalExport:Boolean(BACKUP_TOKEN)});
       return;
     }
     if(req.method === 'GET' && url.pathname === '/api/admin/backup/download'){
@@ -458,7 +548,7 @@ async function handleApi(req, res){
     if(req.method === 'POST' && url.pathname === '/api/admin/backups'){
       if(!requireAdmin(req, res)) return;
       const backup = storage.createBackup('manual');
-      send(res, 201, {ok:true, backup, storage:storage.info(), backups:storage.listBackups()});
+      send(res, 201, {ok:true, backup, storage:storage.info(), media:media.info(), backups:storage.listBackups()});
       return;
     }
     if(req.method === 'POST' && url.pathname === '/api/admin/backups/restore'){
@@ -466,7 +556,7 @@ async function handleApi(req, res){
       const body = await readJson(req);
       storage.restoreBackup(body.name);
       const restoredStore = loadStore();
-      send(res, 200, {ok:true, store:restoredStore, storage:storage.info(), backups:storage.listBackups()});
+      send(res, 200, {ok:true, store:restoredStore, storage:storage.info(), media:media.info(), backups:storage.listBackups()});
       return;
     }
     if(req.method === 'POST' && url.pathname === '/api/analytics'){
@@ -567,6 +657,7 @@ async function handleApi(req, res){
 
 const server = http.createServer((req, res) => {
   if(handleSeoFile(req, res)) return;
+  if(serveUpload(req, res)) return;
   if(req.url.startsWith('/api/')){
     handleApi(req, res);
     return;

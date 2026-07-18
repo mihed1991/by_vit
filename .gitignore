@@ -1,5 +1,6 @@
 data/store.json
 data/*.tmp
 data/backups/
+data/uploads/
 node_modules/
 .DS_Store

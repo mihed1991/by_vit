@@ -1439,6 +1439,8 @@ p{line-height:1.7;margin:0;color:var(--muted)}
   border-color:var(--green);
   color:var(--green);
 }
+.admin-file-field.is-uploading,.toggle-row.is-uploading{opacity:.62;cursor:progress}
+.admin-file-field.is-uploading::after,.toggle-row.is-uploading::after{content:'Загрузка...';font-size:11px;font-weight:700;color:var(--green)}
 .admin-file-field input{
   position:absolute;
   inset:0;

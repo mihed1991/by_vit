@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=54">
-  <script src="js/data.js?v=54" defer></script>
-  <script src="js/app.js?v=54" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=55">
+  <script src="js/data.js?v=55" defer></script>
+  <script src="js/app.js?v=55" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -83,6 +83,8 @@
                   <form class="admin-form" id="adminProductForm">
                     <input id="adminProductId" type="hidden">
                     <input id="adminImageData" type="hidden">
+                    <input id="adminExistingImage" type="hidden">
+                    <input id="adminImageRemoved" type="hidden" value="0">
 
                     <div class="admin-form-section">
                       <h4>Основное</h4>
@@ -146,9 +148,10 @@
                     <div class="admin-form-section">
                       <h4>Изображение</h4>
                       <label class="toggle-row">
-                        <span><strong>Файл товара</strong><br><small>Форматы: JPG, PNG, WebP или SVG. Изображение сохранится в браузере.</small></span>
+                        <span><strong>Файл товара</strong><br><small>JPG, PNG, WebP или SVG. На сервере сохранится файл, а в товаре — короткая ссылка.</small></span>
                         <input id="adminImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
                       </label>
+                      <button class="btn btn-light small" data-admin-image-clear type="button">Убрать изображение</button>
                     </div>
 
                     <div class="field-row">
@@ -316,9 +319,10 @@
                       <small>JPG, PNG, WebP, SVG, MP4 или WebM.</small>
                     </label>
                     <label class="toggle-row" data-mobile-hero-control="upload">
-                      <span><strong>Загрузить медиа</strong><br><small>Файл сохранится в браузере как отдельный мобильный баннер</small></span>
+                      <span><strong>Загрузить медиа</strong><br><small>Файл загрузится в переносимое хранилище сайта</small></span>
                       <input id="siteMobileHeroMediaUpload" type="file" accept="image/*,video/mp4,video/webm">
                     </label>
+                    <button class="btn btn-light small" data-mobile-hero-clear type="button">Убрать мобильное медиа</button>
                     <label class="range-field">
                       <span>Яркость мобильного медиа <strong id="mobileHeroOpacityValue">28%</strong></span>
                       <input id="siteMobileHeroOpacity" type="range" min="0.05" max="1" step="0.01">
@@ -649,6 +653,7 @@
                       <span><strong>Файл значка</strong><br><small>JPG, PNG, WebP или SVG. Подстроится под размер хедера.</small></span>
                       <input id="headerLogoImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
                     </label>
+                    <button class="btn btn-light small" data-header-logo-clear type="button">Убрать файл значка</button>
                     <label class="admin-input-field">
                       <span>Изображение названия</span>
                       <input id="headerBrandImage" placeholder="Ссылка или загруженный файл вместо текстового названия">
@@ -658,6 +663,7 @@
                       <span><strong>Файл названия</strong><br><small>Можно загрузить горизонтальный логотип для десктопа и мобильной версии.</small></span>
                       <input id="headerBrandImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
                     </label>
+                    <button class="btn btn-light small" data-header-brand-clear type="button">Убрать файл названия</button>
                     <div class="field-row"><input id="headerTopRight" placeholder="Текст справа сверху"><input id="headerAdminLabel" placeholder="Текст кнопки админки"></div>
                     <input id="headerSearchPlaceholder" placeholder="Плейсхолдер поиска">
                   </div>
