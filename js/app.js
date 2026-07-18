@@ -2702,7 +2702,7 @@
     login.style.display = isLogged ? 'none' : 'grid';
     panel.style.display = isLogged ? 'block' : 'none';
     if(!isLogged) return;
-    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews();
+    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews(); renderAdminStorage();
   }
   async function adminLogin(event){
     event.preventDefault();
@@ -3615,6 +3615,77 @@
       </div>
       <section class="analytics-report"><h4>Последние 14 дней</h4>${dayRows.length ? `<div class="table-wrap"><table class="admin-table analytics-table"><thead><tr><th>Дата</th><th>Страницы</th><th>Товары</th><th>В корзину</th><th>Заказы</th><th>Сумма</th></tr></thead><tbody>${dayRows.map(([date,stats])=>`<tr><td>${esc(analyticsDate(date))}</td><td>${analyticsNumber(stats.pageViews)}</td><td>${analyticsNumber(stats.productViews)}</td><td>${analyticsNumber(stats.addToCart)}</td><td>${analyticsNumber(stats.orders)}</td><td>${money(stats.revenue)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="admin-hint">Пока нет данных по дням.</p>'}</section>`;
   }
+  function storageFileSize(value){
+    const bytes = Number(value || 0);
+    if(bytes < 1024) return `${bytes} Б`;
+    if(bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
+    return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`;
+  }
+  function storageDate(value){
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('ru-RU');
+  }
+  async function renderAdminStorage(){
+    const statusRoot = $('#adminStorageStatus');
+    const backupsRoot = $('#adminBackupsList');
+    if(!statusRoot || !backupsRoot) return;
+    if(!serverAvailable || !isAdminSession()){
+      statusRoot.innerHTML = '<strong>Локальный режим</strong><span>Серверное хранилище недоступно.</span>';
+      backupsRoot.innerHTML = '';
+      return;
+    }
+    try{
+      const data = await fetchJson('/api/admin/backups');
+      const info = data.storage || {};
+      statusRoot.innerHTML = `
+        <span><small>Режим</small><strong>${info.persistent ? 'Постоянное' : 'Временное'}</strong></span>
+        <span><small>Драйвер</small><strong>${esc(info.driver || 'file')}</strong></span>
+        <span><small>Обновлено</small><strong>${esc(storageDate(info.updatedAt))}</strong></span>
+        <span><small>Копии</small><strong>${esc(info.backups || 0)} / ${esc(info.maxBackups || 0)}</strong></span>`;
+      const backups = Array.isArray(data.backups) ? data.backups : [];
+      backupsRoot.innerHTML = backups.length ? backups.map(item => `
+        <div class="admin-backup-item">
+          <span><strong>${esc(storageDate(item.createdAt))}</strong><small>${esc(storageFileSize(item.size))}</small></span>
+          <button class="btn btn-light small" data-server-backup-restore="${esc(item.name)}" type="button">Восстановить</button>
+        </div>`).join('') : '<p class="admin-hint">Резервных копий пока нет.</p>';
+    }catch(error){
+      console.warn(error);
+      statusRoot.innerHTML = '<strong>Не удалось получить статус</strong><span>Обновите страницу или проверьте сервер.</span>';
+      backupsRoot.innerHTML = '';
+    }
+  }
+  async function createServerBackup(){
+    try{
+      await fetchJson('/api/admin/backups', {method:'POST'});
+      await renderAdminStorage();
+      toast('Резервная копия создана');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось создать копию');
+    }
+  }
+  function downloadServerBackup(){
+    const link = document.createElement('a');
+    link.href = `/api/admin/backup/download?time=${Date.now()}`;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  async function restoreServerBackup(name){
+    if(!confirm('Восстановить выбранную копию? Текущее состояние сначала будет сохранено отдельной резервной копией.')) return;
+    try{
+      const data = await fetchJson('/api/admin/backups/restore', {method:'POST', body:JSON.stringify({name})});
+      applyServerState(data.store || {});
+      renderAdmin();
+      adminSwitch('service');
+      refreshCurrentPage();
+      toast('Резервная копия восстановлена');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось восстановить копию');
+    }
+  }
   function exportFileName(){
     const stamp = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
     return `byvit-backup-${stamp}.json`;
@@ -3806,6 +3877,9 @@
       const reviewDelete = event.target.closest('[data-review-delete]'); if(reviewDelete){ deleteReview(reviewDelete.dataset.reviewDelete); return; }
       const tab = event.target.closest('[data-admin-tab]'); if(tab){ adminSwitch(tab.dataset.adminTab); return; }
       const reset = event.target.closest('[data-reset-all]'); if(reset){ resetAll(); return; }
+      const serverBackup = event.target.closest('[data-server-backup]'); if(serverBackup){ createServerBackup(); return; }
+      const serverBackupDownload = event.target.closest('[data-server-backup-download]'); if(serverBackupDownload){ downloadServerBackup(); return; }
+      const serverBackupRestore = event.target.closest('[data-server-backup-restore]'); if(serverBackupRestore){ restoreServerBackup(serverBackupRestore.dataset.serverBackupRestore); return; }
       const exp = event.target.closest('[data-export]'); if(exp){ exportData(); return; }
       const importTrigger = event.target.closest('[data-import-trigger]'); if(importTrigger){ $('#adminImportFile')?.click(); return; }
       const logout = event.target.closest('[data-admin-logout]'); if(logout){ adminLogout(); return; }

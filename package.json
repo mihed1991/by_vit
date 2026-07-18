@@ -5,7 +5,7 @@
   "description": "ByVit production MVP store with static frontend and Node.js API.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check js/app.js && node --check js/data.js"
+    "check": "node --check server.js && node --check js/app.js && node --check js/data.js && node scripts/check-storage.js"
   },
   "engines": {
     "node": ">=20"

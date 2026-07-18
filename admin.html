@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=53">
-  <script src="js/data.js?v=53" defer></script>
-  <script src="js/app.js?v=53" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=54">
+  <script src="js/data.js?v=54" defer></script>
+  <script src="js/app.js?v=54" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -673,7 +673,17 @@
             <section class="admin-section" id="admin-service">
               <article class="admin-card">
                 <h3>Сервис</h3>
-                <p>Экспортирует товары, настройки и заказы в JSON. Сброс возвращает демо-данные.</p>
+                <p>Резервные копии используют переносимый JSON-формат. Их можно скачать и восстановить на другом хостинге.</p>
+                <div class="admin-form-section">
+                  <h4>Хранилище и резервные копии</h4>
+                  <div class="admin-storage-status" id="adminStorageStatus"><span>Проверяем хранилище...</span></div>
+                  <div class="admin-actions">
+                    <button class="btn btn-primary" data-server-backup type="button">Создать копию</button>
+                    <button class="btn btn-light" data-server-backup-download type="button">Скачать с сервера</button>
+                  </div>
+                  <div class="admin-backup-list" id="adminBackupsList"></div>
+                  <p class="admin-hint">Сервер хранит до заданного количества копий. Для переезда скачайте последнюю копию и импортируйте её на новом хостинге.</p>
+                </div>
                 <form class="admin-form" id="adminPasswordForm" style="margin-bottom:18px">
                   <div class="admin-form-section">
                     <h4>Пароль админки</h4>

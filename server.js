@@ -4,18 +4,22 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
+const {createStorage} = require('./lib/storage');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
 const VOLUME_DATA_DIR = String(process.env.BYVIT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || '').trim();
 const DATA_DIR = path.resolve(VOLUME_DATA_DIR || DEFAULT_DATA_DIR);
-const STORE_PATH = path.join(DATA_DIR, 'store.json');
-const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const BACKUP_DIR = path.resolve(String(process.env.BYVIT_BACKUP_DIR || '').trim() || path.join(DATA_DIR, 'backups'));
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_PASSWORD_HASH = '8e9b669109df89620b94f2387dc53206a82ddc71d658f8f7a2b3a9b417370d3e';
 const SESSION_COOKIE = 'byvit_admin_session';
 const MAX_BODY = 35 * 1024 * 1024;
-const MAX_BACKUPS = 12;
+const MAX_BACKUPS = Number(process.env.BYVIT_MAX_BACKUPS || 12);
+const BACKUP_TOKEN = String(process.env.BYVIT_BACKUP_TOKEN || '').trim();
+const STORAGE_DRIVER = String(process.env.BYVIT_STORAGE_DRIVER || 'file').trim().toLowerCase();
+const STORAGE_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_STORAGE_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
+const storage = createStorage({driver:STORAGE_DRIVER, dataDir:DATA_DIR, backupDir:BACKUP_DIR, maxBackups:MAX_BACKUPS, persistent:STORAGE_PERSISTENT});
 
 const sessions = new Map();
 
@@ -29,10 +33,6 @@ function loadDefaults(){
 
 function clone(value){
   return JSON.parse(JSON.stringify(value));
-}
-
-function ensureDataDir(){
-  fs.mkdirSync(DATA_DIR, {recursive:true});
 }
 
 function initialStore(defaults){
@@ -120,30 +120,17 @@ function recordOrderAnalytics(store, order){
   });
 }
 
-function backupStore(){
-  if(!fs.existsSync(STORE_PATH)) return;
-  fs.mkdirSync(BACKUP_DIR, {recursive:true});
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  fs.copyFileSync(STORE_PATH, path.join(BACKUP_DIR, `store-${stamp}.json`));
-  const files = fs.readdirSync(BACKUP_DIR)
-    .filter(name => /^store-.+\.json$/.test(name))
-    .sort();
-  files.slice(0, Math.max(0, files.length - MAX_BACKUPS)).forEach(name => {
-    fs.unlinkSync(path.join(BACKUP_DIR, name));
-  });
-}
-
 function loadStore(){
   const defaults = loadDefaults();
-  ensureDataDir();
-  if(!fs.existsSync(STORE_PATH)){
+  storage.ensure();
+  if(!storage.exists()){
     const initial = initialStore(defaults);
-    saveStore(initial);
+    saveStore(initial, {backup:false});
     return initial;
   }
   let stored;
   try{
-    stored = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    stored = storage.read();
   }catch(error){
     console.error('Store is corrupted, restoring defaults:', error.message);
     const initial = initialStore(defaults);
@@ -169,11 +156,7 @@ function loadStore(){
 }
 
 function saveStore(store, options={}){
-  ensureDataDir();
-  if(options.backup !== false) backupStore();
-  const temp = `${STORE_PATH}.tmp`;
-  fs.writeFileSync(temp, JSON.stringify(store, null, 2));
-  fs.renameSync(temp, STORE_PATH);
+  storage.write(store, options);
 }
 
 function publicSite(site){
@@ -201,6 +184,26 @@ function send(res, status, body, headers={}){
     ...headers
   });
   res.end(payload);
+}
+
+function backupPayload(store){
+  return {version:4, exportedAt:new Date().toISOString(), data:store};
+}
+
+function sendJsonDownload(res, filename, value){
+  const payload = JSON.stringify(value, null, 2);
+  res.writeHead(200, {
+    'Content-Type':'application/json; charset=utf-8',
+    'Content-Disposition':`attachment; filename="${filename}"`,
+    'Content-Length':Buffer.byteLength(payload),
+    'Cache-Control':'no-store'
+  });
+  res.end(payload);
+}
+
+function backupFileName(){
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  return `byvit-server-backup-${stamp}.json`;
 }
 
 function requestOrigin(req){
@@ -262,6 +265,24 @@ function isAdmin(req){
 
 function requireAdmin(req, res){
   if(isAdmin(req)) return true;
+  send(res, 401, {error:'Unauthorized'});
+  return false;
+}
+
+function bearerToken(req){
+  const value = String(req.headers.authorization || '');
+  return value.startsWith('Bearer ') ? value.slice(7).trim() : '';
+}
+
+function tokenMatches(expected, actual){
+  if(!expected || !actual) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(actual);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function requireBackupAccess(req, res){
+  if(isAdmin(req) || tokenMatches(BACKUP_TOKEN, bearerToken(req))) return true;
   send(res, 401, {error:'Unauthorized'});
   return false;
 }
@@ -398,12 +419,21 @@ async function handleApi(req, res){
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try{
     if(req.method === 'GET' && url.pathname === '/api/health'){
+      const storageInfo = storage.info();
       send(res, 200, {
         ok:true,
         products:store.products.length,
-        storage:VOLUME_DATA_DIR ? 'volume' : 'ephemeral',
+        storage:storageInfo.persistent ? 'persistent' : 'ephemeral',
+        storageDriver:storageInfo.driver,
+        storageUpdatedAt:storageInfo.updatedAt,
+        backups:storageInfo.backups,
         recoveredCatalogAt:store.meta?.recoveredCatalogAt || ''
       });
+      return;
+    }
+    if(req.method === 'GET' && url.pathname === '/api/backup'){
+      if(!requireBackupAccess(req, res)) return;
+      sendJsonDownload(res, backupFileName(), backupPayload(store));
       return;
     }
     if(req.method === 'GET' && url.pathname === '/api/state'){
@@ -413,6 +443,30 @@ async function handleApi(req, res){
     if(req.method === 'GET' && url.pathname === '/api/admin/state'){
       if(!requireAdmin(req, res)) return;
       send(res, 200, store);
+      return;
+    }
+    if(req.method === 'GET' && url.pathname === '/api/admin/backups'){
+      if(!requireAdmin(req, res)) return;
+      send(res, 200, {storage:storage.info(), backups:storage.listBackups(), externalExport:Boolean(BACKUP_TOKEN)});
+      return;
+    }
+    if(req.method === 'GET' && url.pathname === '/api/admin/backup/download'){
+      if(!requireAdmin(req, res)) return;
+      sendJsonDownload(res, backupFileName(), backupPayload(store));
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/backups'){
+      if(!requireAdmin(req, res)) return;
+      const backup = storage.createBackup('manual');
+      send(res, 201, {ok:true, backup, storage:storage.info(), backups:storage.listBackups()});
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/backups/restore'){
+      if(!requireAdmin(req, res)) return;
+      const body = await readJson(req);
+      storage.restoreBackup(body.name);
+      const restoredStore = loadStore();
+      send(res, 200, {ok:true, store:restoredStore, storage:storage.info(), backups:storage.listBackups()});
       return;
     }
     if(req.method === 'POST' && url.pathname === '/api/analytics'){
