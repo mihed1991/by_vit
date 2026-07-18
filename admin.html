@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=52">
-  <script src="js/data.js?v=52" defer></script>
-  <script src="js/app.js?v=52" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=53">
+  <script src="js/data.js?v=53" defer></script>
+  <script src="js/app.js?v=53" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -130,6 +130,17 @@
                       <h4>Фасовки и вкусы</h4>
                       <textarea id="adminPackageOptions" placeholder="900 г | 129&#10;2.27 кг | 249"></textarea>
                       <input id="adminFlavors" placeholder="Вкусы через запятую">
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Похожие товары</h4>
+                      <input id="adminRecommendationTags" placeholder="Цели и теги: масса, восстановление, сон">
+                      <label class="toggle-row">
+                        <span><strong>Автоматический подбор</strong><br><small>Дополнять закреплённые товары совпадениями по категории, тегам, форме и бренду</small></span>
+                        <input id="adminRelatedAuto" type="checkbox" checked>
+                      </label>
+                      <div class="admin-related-products" id="adminRelatedProducts"></div>
+                      <p class="admin-hint">Отмеченные товары показываются первыми. Можно выбрать до четырёх.</p>
                     </div>
 
                     <div class="admin-form-section">

@@ -3116,6 +3116,38 @@ body[data-page="admin"] .admin-actions{
   gap:8px;
 }
 
+body[data-page="product"] .product-recommendations .product-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+.admin-related-products{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  max-height:250px;
+  overflow:auto;
+  padding-right:3px;
+}
+.admin-related-option{
+  display:grid;
+  grid-template-columns:18px 38px minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  padding:7px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  cursor:pointer;
+}
+.admin-related-option:has(input:checked){border-color:var(--green);background:var(--green-soft)}
+.admin-related-option input{width:16px!important;min-height:16px!important;accent-color:var(--green)}
+.admin-related-option img{width:38px;height:38px;border-radius:8px;object-fit:cover;background:var(--paper)}
+.admin-related-option span{display:grid;min-width:0;gap:2px}
+.admin-related-option strong,.admin-related-option small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-related-option strong{font-size:11px;color:var(--ink)}
+.admin-related-option small{font-size:9px;color:var(--muted)}
+
 .analytics-kpis{
   display:grid;
   grid-template-columns:repeat(6,minmax(0,1fr));
@@ -3161,4 +3193,20 @@ body[data-page="admin"] .admin-actions{
   .analytics-kpi{min-height:78px;padding:10px}
   .analytics-kpi strong{font-size:18px}
   .analytics-columns{grid-template-columns:1fr;gap:14px}
+  .admin-related-products{grid-template-columns:1fr;max-height:220px}
+  body[data-page="product"] .product-recommendations .product-grid{
+    display:grid;
+    grid-template-columns:none;
+    grid-auto-flow:column;
+    grid-auto-columns:minmax(164px,46vw);
+    gap:10px;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scroll-snap-type:x mandatory;
+    margin-inline:0;
+    padding:0 10px 8px 0;
+    scrollbar-width:none;
+  }
+  body[data-page="product"] .product-recommendations .product-grid::-webkit-scrollbar{display:none}
+  body[data-page="product"] .product-recommendations .product-card{scroll-snap-align:start}
 }

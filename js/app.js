@@ -799,6 +799,42 @@
   function getReviews(){ return read(KEYS.reviews, getDefaults().reviews || []); }
   function saveReviews(reviews){ write(KEYS.reviews, reviews); }
   function productById(id){ return getProducts().find(p => String(p.id) === String(id)); }
+  function productRecommendationTags(product){
+    const source = Array.isArray(product?.recommendationTags) ? product.recommendationTags : parseList(product?.recommendationTags || '');
+    return [...new Set(source.map(tag => slugText(tag)).filter(Boolean))];
+  }
+  function relatedProductIds(product){
+    return [...new Set((Array.isArray(product?.relatedProductIds) ? product.relatedProductIds : []).map(Number).filter(Boolean))];
+  }
+  function recommendedProducts(product, limit=4){
+    const products = getProducts();
+    const selected = [];
+    const seen = new Set([String(product.id)]);
+    relatedProductIds(product).forEach(id => {
+      const item = products.find(candidate => String(candidate.id) === String(id));
+      if(item && !seen.has(String(item.id))){ selected.push(item); seen.add(String(item.id)); }
+    });
+    if(product.relatedAuto === false) return selected.slice(0, limit);
+    const sourceTags = new Set(productRecommendationTags(product));
+    const scored = products.filter(candidate => !seen.has(String(candidate.id))).map(candidate => {
+      const sharedTags = productRecommendationTags(candidate).filter(tag => sourceTags.has(tag)).length;
+      let score = 0;
+      if(candidate.category && candidate.category === product.category) score += 10;
+      score += sharedTags * 5;
+      if(candidate.formType && candidate.formType === product.formType) score += 2;
+      if(candidate.brand && candidate.brand === product.brand) score += 1.5;
+      if(candidate.popular) score += 1;
+      score += Math.max(0, Math.min(1, Number(candidate.rating || 0) / 5));
+      if(Number(candidate.stock || 0) > 0) score += 1; else score -= 6;
+      return {candidate, score};
+    }).sort((a,b) => b.score - a.score || Number(b.candidate.stock || 0) - Number(a.candidate.stock || 0) || String(a.candidate.name).localeCompare(String(b.candidate.name), 'ru'));
+    scored.forEach(({candidate}) => {
+      if(selected.length >= limit || seen.has(String(candidate.id))) return;
+      selected.push(candidate);
+      seen.add(String(candidate.id));
+    });
+    return selected.slice(0, limit);
+  }
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
   function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
   function brandCardHtml(brand, index, products=getProducts(), site=getSite()){
@@ -1741,6 +1777,7 @@
     const images = product.images?.length ? product.images : [firstImage(product)];
     const firstOption = defaultPackage(product);
     const firstFlavor = product.flavors?.[0] || '';
+    const relatedProducts = recommendedProducts(product, 4);
     applyProductSeo(product);
     if(document.body.dataset.analyticsProduct !== String(product.id)){
       document.body.dataset.analyticsProduct = String(product.id);
@@ -1774,7 +1811,7 @@
         <div class="tab-buttons"><button class="active" data-tab="desc">Описание</button><button data-tab="ingredients">Состав</button><button data-tab="usage">Способ применения</button><button data-tab="reviews">Отзывы</button><button data-tab="delivery">Доставка</button></div>
         <div class="tab-content" id="tabContent"></div>
       </div>
-      <section class="section" style="padding-bottom:0"><div class="section-head"><div><span class="eyebrow">Похожие товары</span><h2>Можно добавить к заказу</h2></div></div><div class="product-grid" id="similarProducts"></div></section>`;
+      ${relatedProducts.length ? `<section class="section product-recommendations" style="padding-bottom:0"><div class="section-head"><div><span class="eyebrow">Похожие товары</span><h2>Можно добавить к заказу</h2></div></div><div class="product-grid" id="similarProducts"></div></section>` : ''}`;
     const tabData = {
       desc:`<p>${esc(product.description || product.shortDescription || '')}</p>`,
       usage:`<p>${esc(product.usage || 'Способ применения уточняйте у производителя.')}</p>`,
@@ -1798,7 +1835,7 @@
       const flavor = $('#flavorOptions .chip.active')?.dataset.flavor || firstFlavor;
       addToCart(product.id, pack, flavor, Math.max(1,Number($('#productQty')?.value || 1)));
     });
-    renderGrid($('#similarProducts'), getProducts().filter(p => p.category === product.category && p.id !== product.id).slice(0,4));
+    renderGrid($('#similarProducts'), relatedProducts);
   }
 
   function cartTotals(){
@@ -2715,6 +2752,19 @@
     }
     fillCategorySelect($('#adminCategory'));
     fillFormTypeSelect($('#adminFormType'));
+    renderAdminRelatedProducts([], $('#adminProductId')?.value || '');
+  }
+  function renderAdminRelatedProducts(selectedIds=[], currentId=''){
+    const root = $('#adminRelatedProducts');
+    if(!root) return;
+    const selected = new Set(selectedIds.map(String));
+    const products = getProducts().filter(product => String(product.id) !== String(currentId));
+    root.innerHTML = products.length ? products.map(product => `
+      <label class="admin-related-option">
+        <input type="checkbox" data-related-product value="${esc(product.id)}" ${selected.has(String(product.id)) ? 'checked' : ''}>
+        <img src="${esc(firstImage(product))}" alt="">
+        <span><strong>${esc(product.name)}</strong><small>${esc(product.brand)} · ${esc(categoryName(product.category))}</small></span>
+      </label>`).join('') : '<p class="admin-hint">Сначала добавьте ещё один товар.</p>';
   }
   function renderAdminCategories(){
     const root = $('#adminCategoriesList');
@@ -2759,6 +2809,9 @@
     $('#adminCustomFormType').value = '';
     $('#adminImageData').value = '';
     $('#adminPopular').checked = false;
+    $('#adminRecommendationTags').value = '';
+    $('#adminRelatedAuto').checked = true;
+    renderAdminRelatedProducts([], '');
   }
   function editProduct(id){
     const product = productById(id);
@@ -2786,6 +2839,9 @@
     $('#adminFlavors').value = (product.flavors || []).join(', ');
     $('#adminImageData').value = '';
     $('#adminPopular').checked = product.popular === true;
+    $('#adminRecommendationTags').value = (Array.isArray(product.recommendationTags) ? product.recommendationTags : parseList(product.recommendationTags || '')).join(', ');
+    $('#adminRelatedAuto').checked = product.relatedAuto !== false;
+    renderAdminRelatedProducts(relatedProductIds(product), product.id);
     $('#adminProductForm')?.scrollIntoView({behavior:'smooth',block:'start'});
     toast('Товар открыт для редактирования');
   }
@@ -2816,6 +2872,9 @@
       country:$('#adminCountry').value.trim() || '—',
       formType,
       popular:$('#adminPopular').checked,
+      recommendationTags:parseList($('#adminRecommendationTags').value),
+      relatedAuto:$('#adminRelatedAuto').checked,
+      relatedProductIds:$$('[data-related-product]:checked').map(input => Number(input.value)).filter(Boolean).slice(0,4),
       rating:existing.rating || 4.7,
       images:[$('#adminImageData').value || firstImage(existing) || 'assets/product-whey.jpg'],
       flavors:parseList($('#adminFlavors').value),
@@ -3758,6 +3817,11 @@
     document.addEventListener('pointermove', moveQuickContactDrag, {passive:false});
     document.addEventListener('pointerup', endQuickContactDrag);
     document.addEventListener('change', event => {
+      if(event.target.matches('[data-related-product]')){
+        const selected = $$('[data-related-product]:checked');
+        if(selected.length > 4){ event.target.checked = false; toast('Можно закрепить максимум 4 товара'); }
+        return;
+      }
       if(event.target.matches('[data-footer-badge-upload]')){ readFooterBadgeFile(event.target); return; }
       if(event.target.matches('#adminImportFile')){ importDataFile(event.target); return; }
       if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
