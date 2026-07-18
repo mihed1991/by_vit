@@ -41,8 +41,83 @@ function initialStore(defaults){
     site:clone(defaults.site || {}),
     reviews:clone(defaults.reviews || []),
     orders:[],
+    analytics:emptyAnalytics(),
     meta:{createdAt:new Date().toISOString(), recoveredCatalogAt:''}
   };
+}
+
+function emptyAnalytics(){
+  return {
+    totals:{pageViews:0, productViews:0, addToCart:0, orders:0, unitsOrdered:0, revenue:0},
+    days:{},
+    pages:{},
+    products:{}
+  };
+}
+
+function normalizeAnalytics(value){
+  const defaults = emptyAnalytics();
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    totals:{...defaults.totals, ...(source.totals || {})},
+    days:source.days && typeof source.days === 'object' ? source.days : {},
+    pages:source.pages && typeof source.pages === 'object' ? source.pages : {},
+    products:source.products && typeof source.products === 'object' ? source.products : {}
+  };
+}
+
+function analyticsBucket(store){
+  store.analytics = normalizeAnalytics(store.analytics);
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const dayDefaults = {pageViews:0, productViews:0, addToCart:0, orders:0, unitsOrdered:0, revenue:0};
+  store.analytics.days[dayKey] = {...dayDefaults, ...(store.analytics.days[dayKey] || {})};
+  const dayKeys = Object.keys(store.analytics.days).sort();
+  dayKeys.slice(0, Math.max(0, dayKeys.length - 90)).forEach(key => delete store.analytics.days[key]);
+  return {analytics:store.analytics, day:store.analytics.days[dayKey]};
+}
+
+function incrementMetric(target, key, amount=1){
+  target[key] = Number(target[key] || 0) + Number(amount || 0);
+}
+
+function recordAnalyticsEvent(store, type, data={}){
+  const {analytics, day} = analyticsBucket(store);
+  const metricMap = {page_view:'pageViews', product_view:'productViews', add_to_cart:'addToCart'};
+  const metric = metricMap[type];
+  if(!metric) return false;
+  incrementMetric(analytics.totals, metric);
+  incrementMetric(day, metric);
+  const productId = Number(data.productId || 0);
+  if(type === 'page_view'){
+    const page = String(data.page || 'unknown').replace(/[^a-z0-9_-]/gi, '').slice(0, 32) || 'unknown';
+    incrementMetric(analytics.pages, page);
+  }
+  if(productId && (type === 'product_view' || type === 'add_to_cart')){
+    if(!store.products.some(product => Number(product.id) === productId)) return true;
+    const key = String(productId);
+    analytics.products[key] = {views:0, addToCart:0, orders:0, unitsOrdered:0, ...(analytics.products[key] || {})};
+    incrementMetric(analytics.products[key], type === 'product_view' ? 'views' : 'addToCart');
+  }
+  return true;
+}
+
+function recordOrderAnalytics(store, order){
+  const {analytics, day} = analyticsBucket(store);
+  incrementMetric(analytics.totals, 'orders');
+  incrementMetric(day, 'orders');
+  incrementMetric(analytics.totals, 'revenue', Number(order.total || 0));
+  incrementMetric(day, 'revenue', Number(order.total || 0));
+  (order.items || []).forEach(item => {
+    const productId = Number(item.productId || item.id || 0);
+    const qty = Math.max(1, Number(item.qty || 1));
+    incrementMetric(analytics.totals, 'unitsOrdered', qty);
+    incrementMetric(day, 'unitsOrdered', qty);
+    if(!productId) return;
+    const key = String(productId);
+    analytics.products[key] = {views:0, addToCart:0, orders:0, unitsOrdered:0, ...(analytics.products[key] || {})};
+    incrementMetric(analytics.products[key], 'orders');
+    incrementMetric(analytics.products[key], 'unitsOrdered', qty);
+  });
 }
 
 function backupStore(){
@@ -80,6 +155,7 @@ function loadStore(){
     site:stored.site && typeof stored.site === 'object' ? stored.site : clone(defaults.site || {}),
     reviews:Array.isArray(stored.reviews) ? stored.reviews : clone(defaults.reviews || []),
     orders:Array.isArray(stored.orders) ? stored.orders : [],
+    analytics:normalizeAnalytics(stored.analytics),
     meta:stored.meta && typeof stored.meta === 'object' ? stored.meta : {}
   };
   const canRecoverCatalog = normalized.site.allowEmptyCatalog !== true && (defaults.products || []).length > 0;
@@ -92,9 +168,9 @@ function loadStore(){
   return normalized;
 }
 
-function saveStore(store){
+function saveStore(store, options={}){
   ensureDataDir();
-  backupStore();
+  if(options.backup !== false) backupStore();
   const temp = `${STORE_PATH}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(store, null, 2));
   fs.renameSync(temp, STORE_PATH);
@@ -339,6 +415,18 @@ async function handleApi(req, res){
       send(res, 200, store);
       return;
     }
+    if(req.method === 'POST' && url.pathname === '/api/analytics'){
+      const body = await readJson(req);
+      const type = String(body.type || '');
+      const analyticsStore = loadStore();
+      if(!recordAnalyticsEvent(analyticsStore, type, {productId:body.productId, page:body.page})){
+        send(res, 400, {error:'Unsupported analytics event'});
+        return;
+      }
+      saveStore(analyticsStore, {backup:false});
+      send(res, 201, {ok:true});
+      return;
+    }
     if(req.method === 'POST' && url.pathname === '/api/admin/login'){
       const body = await readJson(req);
       const hash = sha256(body.password || '');
@@ -361,18 +449,20 @@ async function handleApi(req, res){
     if(req.method === 'PUT' && url.pathname === '/api/admin/state'){
       if(!requireAdmin(req, res)) return;
       const body = await readJson(req);
+      const adminStore = loadStore();
       if(Array.isArray(body.products)){
         const allowEmptyCatalog = body.allowEmptyCatalog === true || body.site?.allowEmptyCatalog === true;
         if(!body.products.length && !allowEmptyCatalog){
           send(res, 400, {error:'Каталог не может быть пустым. Включите allowEmptyCatalog только для намеренного отключения витрины.'});
           return;
         }
-        store.products = body.products;
+        adminStore.products = body.products;
       }
-      if(body.site && typeof body.site === 'object') store.site = body.site;
-      if(Array.isArray(body.reviews)) store.reviews = body.reviews;
-      if(Array.isArray(body.orders)) store.orders = body.orders;
-      saveStore(store);
+      if(body.site && typeof body.site === 'object') adminStore.site = body.site;
+      if(Array.isArray(body.reviews)) adminStore.reviews = body.reviews;
+      if(Array.isArray(body.orders)) adminStore.orders = body.orders;
+      if(body.restoreAnalytics === true && body.analytics && typeof body.analytics === 'object') adminStore.analytics = normalizeAnalytics(body.analytics);
+      saveStore(adminStore);
       send(res, 200, {ok:true});
       return;
     }
@@ -386,9 +476,11 @@ async function handleApi(req, res){
       order.id = order.id || Date.now();
       order.date = order.date || new Date().toLocaleString('ru-RU');
       order.status = order.status || 'new';
-      store.orders.unshift(order);
-      saveStore(store);
-      sendTelegram(store.site, order).catch(error => console.error('Telegram error:', error.message));
+      const orderStore = loadStore();
+      orderStore.orders.unshift(order);
+      recordOrderAnalytics(orderStore, order);
+      saveStore(orderStore);
+      sendTelegram(orderStore.site, order).catch(error => console.error('Telegram error:', error.message));
       send(res, 201, {ok:true, order});
       return;
     }
@@ -407,8 +499,9 @@ async function handleApi(req, res){
         status:'pending',
         date:new Date().toLocaleDateString('ru-RU')
       };
-      store.reviews.unshift(review);
-      saveStore(store);
+      const reviewStore = loadStore();
+      reviewStore.reviews.unshift(review);
+      saveStore(reviewStore);
       send(res, 201, {ok:true, review});
       return;
     }

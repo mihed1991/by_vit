@@ -350,7 +350,8 @@
       products:clone(products || []),
       site:data.site || defaults.site,
       orders:Array.isArray(data.orders) ? data.orders : [],
-      reviews:Array.isArray(data.reviews) ? data.reviews : (defaults.reviews || [])
+      reviews:Array.isArray(data.reviews) ? data.reviews : (defaults.reviews || []),
+      analytics:data.analytics && typeof data.analytics === 'object' ? data.analytics : null
     };
   }
   async function loadServerState(){
@@ -375,6 +376,19 @@
       console.warn('Admin state unavailable', error);
       return false;
     }
+  }
+  function getAnalytics(){
+    return serverState?.analytics || {totals:{}, days:{}, pages:{}, products:{}};
+  }
+  function trackEvent(type, data={}){
+    if(!serverAvailable || document.body.dataset.page === 'admin') return;
+    fetch('/api/analytics', {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type, productId:data.productId, page:data.page}),
+      keepalive:true
+    }).catch(() => {});
   }
   function isAdminSession(){
     return sessionStorage.getItem(KEYS.admin) === '1';
@@ -1209,6 +1223,7 @@
     if(existing) existing.qty += Number(qty || 1);
     else cart.push({key,productId:product.id,optionId:option.id,optionLabel:option.label,flavor:selectedFlavor,price:Number(option.price || product.price || 0),qty:Number(qty || 1)});
     saveCart(cart);
+    trackEvent('add_to_cart', {productId:product.id});
     toast('Товар добавлен в корзину');
   }
 
@@ -1727,6 +1742,10 @@
     const firstOption = defaultPackage(product);
     const firstFlavor = product.flavors?.[0] || '';
     applyProductSeo(product);
+    if(document.body.dataset.analyticsProduct !== String(product.id)){
+      document.body.dataset.analyticsProduct = String(product.id);
+      trackEvent('product_view', {productId:product.id});
+    }
     root.innerHTML = `
       <div class="product-detail">
         <div class="product-gallery">
@@ -2646,7 +2665,7 @@
     login.style.display = isLogged ? 'none' : 'grid';
     panel.style.display = isLogged ? 'block' : 'none';
     if(!isLogged) return;
-    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews();
+    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews();
   }
   async function adminLogin(event){
     event.preventDefault();
@@ -3502,6 +3521,41 @@
   }
   function updateOrder(id,status){ const orders=getOrders(); const o=orders.find(x=>String(x.id)===String(id)); if(o){o.status=status;saveOrders(orders);renderAdminOrders();} }
   function deleteOrder(id){ saveOrders(getOrders().filter(o=>String(o.id)!==String(id))); renderAdminOrders(); }
+  function analyticsNumber(value){
+    return new Intl.NumberFormat('ru-RU').format(Number(value || 0));
+  }
+  function analyticsDate(value){
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('ru-RU', {day:'2-digit', month:'short'});
+  }
+  function renderAdminAnalytics(){
+    const root = $('#adminAnalytics');
+    if(!root) return;
+    const analytics = getAnalytics();
+    const totals = analytics.totals || {};
+    const conversion = Number(totals.pageViews || 0) ? Number(totals.orders || 0) / Number(totals.pageViews) * 100 : 0;
+    const productRows = Object.entries(analytics.products || {})
+      .map(([id, stats]) => ({product:productById(id), stats:stats || {}}))
+      .sort((a,b) => Number(b.stats.views || 0) - Number(a.stats.views || 0))
+      .slice(0, 10);
+    const dayRows = Object.entries(analytics.days || {}).sort(([a],[b]) => b.localeCompare(a)).slice(0, 14);
+    const pageRows = Object.entries(analytics.pages || {}).sort((a,b) => Number(b[1]) - Number(a[1]));
+    const pageNames = {home:'Главная',catalog:'Каталог',product:'Товар',cart:'Корзина',sale:'Акции',wishlist:'Избранное',brands:'Бренды',compare:'Сравнение',delivery:'Доставка',stores:'Магазины',faq:'FAQ',about:'О нас'};
+    root.innerHTML = `
+      <div class="analytics-kpis">
+        <div class="analytics-kpi"><span>Просмотры страниц</span><strong>${analyticsNumber(totals.pageViews)}</strong></div>
+        <div class="analytics-kpi"><span>Просмотры товаров</span><strong>${analyticsNumber(totals.productViews)}</strong></div>
+        <div class="analytics-kpi"><span>Добавления в корзину</span><strong>${analyticsNumber(totals.addToCart)}</strong></div>
+        <div class="analytics-kpi"><span>Заказы</span><strong>${analyticsNumber(totals.orders)}</strong></div>
+        <div class="analytics-kpi"><span>Заказы / просмотры</span><strong>${conversion.toFixed(1)}%</strong></div>
+        <div class="analytics-kpi"><span>Выручка</span><strong>${money(totals.revenue)}</strong></div>
+      </div>
+      <div class="analytics-columns">
+        <section class="analytics-report"><h4>Популярные товары</h4>${productRows.length ? `<div class="table-wrap"><table class="admin-table analytics-table"><thead><tr><th>Товар</th><th>Просмотры</th><th>В корзину</th><th>Заказы</th></tr></thead><tbody>${productRows.map(({product,stats})=>`<tr><td>${esc(product?.name || 'Удалённый товар')}</td><td>${analyticsNumber(stats.views)}</td><td>${analyticsNumber(stats.addToCart)}</td><td>${analyticsNumber(stats.orders)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="admin-hint">Данные появятся после просмотров товаров.</p>'}</section>
+        <section class="analytics-report"><h4>Страницы</h4>${pageRows.length ? `<div class="analytics-page-list">${pageRows.map(([page,count])=>`<div><span>${esc(pageNames[page] || page)}</span><strong>${analyticsNumber(count)}</strong></div>`).join('')}</div>` : '<p class="admin-hint">Данные появятся после посещений.</p>'}</section>
+      </div>
+      <section class="analytics-report"><h4>Последние 14 дней</h4>${dayRows.length ? `<div class="table-wrap"><table class="admin-table analytics-table"><thead><tr><th>Дата</th><th>Страницы</th><th>Товары</th><th>В корзину</th><th>Заказы</th><th>Сумма</th></tr></thead><tbody>${dayRows.map(([date,stats])=>`<tr><td>${esc(analyticsDate(date))}</td><td>${analyticsNumber(stats.pageViews)}</td><td>${analyticsNumber(stats.productViews)}</td><td>${analyticsNumber(stats.addToCart)}</td><td>${analyticsNumber(stats.orders)}</td><td>${money(stats.revenue)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="admin-hint">Пока нет данных по дням.</p>'}</section>`;
+  }
   function exportFileName(){
     const stamp = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
     return `byvit-backup-${stamp}.json`;
@@ -3513,7 +3567,8 @@
       products:getProducts(),
       site:getSite(),
       orders:getOrders(),
-      reviews:getReviews()
+      reviews:getReviews(),
+      analytics:getAnalytics()
     };
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = exportFileName(); a.click(); URL.revokeObjectURL(a.href);
@@ -3525,12 +3580,13 @@
       products:Array.isArray(source.products) ? source.products : getProducts(),
       site:source.site && typeof source.site === 'object' ? normalizeSite(source.site) : getSite(),
       orders:Array.isArray(source.orders) ? source.orders : getOrders(),
-      reviews:Array.isArray(source.reviews) ? source.reviews : getReviews()
+      reviews:Array.isArray(source.reviews) ? source.reviews : getReviews(),
+      analytics:source.analytics && typeof source.analytics === 'object' ? source.analytics : getAnalytics()
     };
   }
   async function applyImportedData(data){
     const next = normalizeImportedData(data);
-    if(!confirm('Импорт заменить текущие товары, настройки, заказы и отзывы данными из файла?')) return;
+    if(!confirm('Импорт заменит текущие товары, настройки, заказы, отзывы и статистику данными из файла. Продолжить?')) return;
     saveProducts(next.products);
     saveSite(next.site);
     saveOrders(next.orders);
@@ -3538,7 +3594,7 @@
     if(serverAvailable && isAdminSession()){
       serverState = clone(next);
       try{
-        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)});
+        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify({...serverState, restoreAnalytics:true})});
       }catch(error){
         console.warn(error);
         toast('Импорт сохранён локально, но сервер не обновился');
@@ -3774,6 +3830,7 @@
     if(page === 'faq') renderFaq();
     if(page === 'about') renderAboutPage();
     if(page === 'admin') renderAdmin();
+    if(page !== 'admin') trackEvent('page_view', {page});
   }
 
   document.addEventListener('DOMContentLoaded', init);

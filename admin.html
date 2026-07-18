@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=51">
-  <script src="js/data.js?v=51" defer></script>
-  <script src="js/app.js?v=51" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=52">
+  <script src="js/data.js?v=52" defer></script>
+  <script src="js/app.js?v=52" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -62,6 +62,7 @@
             <button data-admin-tab="quick-contact">Связь</button>
             <button data-admin-tab="stores">Магазины</button>
             <button data-admin-tab="orders">Заказы</button>
+            <button data-admin-tab="analytics">Аналитика</button>
             <button data-admin-tab="cart">Корзина</button>
             <button data-admin-tab="reviews">Отзывы</button>
             <button data-admin-tab="service">Сервис</button>
@@ -493,6 +494,14 @@
               <article class="admin-card">
                 <h3>Заказы</h3>
                 <div class="table-wrap" id="adminOrdersTable"></div>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-analytics">
+              <article class="admin-card">
+                <h3>Аналитика магазина</h3>
+                <p class="admin-hint">Обезличенные агрегаты: посещения, интерес к товарам, корзина и оформленные заказы. Личные данные покупателей не собираются.</p>
+                <div id="adminAnalytics"></div>
               </article>
             </section>
 
