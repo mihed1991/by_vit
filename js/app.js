@@ -34,6 +34,20 @@
     brands:{visible:true,order:6,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
     sale:{visible:true,order:1,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
+  const PAGE_SEO = {
+    home:{title:'ByVit — спортивное питание и БАДы с доставкой по Беларуси',description:'Спортивное питание, витамины и БАДы в ByVit: понятные карточки, актуальные цены, самовывоз и доставка по Беларуси.',path:'/'},
+    catalog:{title:'Каталог спортивного питания | ByVit',description:'Каталог спортивного питания ByVit: протеины, креатин, аминокислоты, витамины и добавки с фильтрами по брендам и категориям.',path:'/catalog.html'},
+    brands:{title:'Бренды спортивного питания | ByVit',description:'Производители спортивного питания, витаминов и БАДов в каталоге ByVit.',path:'/brands.html'},
+    sale:{title:'Акции на спортивное питание | ByVit',description:'Актуальные скидки и специальные предложения на спортивное питание и добавки в ByVit.',path:'/sale.html'},
+    delivery:{title:'Доставка и оплата | ByVit',description:'Самовывоз, курьерская доставка, Европочта и почта: способы получения заказов ByVit по Беларуси.',path:'/delivery.html'},
+    stores:{title:'Магазины и самовывоз | ByVit',description:'Адреса, контакты и точки самовывоза магазина спортивного питания ByVit.',path:'/stores.html'},
+    about:{title:'О магазине | ByVit',description:'О ByVit: подход к выбору спортивного питания, информация о магазине и контакты.',path:'/about.html'},
+    faq:{title:'Вопросы и ответы | ByVit',description:'Ответы ByVit на вопросы о товарах, оформлении заказа, оплате и доставке.',path:'/faq.html'},
+    cart:{title:'Корзина | ByVit',description:'Корзина и оформление заказа ByVit.',path:'/cart.html',noindex:true},
+    wishlist:{title:'Избранное | ByVit',description:'Сохранённые товары ByVit.',path:'/wishlist.html',noindex:true},
+    compare:{title:'Сравнение товаров | ByVit',description:'Сравнение товаров ByVit.',path:'/compare.html',noindex:true},
+    admin:{title:'Админка | ByVit',description:'Панель управления ByVit.',path:'/admin.html',noindex:true}
+  };
   const DEFAULT_GOALS = [
     {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',enabled:true},
     {id:'strength',title:'Сила и выносливость',text:'Креатин, аминокислоты и предтренировочные комплексы.',href:'catalog.html?category=creatine',enabled:true},
@@ -174,6 +188,123 @@
     node.classList.add('show');
     clearTimeout(node._timer);
     node._timer = setTimeout(() => node.classList.remove('show'), 2600);
+  }
+  function absoluteUrl(value){
+    try{ return new URL(value || '/', location.href).href; }
+    catch(error){ return String(value || ''); }
+  }
+  function ensureMeta(key, value, attribute='name'){
+    if(!value) return;
+    let node = document.head.querySelector(`meta[${attribute}="${key}"]`);
+    if(!node){
+      node = document.createElement('meta');
+      node.setAttribute(attribute, key);
+      document.head.appendChild(node);
+    }
+    node.setAttribute('content', value);
+  }
+  function ensureCanonical(value){
+    let node = document.head.querySelector('link[rel="canonical"]');
+    if(!node){
+      node = document.createElement('link');
+      node.rel = 'canonical';
+      document.head.appendChild(node);
+    }
+    node.href = absoluteUrl(value);
+  }
+  function setStructuredData(id, data){
+    let node = document.getElementById(id);
+    if(!node){
+      node = document.createElement('script');
+      node.id = id;
+      node.type = 'application/ld+json';
+      document.head.appendChild(node);
+    }
+    node.textContent = JSON.stringify(data);
+  }
+  function applySocialMeta({title, description, url, image, type='website'}){
+    ensureMeta('og:site_name', 'ByVit', 'property');
+    ensureMeta('og:locale', 'ru_BY', 'property');
+    ensureMeta('og:type', type, 'property');
+    ensureMeta('og:title', title, 'property');
+    ensureMeta('og:description', description, 'property');
+    ensureMeta('og:url', absoluteUrl(url), 'property');
+    ensureMeta('og:image', absoluteUrl(image || 'assets/hero-fallback.svg'), 'property');
+    ensureMeta('twitter:card', 'summary_large_image');
+    ensureMeta('twitter:title', title);
+    ensureMeta('twitter:description', description);
+    ensureMeta('twitter:image', absoluteUrl(image || 'assets/hero-fallback.svg'));
+  }
+  function applyPageSeo(page){
+    const config = PAGE_SEO[page];
+    if(!config) return;
+    document.title = config.title;
+    ensureMeta('description', config.description);
+    ensureMeta('robots', config.noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large');
+    ensureCanonical(config.path);
+    applySocialMeta({...config, url:config.path});
+    if(page === 'home'){
+      const site = getSite();
+      setStructuredData('seo-website', {
+        '@context':'https://schema.org',
+        '@type':'WebSite',
+        name:'ByVit',
+        url:absoluteUrl('/'),
+        potentialAction:{
+          '@type':'SearchAction',
+          target:`${absoluteUrl('/catalog.html')}?q={search_term_string}`,
+          'query-input':'required name=search_term_string'
+        }
+      });
+      setStructuredData('seo-organization', {
+        '@context':'https://schema.org',
+        '@type':'Organization',
+        name:'ByVit',
+        url:absoluteUrl('/'),
+        logo:absoluteUrl(site.header?.logoImage || 'assets/favicon.svg'),
+        telephone:site.phone || undefined,
+        email:site.footer?.contacts?.email || undefined
+      });
+    }
+  }
+  function applyProductSeo(product){
+    const reviews = approvedReviews(product.id);
+    const title = `${product.name} — ${product.brand} | ByVit`;
+    const description = product.shortDescription || product.description || `${product.name} в магазине ByVit.`;
+    const canonical = `/product.html?id=${encodeURIComponent(product.id)}`;
+    document.title = title;
+    ensureMeta('description', description);
+    ensureMeta('robots', 'index, follow, max-image-preview:large');
+    ensureCanonical(canonical);
+    applySocialMeta({title, description, url:canonical, image:firstImage(product), type:'product'});
+    const productData = {
+      '@context':'https://schema.org',
+      '@type':'Product',
+      name:product.name,
+      image:(product.images?.length ? product.images : [firstImage(product)]).map(absoluteUrl),
+      description,
+      sku:String(product.id),
+      brand:{'@type':'Brand',name:product.brand || 'ByVit'},
+      offers:{
+        '@type':'Offer',
+        url:absoluteUrl(canonical),
+        priceCurrency:'BYN',
+        price:Number(defaultPackage(product).price || product.price || 0),
+        availability:Number(product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        itemCondition:'https://schema.org/NewCondition'
+      }
+    };
+    if(reviews.length){
+      const ratingValue = reviews.reduce((sum, review) => sum + Number(review.rating || 5), 0) / reviews.length;
+      productData.aggregateRating = {
+        '@type':'AggregateRating',
+        ratingValue:Number(ratingValue.toFixed(1)),
+        reviewCount:reviews.length,
+        bestRating:5,
+        worstRating:1
+      };
+    }
+    setStructuredData('seo-product', productData);
   }
   function getDefaults(){ return window.ByVitDefaults || {products:[],categories:[],site:{}}; }
   const SERVER_KEY_MAP = {
@@ -1587,11 +1718,15 @@
     const product = productById(id);
     const root = $('#productRoot');
     if(!root) return;
-    if(!product){ root.innerHTML = `<div class="empty-state"><h3>Товар не найден</h3><p>Похоже, ссылка убежала. Нормальное поведение для хаоса.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`; return; }
+    if(!product){
+      ensureMeta('robots', 'noindex, nofollow');
+      root.innerHTML = `<div class="empty-state"><h3>Товар не найден</h3><p>Похоже, ссылка устарела или товар больше не опубликован.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`;
+      return;
+    }
     const images = product.images?.length ? product.images : [firstImage(product)];
     const firstOption = defaultPackage(product);
     const firstFlavor = product.flavors?.[0] || '';
-    document.title = `${product.name} | ByVit`;
+    applyProductSeo(product);
     root.innerHTML = `
       <div class="product-detail">
         <div class="product-gallery">
@@ -3625,7 +3760,7 @@
     await loadServerState();
     const page = document.body.dataset.page;
     if(page === 'admin' && isAdminSession()) await loadAdminState();
-    setActiveNav(); applyHeader(); renderFooter(); applyPageHeader(); updateCounts(); bindGlobal();
+    setActiveNav(); applyHeader(); renderFooter(); applyPageHeader(); applyPageSeo(page); updateCounts(); bindGlobal();
     if(page === 'home') renderHome();
     if(page === 'catalog') renderCatalog();
     if(page === 'product') renderProduct();

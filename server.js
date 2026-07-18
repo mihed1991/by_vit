@@ -127,6 +127,51 @@ function send(res, status, body, headers={}){
   res.end(payload);
 }
 
+function requestOrigin(req){
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const protocol = forwardedProto || (req.socket.encrypted ? 'https' : 'http');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
+  return `${protocol}://${host}`;
+}
+
+function xmlEscape(value){
+  return String(value || '').replace(/[<>&'\"]/g, char => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[char]));
+}
+
+function handleSeoFile(req, res){
+  const url = new URL(req.url, requestOrigin(req));
+  const origin = requestOrigin(req);
+  if(url.pathname === '/robots.txt'){
+    const body = [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /admin.html',
+      'Disallow: /cart.html',
+      'Disallow: /wishlist.html',
+      'Disallow: /compare.html',
+      `Sitemap: ${origin}/sitemap.xml`,
+      ''
+    ].join('\n');
+    send(res, 200, body, {'Content-Type':'text/plain; charset=utf-8', 'Cache-Control':'public, max-age=3600'});
+    return true;
+  }
+  if(url.pathname === '/sitemap.xml'){
+    const store = loadStore();
+    const staticPages = [
+      '/', '/catalog.html', '/brands.html', '/sale.html', '/delivery.html',
+      '/stores.html', '/about.html', '/faq.html'
+    ];
+    const productPages = store.products.map(product => `/product.html?id=${encodeURIComponent(product.id)}`);
+    const entries = [...staticPages, ...productPages].map(pathname =>
+      `  <url><loc>${xmlEscape(new URL(pathname, origin).href)}</loc></url>`
+    ).join('\n');
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
+    send(res, 200, body, {'Content-Type':'application/xml; charset=utf-8', 'Cache-Control':'public, max-age=3600'});
+    return true;
+  }
+  return false;
+}
+
 function parseCookies(req){
   return Object.fromEntries(String(req.headers.cookie || '').split(';').map(part => part.trim()).filter(Boolean).map(part => {
     const index = part.indexOf('=');
@@ -374,6 +419,7 @@ async function handleApi(req, res){
 }
 
 const server = http.createServer((req, res) => {
+  if(handleSeoFile(req, res)) return;
   if(req.url.startsWith('/api/')){
     handleApi(req, res);
     return;
