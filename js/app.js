@@ -190,6 +190,62 @@
     clearTimeout(node._timer);
     node._timer = setTimeout(() => node.classList.remove('show'), 2600);
   }
+  const REVEAL_SELECTOR = [
+    '.page-hero .container',
+    '.section-head',
+    '.product-card',
+    '.category-card',
+    '.goal-card',
+    '.brand-card',
+    '.trust-item',
+    '.service-card',
+    '.info-card',
+    '.store-card',
+    '.faq-item',
+    '.cart-item',
+    '.product-detail > *'
+  ].join(',');
+  let revealObserver = null;
+  let revealMutationObserver = null;
+
+  function observeRevealElements(root=document){
+    if(!revealObserver || !root) return;
+    const nodes = [];
+    if(root.nodeType === 1 && root.matches?.(REVEAL_SELECTOR)) nodes.push(root);
+    if(root.querySelectorAll) nodes.push(...root.querySelectorAll(REVEAL_SELECTOR));
+    nodes.forEach(node => {
+      if(node.dataset.revealReady === '1') return;
+      node.dataset.revealReady = '1';
+      node.classList.add('reveal-item');
+      const siblings = node.parentElement ? Array.from(node.parentElement.children).filter(item => item.matches?.(REVEAL_SELECTOR)) : [];
+      const index = Math.max(0, siblings.indexOf(node));
+      node.style.setProperty('--reveal-delay', `${Math.min(index % 5, 4) * 55}ms`);
+      revealObserver.observe(node);
+    });
+  }
+
+  function initMotionSystem(){
+    if(document.body.dataset.page === 'admin' || !('IntersectionObserver' in window)) return;
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      document.body.classList.add('motion-reduced');
+      return;
+    }
+    document.body.classList.add('motion-ready');
+    revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if(!entry.isIntersecting) return;
+        entry.target.classList.add('is-revealed');
+        revealObserver.unobserve(entry.target);
+      });
+    }, {rootMargin:'0px 0px -7% 0px', threshold:.08});
+    observeRevealElements(document);
+    revealMutationObserver = new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if(node.nodeType === 1) observeRevealElements(node);
+      }));
+    });
+    revealMutationObserver.observe(document.body, {childList:true, subtree:true});
+  }
   function absoluteUrl(value){
     try{ return new URL(value || '/', location.href).href; }
     catch(error){ return String(value || ''); }
@@ -792,7 +848,7 @@
   function getCategories(){ return getSite().categories || getDefaults().categories; }
   function getGoals(){ return getSite().goals || DEFAULT_GOALS; }
   function getCart(){ return read(KEYS.cart, []); }
-  function saveCart(cart){ write(KEYS.cart, cart); updateCounts(); }
+  function saveCart(cart){ write(KEYS.cart, cart); updateCounts(); updateCartDrawer(); }
   function getWishlist(){ return read(KEYS.wishlist, []); }
   function saveWishlist(list){ write(KEYS.wishlist, list); updateCounts(); }
   function getCompare(){ return read(KEYS.compare, []); }
@@ -1264,6 +1320,132 @@
     saveCart(cart);
     trackEvent('add_to_cart', {productId:product.id});
     toast('Товар добавлен в корзину');
+    openCartDrawer();
+  }
+
+  let cartDrawerReturnFocus = null;
+
+  function ensureCartDrawer(){
+    let drawer = $('[data-cart-drawer]');
+    if(drawer) return drawer;
+    drawer = document.createElement('div');
+    drawer.className = 'cart-drawer';
+    drawer.dataset.cartDrawer = '';
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.innerHTML = `
+      <button class="cart-drawer-backdrop" type="button" data-cart-drawer-close aria-label="Закрыть корзину"></button>
+      <aside class="cart-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle" tabindex="-1">
+        <header class="cart-drawer-head">
+          <div><span class="cart-drawer-kicker">Ваш заказ</span><h2 id="cartDrawerTitle">Корзина</h2></div>
+          <button class="cart-drawer-close" type="button" data-cart-drawer-close aria-label="Закрыть корзину">×</button>
+        </header>
+        <div class="cart-drawer-list" data-cart-drawer-list></div>
+        <footer class="cart-drawer-foot" data-cart-drawer-foot></footer>
+      </aside>`;
+    document.body.appendChild(drawer);
+    return drawer;
+  }
+
+  function cartDrawerItem(item, index){
+    const product = productById(item.productId) || {};
+    const details = [item.optionLabel, item.flavor].filter(Boolean).join(' · ');
+    return `<article class="cart-drawer-item" style="--drawer-item-delay:${Math.min(index, 5) * 45}ms">
+      <img src="${esc(firstImage(product))}" alt="${esc(product.name || 'Товар')}" loading="lazy">
+      <div class="cart-drawer-item-main">
+        <h3>${esc(product.name || 'Товар')}</h3>
+        ${details ? `<p>${esc(details)}</p>` : ''}
+        <div class="cart-drawer-item-bottom">
+          <strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong>
+          <div class="cart-drawer-qty" aria-label="Количество">
+            <button type="button" data-drawer-cart-minus="${esc(item.key)}" aria-label="Уменьшить количество">−</button>
+            <span>${esc(item.qty)}</span>
+            <button type="button" data-drawer-cart-plus="${esc(item.key)}" aria-label="Увеличить количество">+</button>
+          </div>
+          <button class="cart-drawer-remove" type="button" data-drawer-cart-remove="${esc(item.key)}" aria-label="Удалить ${esc(product.name || 'товар')}">Удалить</button>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  function updateCartDrawer(){
+    const drawer = $('[data-cart-drawer]');
+    if(!drawer) return;
+    const cart = getCart();
+    const list = $('[data-cart-drawer-list]', drawer);
+    const foot = $('[data-cart-drawer-foot]', drawer);
+    const totalQuantity = cart.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    const total = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+    if(list){
+      list.innerHTML = cart.length
+        ? cart.map(cartDrawerItem).join('')
+        : `<div class="cart-drawer-empty"><span>Корзина пустая</span><p>Добавьте товары из каталога.</p><a class="btn btn-primary" href="catalog.html">Открыть каталог</a></div>`;
+    }
+    if(foot){
+      foot.hidden = !cart.length;
+      foot.innerHTML = cart.length ? `
+        <div class="cart-drawer-total"><span>${totalQuantity} товар(ов)</span><strong>${money(total)}</strong></div>
+        <a class="btn btn-primary full" href="cart.html">Перейти к оформлению</a>
+        <button class="cart-drawer-continue" type="button" data-cart-drawer-close>Продолжить покупки</button>` : '';
+    }
+  }
+
+  function openCartDrawer(){
+    if(document.body.dataset.page === 'cart') return;
+    const drawer = ensureCartDrawer();
+    updateCartDrawer();
+    cartDrawerReturnFocus = document.activeElement;
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('cart-drawer-open');
+    requestAnimationFrame(() => {
+      drawer.classList.add('open');
+      setTimeout(() => $('.cart-drawer-close', drawer)?.focus(), 80);
+    });
+  }
+
+  function closeCartDrawer(){
+    const drawer = $('[data-cart-drawer].open');
+    if(!drawer) return;
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('cart-drawer-open');
+    if(cartDrawerReturnFocus?.focus) cartDrawerReturnFocus.focus();
+    cartDrawerReturnFocus = null;
+  }
+
+  function changeDrawerCart(key, delta){
+    const cart = getCart();
+    const item = cart.find(entry => entry.key === key);
+    if(!item) return;
+    item.qty = Math.max(1, Number(item.qty || 1) + delta);
+    saveCart(cart);
+  }
+
+  function removeDrawerCart(key){
+    saveCart(getCart().filter(item => item.key !== key));
+    toast('Товар удалён');
+  }
+
+  function handleCartDrawerKeydown(event){
+    const drawer = $('[data-cart-drawer].open');
+    if(!drawer) return;
+    if(event.key === 'Escape'){
+      event.preventDefault();
+      closeCartDrawer();
+      return;
+    }
+    if(event.key !== 'Tab') return;
+    const controls = $$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', drawer)
+      .filter(node => node.offsetParent !== null);
+    if(!controls.length) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if(event.shiftKey && document.activeElement === first){
+      event.preventDefault();
+      last.focus();
+    }else if(!event.shiftKey && document.activeElement === last){
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   function toggleWishlist(id){
@@ -3873,6 +4055,16 @@
 
 	  function bindGlobal(){
 	    document.addEventListener('click', event => {
+	      const drawerClose = event.target.closest('[data-cart-drawer-close]'); if(drawerClose){ closeCartDrawer(); return; }
+	      const drawerOpen = event.target.closest('.header-actions a[href="cart.html"]');
+	      if(drawerOpen && document.body.dataset.page !== 'cart'){
+	        event.preventDefault();
+	        openCartDrawer();
+	        return;
+	      }
+	      const drawerPlus = event.target.closest('[data-drawer-cart-plus]'); if(drawerPlus){ changeDrawerCart(drawerPlus.dataset.drawerCartPlus, 1); return; }
+	      const drawerMinus = event.target.closest('[data-drawer-cart-minus]'); if(drawerMinus){ changeDrawerCart(drawerMinus.dataset.drawerCartMinus, -1); return; }
+	      const drawerRemove = event.target.closest('[data-drawer-cart-remove]'); if(drawerRemove){ removeDrawerCart(drawerRemove.dataset.drawerCartRemove); return; }
 	      const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
 	      const mobileSearch = event.target.closest('[data-mobile-search]');
 	      if(mobileSearch){
@@ -3975,6 +4167,7 @@
       const importTrigger = event.target.closest('[data-import-trigger]'); if(importTrigger){ $('#adminImportFile')?.click(); return; }
       const logout = event.target.closest('[data-admin-logout]'); if(logout){ adminLogout(); return; }
     });
+    document.addEventListener('keydown', handleCartDrawerKeydown);
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });
@@ -4060,6 +4253,7 @@
     if(page === 'about') renderAboutPage();
     if(page === 'admin') renderAdmin();
     if(page !== 'admin') trackEvent('page_view', {page});
+    initMotionSystem();
   }
 
   document.addEventListener('DOMContentLoaded', init);
