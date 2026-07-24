@@ -8,9 +8,9 @@
   <meta name="description"
     content="Купить спортивное питание в Минске. Цены. Онлайн-консультация специалиста. ✔ своя дисконтная программа, доставка по Беларуси! Магазин спортивного питания ByVit — современный магазин спортивного питания и БАДов.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=62">
-  <script src="js/data.js?v=62" defer></script>
-  <script src="js/app.js?v=62" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=63">
+  <script src="js/data.js?v=63" defer></script>
+  <script src="js/app.js?v=63" defer></script>
 </head>
 
 <body data-page="home">
@@ -73,13 +73,27 @@
     </section>
     <section class="section" data-home-block="sale">
       <div class="container">
-        <div class="section-head">
+        <div class="section-head home-products-head">
           <div><span class="eyebrow" data-block-eyebrow>Акции</span>
             <h2 class="section-title" data-block-title>Скидки и спецпредложения</h2>
             <p data-block-text>Товары со старой ценой и актуальными промо-предложениями.</p>
           </div><a class="btn btn-outline" href="sale.html" data-block-button>Все акции</a>
         </div>
-        <div class="product-grid" id="saleProducts"></div>
+        <div class="home-product-tabs" role="tablist" aria-label="Подборки товаров">
+          <button class="active" type="button" role="tab" aria-selected="true" data-home-product-tab="sale">Акции</button>
+          <button type="button" role="tab" aria-selected="false" data-home-product-tab="featured">Популярные</button>
+        </div>
+        <div class="commerce-assurance" aria-label="Условия покупки">
+          <a href="delivery.html">Доставка по Беларуси</a>
+          <a href="stores.html">Самовывоз</a>
+          <span>Оригинальные товары</span>
+        </div>
+        <div class="home-product-panel active" role="tabpanel" data-home-product-panel="sale">
+          <div class="product-grid" id="saleProducts"></div>
+        </div>
+        <div class="home-product-panel" role="tabpanel" data-home-product-panel="featured" hidden>
+          <div class="product-grid" id="featuredProducts"></div>
+        </div>
       </div>
     </section>
     <section class="section trust-section" data-home-block="trust">
@@ -94,6 +108,7 @@
           <article class="trust-item"><div><h3 id="trustFeatureOneTitle">Понятный товар</h3><p id="trustFeatureOneText">Бренд, страна, состав, фасовка и остаток указаны в карточке.</p></div></article>
           <article class="trust-item"><div><h3 id="trustFeatureTwoTitle">Удобное получение</h3><p id="trustFeatureTwoText">Самовывоз, курьер, Европочта или почта по Беларуси.</p></div></article>
           <article class="trust-item"><div><h3 id="trustFeatureThreeTitle">Подтверждение заказа</h3><p id="trustFeatureThreeText">Магазин уточняет детали заказа и способ оплаты до отправки.</p></div></article>
+          <article class="trust-item"><div><h3 id="trustFeatureFourTitle">Быстрый заказ</h3><p id="trustFeatureFourText">Корзина, промокод и подтверждение собраны в одном сценарии.</p></div></article>
         </div>
       </div>
     </section>
@@ -120,18 +135,6 @@
         <div class="goal-grid" id="homeGoals"></div>
       </div>
     </section>
-    <section class="section paper" data-home-block="featured">
-      <div class="container">
-        <div class="section-head">
-          <div><span class="eyebrow" data-block-eyebrow>Популярное</span>
-            <h2 class="section-title" data-block-title>Товары, которые покупают чаще</h2>
-            <p data-block-text>Никакой детской кислотности, только чистые карточки, нормальная типографика и понятные
-              действия.</p>
-          </div><a class="btn btn-outline" href="catalog.html?sort=popular" data-block-button>Открыть каталог</a>
-        </div>
-        <div class="product-grid" id="featuredProducts"></div>
-      </div>
-    </section>
     <section class="section" data-home-block="brands">
       <div class="container">
         <div class="section-head">
@@ -141,26 +144,6 @@
           </div><a class="btn btn-light" href="brands.html" data-block-button>Все бренды</a>
         </div>
         <div class="brand-grid" id="homeBrands"></div>
-      </div>
-    </section>
-    <section class="section dark" data-home-block="service">
-      <div class="container">
-        <div class="section-head service-head">
-          <div><span class="eyebrow" data-block-eyebrow>Сервис</span>
-            <h2 data-block-title>Магазин без лишнего шума</h2>
-            <p data-block-text>Заказ, доставка и контроль товара собраны в понятный сценарий.</p>
-          </div>
-        </div>
-        <div class="service-list">
-          <article class="feature-card service-card">
-            <div><h3 id="serviceFeatureOneTitle">Быстрый заказ</h3>
-              <p id="serviceFeatureOneText">Корзина, промокод, доставка и Telegram-уведомление через бота.</p></div>
-          </article>
-          <article class="feature-card service-card">
-            <div><h3 id="serviceFeatureTwoTitle">Контроль товара</h3>
-              <p id="serviceFeatureTwoText">Остатки, скидки, фасовки, вкусы, страна производства и админка.</p></div>
-          </article>
-        </div>
       </div>
     </section>
   </main>

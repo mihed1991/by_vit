@@ -20,6 +20,7 @@
     cart:'byvit_v60_cart',
     wishlist:'byvit_v60_wishlist',
     compare:'byvit_v60_compare',
+    recent:'byvit_v60_recently_viewed',
     orders:'byvit_v60_orders',
     reviews:'byvit_v60_reviews',
     admin:'byvit_v60_admin_session'
@@ -37,7 +38,7 @@
     bar:'Батончик',
     accessory:'Аксессуар'
   };
-  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'trust', 'categories', 'goals', 'featured', 'service', 'brands'];
+  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'trust', 'categories', 'goals', 'brands'];
   const DEFAULT_HOME_BLOCKS = {
     trust:{visible:true,order:2,eyebrow:'Почему ByVit',title:'Покупка без сюрпризов',text:'Важные условия видны до оформления заказа.',titleSize:36,textSize:15,featureOneTitle:'Понятный товар',featureOneText:'Бренд, страна, состав, фасовка и остаток указаны в карточке.',featureTwoTitle:'Удобное получение',featureTwoText:'Самовывоз, курьер, Европочта или почта по Беларуси.',featureThreeTitle:'Подтверждение заказа',featureThreeText:'Магазин уточняет детали заказа и способ оплаты до отправки.'},
     categories:{visible:true,order:2,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
@@ -890,6 +891,13 @@
   function saveWishlist(list){ write(KEYS.wishlist, list); updateCounts(); }
   function getCompare(){ return read(KEYS.compare, []); }
   function saveCompare(list){ write(KEYS.compare, list); updateCounts(); }
+  function getRecentProductIds(){ return read(KEYS.recent, []).map(Number).filter(Boolean); }
+  function rememberProductView(productId){
+    const numeric = Number(productId);
+    if(!numeric) return;
+    const next = [numeric, ...getRecentProductIds().filter(id => id !== numeric)].slice(0, 8);
+    write(KEYS.recent, next);
+  }
   function getOrders(){ return read(KEYS.orders, []); }
   function saveOrders(orders){ write(KEYS.orders, orders); }
   function getReviews(){ return read(KEYS.reviews, getDefaults().reviews || []); }
@@ -1752,7 +1760,7 @@
     brands().forEach(brand => values.add(brand));
     return [...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')).slice(0,80);
   }
-  function renderCatalogSuggestions(){
+	  function renderCatalogSuggestions(){
     const root = $('#catalogSuggestions');
     const values = catalogSuggestionValues();
     if(root) root.innerHTML = values.map(value => `<option value="${esc(value)}"></option>`).join('');
@@ -1776,6 +1784,50 @@
     if(panel) panel.hidden = true;
     syncCatalogUrl();
     renderCatalogProducts();
+  }
+  function configureHomeProductTabs(blocks, saleProducts, featuredProducts){
+    const section = $('[data-home-block="sale"]');
+    if(!section) return;
+    const collections = {sale:saleProducts, featured:featuredProducts};
+    const available = ['sale', 'featured'].filter(key => blocks[key]?.visible !== false && collections[key].length);
+    section.hidden = !available.length;
+    if(!available.length) return;
+    const selectTab = key => {
+      const active = available.includes(key) ? key : available[0];
+      section.dataset.activeProductTab = active;
+      $$('[data-home-product-tab]', section).forEach(button => {
+        const selected = button.dataset.homeProductTab === active;
+        button.classList.toggle('active', selected);
+        button.hidden = !available.includes(button.dataset.homeProductTab);
+        button.setAttribute('aria-selected', selected ? 'true' : 'false');
+      });
+      $$('[data-home-product-panel]', section).forEach(panel => {
+        const selected = panel.dataset.homeProductPanel === active;
+        panel.hidden = !selected;
+        panel.classList.toggle('active', selected);
+      });
+      const block = blocks[active] || DEFAULT_HOME_BLOCKS[active];
+      const eyebrow = $('[data-block-eyebrow]', section);
+      const title = $('[data-block-title]', section);
+      const text = $('[data-block-text]', section);
+      const link = $('[data-block-button]', section);
+      const href = block.buttonUrl || (active === 'sale' ? 'sale.html' : 'catalog.html?sort=popular');
+      if(eyebrow) eyebrow.innerHTML = `<a href="${esc(href)}">${esc(block.eyebrow || (active === 'sale' ? 'Акции' : 'Популярное'))}</a>`;
+      if(title) title.innerHTML = `<a href="${esc(href)}">${esc(block.title || '')}</a>`;
+      if(text){
+        text.textContent = block.text || '';
+        text.hidden = !block.text;
+      }
+      if(link){
+        link.href = href;
+        link.textContent = block.buttonText || (active === 'sale' ? 'Все акции' : 'Открыть каталог');
+        link.hidden = !block.buttonText;
+      }
+    };
+    $$('[data-home-product-tab]', section).forEach(button => {
+      button.onclick = () => selectTab(button.dataset.homeProductTab);
+    });
+    selectTab(section.dataset.activeProductTab || available[0]);
   }
 	  function renderHome(){
     const site = getSite();
@@ -1801,16 +1853,7 @@
       metricRoot.innerHTML = metrics.map(item => `<div class="metric"><strong>${esc(item.value)}</strong><span>${esc(item.label)}</span></div>`).join('');
     }
 	    Object.entries(blocks).forEach(([key, block]) => applyHomeBlock(key, block));
-	    orderHomeSections(blocks);
     const service = blocks.service || {};
-    const serviceOneTitle = $('#serviceFeatureOneTitle');
-    const serviceOneText = $('#serviceFeatureOneText');
-    const serviceTwoTitle = $('#serviceFeatureTwoTitle');
-    const serviceTwoText = $('#serviceFeatureTwoText');
-    if(serviceOneTitle) serviceOneTitle.textContent = service.featureOneTitle || 'Быстрый заказ';
-    if(serviceOneText) serviceOneText.textContent = service.featureOneText || '';
-    if(serviceTwoTitle) serviceTwoTitle.textContent = service.featureTwoTitle || 'Контроль товара';
-    if(serviceTwoText) serviceTwoText.textContent = service.featureTwoText || '';
     const trust = blocks.trust || {};
     const trustFields = {
       trustFeatureOneTitle:trust.featureOneTitle,
@@ -1824,23 +1867,53 @@
       const field = $('#'+id);
       if(field && value) field.textContent = value;
     });
+    const trustItems = $$('#homeTrust .trust-item');
+    trustItems.slice(0, 3).forEach(item => { item.hidden = trust.visible === false; });
+    if(trustItems[3]) trustItems[3].hidden = service.visible === false;
+    const trustFourTitle = $('#trustFeatureFourTitle');
+    const trustFourText = $('#trustFeatureFourText');
+    if(trustFourTitle){
+      const serviceTitles = [service.featureOneTitle, service.featureTwoTitle].filter(Boolean);
+      trustFourTitle.textContent = serviceTitles.length > 1
+        ? `${serviceTitles[0]} и ${String(serviceTitles[1]).toLocaleLowerCase('ru')}`
+        : serviceTitles[0] || service.title || 'Быстрый заказ';
+    }
+    if(trustFourText){
+      trustFourText.textContent = service.text || service.featureOneText || service.featureTwoText || 'Корзина, промокод и подтверждение собраны в одном сценарии.';
+    }
+    const trustSection = $('[data-home-block="trust"]');
+    if(trustSection){
+      trustSection.hidden = trustItems.every(item => item.hidden);
+      const advantageHeader = trust.visible === false && service.visible !== false ? service : trust;
+      const eyebrow = $('[data-block-eyebrow]', trustSection);
+      const title = $('[data-block-title]', trustSection);
+      const text = $('[data-block-text]', trustSection);
+      if(eyebrow) eyebrow.textContent = advantageHeader.eyebrow || '';
+      if(title) title.textContent = advantageHeader.title || '';
+      if(text){
+        text.textContent = advantageHeader.text || '';
+        text.hidden = !advantageHeader.text;
+      }
+    }
     const catGrid = $('#homeCategories');
 	    if(catGrid){
 	      catGrid.innerHTML = getCategories().slice(0,8).map(c=>`
 	        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
           <h3>${esc(c.name)}</h3>
-          <p>${esc(c.description)}</p>
-          <div class="card-arrow">Перейти →</div>
 	        </a>`).join('');
 	    }
 	    renderGoals();
     const featuredProducts = products.filter(p => p.popular && !p.oldPrice);
-    renderGrid($('#featuredProducts'), (featuredProducts.length ? featuredProducts : products.filter(p => p.popular)).slice(0,5));
-    renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,5));
+    const popularProducts = (featuredProducts.length ? featuredProducts : products.filter(p => p.popular)).slice(0,5);
+    const discountedProducts = products.filter(p => p.oldPrice).slice(0,5);
+    renderGrid($('#featuredProducts'), popularProducts);
+    renderGrid($('#saleProducts'), discountedProducts);
+    configureHomeProductTabs(blocks, discountedProducts, popularProducts);
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
 	      brandRail.innerHTML = brands().slice(0,10).map(brand=>brandCardHtml(brand, site)).join('');
 	    }
+    orderHomeSections(blocks);
     document.body.classList.add('home-ready');
   }
 
@@ -2029,11 +2102,17 @@
     const firstOption = defaultPackage(product);
     const firstFlavor = product.flavors?.[0] || '';
     const relatedProducts = recommendedProducts(product, 4);
+    const recentlyViewedProducts = getRecentProductIds()
+      .filter(productId => String(productId) !== String(product.id))
+      .map(productById)
+      .filter(Boolean)
+      .slice(0, 4);
     applyProductSeo(product);
     if(document.body.dataset.analyticsProduct !== String(product.id)){
       document.body.dataset.analyticsProduct = String(product.id);
       trackEvent('product_view', {productId:product.id});
     }
+    rememberProductView(product.id);
     root.innerHTML = `
       <div class="product-detail">
         <div class="product-gallery">
@@ -2054,6 +2133,7 @@
           ${product.oldPrice ? `<div class="old-price" style="font-size:16px;margin:4px 0 18px;display:inline-block">${money(product.oldPrice)}</div>` : ''}
           <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${(product.packageOptions || [firstOption]).map((o,i)=>`<button class="chip ${i===0?'active':''}" data-package-id="${esc(o.id)}" data-price="${esc(o.price)}">${esc(o.label)}</button>`).join('')}</div></div>
           ${product.flavors?.length ? `<div class="option-block"><strong>Вкус</strong><div class="option-list" id="flavorOptions">${product.flavors.map((f,i)=>`<button class="chip ${i===0?'active':''}" data-flavor="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>` : ''}
+          <div class="product-fulfillment"><span>Получение</span><strong>Ориентировочно: самовывоз сегодня · доставка 1–3 дня</strong></div>
           <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button class="btn btn-primary" data-product-add="${esc(product.id)}">Добавить в корзину</button></div>
           <div class="hero-actions" style="margin:0"><button class="btn btn-light" data-action="wishlist" data-id="${esc(product.id)}">♡ Избранное</button><button class="btn btn-light" data-action="compare" data-id="${esc(product.id)}">⇄ Сравнить</button></div>
         </aside>
@@ -2062,7 +2142,8 @@
         <div class="tab-buttons"><button class="active" data-tab="desc">Описание</button><button data-tab="ingredients">Состав</button><button data-tab="usage">Способ применения</button><button data-tab="reviews">Отзывы</button><button data-tab="delivery">Доставка</button></div>
         <div class="tab-content" id="tabContent"></div>
       </div>
-      ${relatedProducts.length ? `<section class="section product-recommendations" style="padding-bottom:0"><div class="section-head"><div><span class="eyebrow">Похожие товары</span><h2>Можно добавить к заказу</h2></div></div><div class="product-grid" id="similarProducts"></div></section>` : ''}`;
+      ${relatedProducts.length ? `<section class="section product-recommendations" style="padding-bottom:0"><div class="section-head"><div><span class="eyebrow">Похожие товары</span><h2>Можно добавить к заказу</h2></div></div><div class="product-grid" id="similarProducts"></div></section>` : ''}
+      ${recentlyViewedProducts.length ? `<section class="section recently-viewed" style="padding-bottom:0"><div class="section-head"><div><span class="eyebrow">История просмотра</span><h2>Недавно просмотренные</h2></div></div><div class="product-grid" id="recentProducts"></div></section>` : ''}`;
     const tabData = {
       desc:`<p>${esc(product.description || product.shortDescription || '')}</p>`,
       usage:`<p>${esc(product.usage || 'Способ применения уточняйте у производителя.')}</p>`,
@@ -2087,6 +2168,7 @@
       addToCart(product.id, pack, flavor, Math.max(1,Number($('#productQty')?.value || 1)));
     });
     renderGrid($('#similarProducts'), relatedProducts);
+    renderGrid($('#recentProducts'), recentlyViewedProducts);
   }
 
   function cartTotals(){
