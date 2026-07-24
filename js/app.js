@@ -1834,7 +1834,8 @@
 	        </a>`).join('');
 	    }
 	    renderGoals();
-    renderGrid($('#featuredProducts'), products.filter(p => p.popular).slice(0,5));
+    const featuredProducts = products.filter(p => p.popular && !p.oldPrice);
+    renderGrid($('#featuredProducts'), (featuredProducts.length ? featuredProducts : products.filter(p => p.popular)).slice(0,5));
     renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,5));
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){

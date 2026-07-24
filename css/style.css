@@ -4413,3 +4413,191 @@ body.cart-drawer-open{overflow:hidden}
     padding:14px;
   }
 }
+
+/* Commerce-first density: keep the visual system, surface products sooner. */
+@media(min-width:761px){
+  .page-hero{
+    padding:16px 0 14px;
+  }
+  .page-hero h1{
+    font-size:30px;
+  }
+  .page-hero .breadcrumbs{
+    margin-bottom:8px;
+  }
+  .page-hero p{
+    margin-top:6px;
+    font-size:14px;
+  }
+  body[data-page="home"] .hero{
+    min-height:450px;
+    height:450px;
+  }
+  body[data-page="home"] .hero-content{
+    max-width:560px;
+    padding:34px 0 30px;
+  }
+  body[data-page="home"] .hero h1{
+    font-size:38px!important;
+  }
+  body[data-page="home"] .hero-text{
+    margin:12px 0 18px;
+    line-height:1.5;
+  }
+  body[data-page="home"] .hero-actions{
+    margin-bottom:22px;
+  }
+  body[data-page="home"] .metric{
+    padding:10px 14px;
+  }
+  body[data-page="home"] .metric strong{
+    font-size:23px;
+  }
+  body[data-page="home"] .metric span{
+    font-size:10px;
+  }
+  body[data-page="home"] .section{
+    padding:44px 0;
+  }
+  body[data-page="home"] .trust-section{
+    padding:30px 0;
+  }
+  body[data-page="home"] .section-head{
+    margin-bottom:20px;
+    padding-top:12px;
+  }
+  body[data-page="home"] .section-head p{
+    margin-top:7px;
+  }
+  body[data-page="home"] [data-home-block="sale"],
+  body[data-page="home"] [data-home-block="featured"]{
+    padding-top:28px;
+  }
+  body[data-page="home"] [data-home-block="sale"] .section-head,
+  body[data-page="home"] [data-home-block="featured"] .section-head{
+    margin-bottom:14px;
+  }
+  body[data-page="home"] [data-home-block="sale"] .section-head p,
+  body[data-page="home"] [data-home-block="featured"] .section-head p{
+    display:none;
+  }
+  body[data-page="home"] #homeCategories .category-card{
+    min-height:154px;
+    padding:16px;
+  }
+  body[data-page="home"] #homeGoals .goal-card{
+    min-height:112px;
+    padding:16px;
+  }
+  body[data-page="home"] .trust-item,
+  body[data-page="home"] .trust-item + .trust-item,
+  body[data-page="home"] .service-list .service-card,
+  body[data-page="home"] .service-list .service-card + .service-card{
+    padding-top:15px;
+    padding-bottom:15px;
+  }
+  body[data-page="home"] .service-head{
+    margin-bottom:14px;
+  }
+  body[data-page="home"] #homeBrands{
+    gap:12px;
+  }
+  body[data-page="home"] #homeBrands .brand-card{
+    min-height:116px;
+    padding:14px;
+  }
+
+  body[data-page="product"] main > .section{
+    padding:16px 0 28px;
+  }
+  body[data-page="product"] .page-hero{
+    padding:10px 0 8px;
+  }
+  body[data-page="product"] .page-hero p{
+    display:none;
+  }
+  body[data-page="product"] .product-detail{
+    grid-template-columns:minmax(0,.9fr) minmax(420px,1.1fr);
+    gap:32px;
+  }
+  body[data-page="product"] .gallery-main{
+    max-height:520px;
+    aspect-ratio:1.08/1;
+  }
+  body[data-page="product"] .product-detail-title{
+    margin-bottom:10px;
+    font-size:34px;
+  }
+  body[data-page="product"] .product-facts{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+    margin:16px 0;
+  }
+  body[data-page="product"] .fact{
+    min-width:0;
+    padding:10px;
+  }
+  body[data-page="product"] .fact span{
+    margin-bottom:4px;
+    font-size:9px;
+    letter-spacing:.06em;
+  }
+  body[data-page="product"] .fact strong{
+    display:block;
+    overflow:hidden;
+    font-size:13px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  body[data-page="product"] .option-list{
+    margin:8px 0 14px;
+  }
+  body[data-page="product"] .qty-row{
+    margin:16px 0 14px;
+  }
+  body[data-page="product"] .tabs{
+    margin-top:30px;
+  }
+}
+
+@media(max-width:760px){
+  body[data-page="home"] .hero{
+    height:clamp(360px,95vw,430px);
+  }
+  body[data-page="home"] .hero-content,
+  body[data-page="home"] .hero[data-align="left"] .hero-content,
+  body[data-page="home"] .hero[data-align="right"] .hero-content,
+  body[data-page="home"] .hero[data-align="center"] .hero-content{
+    padding:22px 0 18px;
+  }
+  body[data-page="home"] .hero h1{
+    font-size:28px!important;
+  }
+  body[data-page="home"] .hero-text{
+    margin:9px 0 13px;
+    line-height:1.45;
+  }
+  body[data-page="home"] .hero-actions{
+    margin-bottom:12px;
+  }
+  body[data-page="home"] .section-head{
+    padding-top:8px;
+  }
+  body[data-page="home"] .section [data-block-title]{
+    font-size:25px!important;
+  }
+  body[data-page="home"] .section-head p{
+    font-size:13px;
+    line-height:1.45;
+  }
+  body[data-page="home"] #homeCategories .category-card{
+    min-height:126px;
+  }
+  body[data-page="home"] #homeGoals .goal-card{
+    min-height:104px;
+  }
+  body[data-page="home"] .trust-section{
+    padding-top:12px;
+    padding-bottom:12px;
+  }
+}
