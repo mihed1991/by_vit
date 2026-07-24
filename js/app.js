@@ -1,6 +1,19 @@
 (function(){
   'use strict';
 
+  const THEME_KEY = 'byvit_theme';
+  const savedTheme = (() => {
+    try{
+      const value = localStorage.getItem(THEME_KEY);
+      return value === 'dark' || value === 'light' ? value : null;
+    }catch(error){
+      return null;
+    }
+  })();
+  const initialTheme = savedTheme || 'light';
+  document.documentElement.dataset.theme = initialTheme;
+  document.documentElement.style.colorScheme = initialTheme;
+
   const KEYS = {
     products:'byvit_v60_products',
     site:'byvit_v60_site',
@@ -145,6 +158,30 @@
 
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => Array.from(root.querySelectorAll(selector));
+
+  function currentTheme(){
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
+  function syncThemeControls(){
+    const dark = currentTheme() === 'dark';
+    $$('[data-theme-toggle]').forEach(button => {
+      button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      button.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
+      button.title = dark ? 'Светлая тема' : 'Тёмная тема';
+      const icon = $('[data-theme-icon]', button);
+      if(icon) icon.textContent = dark ? '☼' : '◐';
+    });
+  }
+  function setTheme(theme, persist=true){
+    const next = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
+    if(persist){
+      try{ localStorage.setItem(THEME_KEY, next); }
+      catch(error){ console.warn('Theme preference was not saved', error); }
+    }
+    syncThemeControls();
+  }
 
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function read(key, fallback){
@@ -896,13 +933,11 @@
   }
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
   function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
-  function brandCardHtml(brand, products=getProducts(), site=getSite()){
+  function brandCardHtml(brand, site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
-    const count = products.filter(product => product.brand === brand).length;
     return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
       <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
       <h3 title="${esc(brand)}">${esc(brand)}</h3>
-      <p>${count} товар(ов)</p>
     </a>`;
   }
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
@@ -1261,7 +1296,13 @@
     const legalText = String(config.description || '').trim();
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
-        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a></div>
+        <div class="footer-brand-block">
+          ${brandLinkHtml(header, 'style="color:#fff"')}
+          <div class="footer-brand-tools">
+            <a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a>
+            <button class="footer-theme-toggle" type="button" data-theme-toggle aria-label="Переключить тему" aria-pressed="false"><span aria-hidden="true" data-theme-icon>◐</span></button>
+          </div>
+        </div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
 	      </div>
@@ -1269,6 +1310,7 @@
 	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
 	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
 	    </div>`;
+    syncThemeControls();
 	  }
   function applyPageHeader(){
     const page = document.body.dataset.page;
@@ -1796,7 +1838,7 @@
     renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,5));
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
-	      brandRail.innerHTML = brands().slice(0,10).map(brand=>brandCardHtml(brand, products, site)).join('');
+	      brandRail.innerHTML = brands().slice(0,10).map(brand=>brandCardHtml(brand, site)).join('');
 	    }
     document.body.classList.add('home-ready');
   }
@@ -1908,7 +1950,7 @@
     if(!wrap) return;
     const products = getProducts();
     const site = getSite();
-    wrap.innerHTML = brands().map(brand=>brandCardHtml(brand, products, site)).join('');
+    wrap.innerHTML = brands().map(brand=>brandCardHtml(brand, site)).join('');
   }
   function renderCompare(){
     const wrap = $('#compareTable');
@@ -4078,6 +4120,8 @@
 
 	  function bindGlobal(){
 	    document.addEventListener('click', event => {
+	      const themeToggle = event.target.closest('[data-theme-toggle]');
+	      if(themeToggle){ setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); return; }
 	      const drawerClose = event.target.closest('[data-cart-drawer-close]'); if(drawerClose){ closeCartDrawer(); return; }
 	      const drawerOpen = event.target.closest('.header-actions a[href="cart.html"]');
 	      if(drawerOpen && document.body.dataset.page !== 'cart' && !window.matchMedia('(max-width: 760px)').matches){
