@@ -1736,10 +1736,9 @@
 	    const cats = getCategories().filter(Boolean).slice(0,8);
 	    root.innerHTML = `<div class="catalog-smart-head"><div><span class="eyebrow">Разделы</span><h2>Быстрый каталог</h2></div><a href="catalog.html">Все товары</a></div>
 	      <div class="catalog-smart-grid">
-	        ${cats.map((category, index) => {
+	        ${cats.map(category => {
 	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
 	          return `<article class="catalog-smart-card">
-	            <a class="catalog-smart-mark" href="catalog.html?category=${esc(category.id)}">${String(index + 1).padStart(2,'0')}</a>
 	            <div>
 	              <a class="catalog-smart-title" href="catalog.html?category=${esc(category.id)}">${esc(category.name)}</a>
 	              <p>${esc(category.description)}</p>
