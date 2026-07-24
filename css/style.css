@@ -4105,3 +4105,114 @@ body.cart-drawer-open{overflow:hidden}
     scroll-snap-align:start;
   }
 }
+
+/* Compact unnumbered home cards and clear interactive states. */
+#homeCategories .index,
+#homeGoals .goal-index,
+#homeTrust .trust-index,
+#homeBrands .index,
+.service-list .service-index{
+  display:none!important;
+}
+#homeCategories .category-card{
+  min-height:180px;
+  padding:18px;
+}
+#homeCategories .category-card h3{
+  margin:0 0 8px;
+}
+#homeCategories .category-card p{
+  min-height:0;
+}
+#homeCategories .category-card .card-arrow{
+  padding-top:14px;
+}
+#homeGoals .goal-card{
+  min-height:132px;
+  gap:6px;
+  padding:18px;
+}
+#homeGoals .goal-card h3{
+  margin:0 0 4px;
+}
+.brand-card{
+  min-height:150px;
+  grid-template-rows:56px 30px 24px;
+  align-content:center;
+  padding:18px;
+}
+.brand-card.has-image{
+  grid-template-rows:72px 30px 24px;
+}
+.brand-card h3,
+#homeBrands .brand-card h3,
+#brandsList .brand-card h3{
+  margin:0;
+}
+.trust-item,
+.trust-item + .trust-item{
+  display:block;
+  min-height:0;
+  padding:18px 24px;
+}
+.service-list .service-card,
+.service-list .service-card + .service-card{
+  grid-template-columns:minmax(0,1fr);
+  min-height:0;
+  padding:18px 24px;
+}
+
+@media(hover:hover) and (pointer:fine){
+  #homeCategories .category-card:hover,
+  #homeGoals .goal-card:hover,
+  #homeBrands .brand-card:hover{
+    border-color:var(--green);
+    background:var(--green);
+    color:#fff;
+  }
+  #homeCategories .category-card:hover h3,
+  #homeCategories .category-card:hover p,
+  #homeCategories .category-card:hover .card-arrow,
+  #homeGoals .goal-card:hover h3,
+  #homeGoals .goal-card:hover p,
+  #homeBrands .brand-card:hover h3,
+  #homeBrands .brand-card:hover p,
+  #homeBrands .brand-card:hover .brand-letter{
+    color:#fff;
+  }
+  #homeCategories .category-card:hover p,
+  #homeGoals .goal-card:hover p,
+  #homeBrands .brand-card:hover p{
+    opacity:.82;
+  }
+  #homeBrands .brand-card.has-image:hover .brand-media{
+    border-color:rgba(255,255,255,.55);
+    background:#fff;
+  }
+}
+
+@media(max-width:760px){
+  #homeCategories .category-card{
+    min-height:140px;
+    padding:14px;
+  }
+  #homeGoals .goal-card{
+    min-height:120px;
+    padding:14px;
+  }
+  #homeBrands .brand-card{
+    min-height:116px;
+    grid-template-rows:36px auto auto;
+    padding:14px;
+  }
+  #homeBrands .brand-card.has-image{
+    grid-template-rows:46px auto auto;
+  }
+  .trust-item,
+  .trust-item + .trust-item,
+  .service-list .service-card,
+  .service-list .service-card + .service-card{
+    min-height:104px;
+    padding:14px;
+  }
+}

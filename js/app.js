@@ -896,11 +896,10 @@
   }
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
   function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
-  function brandCardHtml(brand, index, products=getProducts(), site=getSite()){
+  function brandCardHtml(brand, products=getProducts(), site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
     const count = products.filter(product => product.brand === brand).length;
     return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
-      <span class="index">Brand ${String(index + 1).padStart(2,'0')}</span>
       <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
       <h3 title="${esc(brand)}">${esc(brand)}</h3>
       <p>${count} товар(ов)</p>
@@ -939,7 +938,7 @@
     return lines.length ? lines.map(line => `<p>${linkifyPhoneNumbers(line)}</p>`).join('') : '<p></p>';
   }
   function linkifyPhoneNumbers(value){
-    return esc(value).replace(/(\+375[\d\s()\-]{7,}\d)/g, phone => {
+    return esc(value).replace(/(\+?375[\d\s()\-]{7,}\d)/g, phone => {
       const href = phone.replace(/[^\d+]/g, '');
       return `<a class="phone-link" href="tel:${href}">${phone}</a>`;
     });
@@ -1166,7 +1165,7 @@
     const site = getSite();
     const header = site.header || {};
     $$('[data-site-announcement]').forEach(el => { el.textContent = site.announcement || 'Оригинальные бренды · доставка · самовывоз'; });
-    $$('.header-top .mono').forEach(el => { el.textContent = header.topRight || ''; });
+    $$('.header-top .mono').forEach(el => { el.innerHTML = linkifyPhoneNumbers(header.topRight || ''); });
     $$('.site-header .brand').forEach(brand => renderBrandInLink(brand, header));
     $$('.header-search input').forEach(input => { input.placeholder = header.searchPlaceholder || 'Поиск товара'; input.name = 'q'; });
     $$('.admin-pill').forEach(link => { link.textContent = header.adminLabel || 'Админ'; });
@@ -1658,9 +1657,8 @@
       item.section.dataset.tone = paper ? 'paper' : 'white';
     });
   }
-	  function goalCard(goal, index){
+	  function goalCard(goal){
 	    return `<a class="goal-card" href="${esc(goal.href || 'catalog.html')}">
-	      <span class="goal-index">${String(index + 1).padStart(2,'0')}</span>
 	      <h3>${esc(goal.title)}</h3>
 	      <p>${esc(goal.text)}</p>
 	    </a>`;
@@ -1786,9 +1784,8 @@
     });
     const catGrid = $('#homeCategories');
 	    if(catGrid){
-	      catGrid.innerHTML = getCategories().slice(0,8).map((c,i)=>`
+	      catGrid.innerHTML = getCategories().slice(0,8).map(c=>`
 	        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
-          <span class="index">${String(i+1).padStart(2,'0')}</span>
           <h3>${esc(c.name)}</h3>
           <p>${esc(c.description)}</p>
           <div class="card-arrow">Перейти →</div>
@@ -1799,7 +1796,7 @@
     renderGrid($('#saleProducts'), products.filter(p => p.oldPrice).slice(0,5));
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
-	      brandRail.innerHTML = brands().slice(0,10).map((brand,i)=>brandCardHtml(brand, i, products, site)).join('');
+	      brandRail.innerHTML = brands().slice(0,10).map(brand=>brandCardHtml(brand, products, site)).join('');
 	    }
     document.body.classList.add('home-ready');
   }
@@ -1911,7 +1908,7 @@
     if(!wrap) return;
     const products = getProducts();
     const site = getSite();
-    wrap.innerHTML = brands().map((brand,i)=>brandCardHtml(brand, i, products, site)).join('');
+    wrap.innerHTML = brands().map(brand=>brandCardHtml(brand, products, site)).join('');
   }
   function renderCompare(){
     const wrap = $('#compareTable');
