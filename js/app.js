@@ -936,7 +936,13 @@
   }
   function textToParagraphs(value){
     const lines = String(value || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
-    return lines.length ? lines.map(line => `<p>${esc(line)}</p>`).join('') : '<p></p>';
+    return lines.length ? lines.map(line => `<p>${linkifyPhoneNumbers(line)}</p>`).join('') : '<p></p>';
+  }
+  function linkifyPhoneNumbers(value){
+    return esc(value).replace(/(\+375[\d\s()\-]{7,}\d)/g, phone => {
+      const href = phone.replace(/[^\d+]/g, '');
+      return `<a class="phone-link" href="tel:${href}">${phone}</a>`;
+    });
   }
   function mapSrcFromValue(value){
     const raw = String(value || '').trim();
@@ -1233,13 +1239,15 @@
         : `<span class="footer-badge">${esc(badge.text)}</span>`;
       return badge.href ? `<a class="footer-badge-link" href="${esc(badge.href)}" target="_blank" rel="noopener">${body}</a>` : body;
     }).join('');
+    const legalText = String(config.description || '').trim();
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
-        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a><p style="margin-top:18px;max-width:380px">${esc(config.description || '')}</p></div>
+        <div class="footer-brand-block">${brandLinkHtml(header, 'style="color:#fff"')}<a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a></div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
 	      </div>
 	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
+        ${legalText ? `<div class="footer-legal-text"><p>${linkifyPhoneNumbers(legalText)}</p></div>` : ''}
 	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
 	    </div>`;
 	  }
@@ -1320,7 +1328,6 @@
     saveCart(cart);
     trackEvent('add_to_cart', {productId:product.id});
     toast('Товар добавлен в корзину');
-    openCartDrawer();
   }
 
   let cartDrawerReturnFocus = null;
@@ -1390,7 +1397,7 @@
   }
 
   function openCartDrawer(){
-    if(document.body.dataset.page === 'cart') return;
+    if(document.body.dataset.page === 'cart' || window.matchMedia('(max-width: 760px)').matches) return;
     const drawer = ensureCartDrawer();
     updateCartDrawer();
     cartDrawerReturnFocus = document.activeElement;
@@ -3842,7 +3849,7 @@
   function renderAdminOrders(){
     const root = $('#adminOrdersTable'); if(!root) return;
     const orders = getOrders();
-    root.innerHTML = orders.length ? `<table class="admin-table"><thead><tr><th>ID</th><th>Клиент</th><th>Получение</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody>${orders.map(o=>`<tr><td>#${esc(o.id)}<br><small>${esc(o.date)}</small></td><td>${esc(o.customer?.name || '')}<br><small>${esc(o.customer?.phone || '')}</small></td><td>${esc(o.deliveryTitle || '')}</td><td>${money(o.total)}</td><td>${esc(o.status)}</td><td><button class="btn btn-light small" data-order-done="${esc(o.id)}">Выполнен</button> <button class="btn btn-danger small" data-order-delete="${esc(o.id)}">Удалить</button></td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><h3>Заказов пока нет</h3><p>Когда клиент оформит заказ, он появится здесь.</p></div>`;
+    root.innerHTML = orders.length ? `<table class="admin-table"><thead><tr><th>ID</th><th>Клиент</th><th>Получение</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody>${orders.map(o=>`<tr><td>#${esc(o.id)}<br><small>${esc(o.date)}</small></td><td>${esc(o.customer?.name || '')}<br><small>${linkifyPhoneNumbers(o.customer?.phone || '')}</small></td><td>${esc(o.deliveryTitle || '')}</td><td>${money(o.total)}</td><td>${esc(o.status)}</td><td><button class="btn btn-light small" data-order-done="${esc(o.id)}">Выполнен</button> <button class="btn btn-danger small" data-order-delete="${esc(o.id)}">Удалить</button></td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><h3>Заказов пока нет</h3><p>Когда клиент оформит заказ, он появится здесь.</p></div>`;
   }
   function updateOrder(id,status){ const orders=getOrders(); const o=orders.find(x=>String(x.id)===String(id)); if(o){o.status=status;saveOrders(orders);renderAdminOrders();} }
   function deleteOrder(id){ saveOrders(getOrders().filter(o=>String(o.id)!==String(id))); renderAdminOrders(); }
@@ -4057,7 +4064,7 @@
 	    document.addEventListener('click', event => {
 	      const drawerClose = event.target.closest('[data-cart-drawer-close]'); if(drawerClose){ closeCartDrawer(); return; }
 	      const drawerOpen = event.target.closest('.header-actions a[href="cart.html"]');
-	      if(drawerOpen && document.body.dataset.page !== 'cart'){
+	      if(drawerOpen && document.body.dataset.page !== 'cart' && !window.matchMedia('(max-width: 760px)').matches){
 	        event.preventDefault();
 	        openCartDrawer();
 	        return;
