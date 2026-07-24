@@ -1187,8 +1187,28 @@
 	    setActiveNav();
     const burger = $('[data-burger]');
     const mobile = $('[data-mobile-panel]');
-    if(burger && mobile){
-      burger.addEventListener('click', () => { document.body.classList.toggle('menu-open'); mobile.classList.toggle('open'); });
+    if(burger && mobile && burger.dataset.menuBound !== '1'){
+      burger.dataset.menuBound = '1';
+      const closeMobileMenu = () => {
+        document.body.classList.remove('menu-open');
+        mobile.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      };
+      burger.setAttribute('aria-expanded', 'false');
+      burger.addEventListener('click', () => {
+        const open = !mobile.classList.contains('open');
+        document.body.classList.toggle('menu-open', open);
+        mobile.classList.toggle('open', open);
+        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      mobile.addEventListener('click', event => {
+        if(event.target.closest('a')) closeMobileMenu();
+      });
+      document.addEventListener('click', event => {
+        if(!mobile.classList.contains('open')) return;
+        if(mobile.contains(event.target) || burger.contains(event.target)) return;
+        closeMobileMenu();
+      });
     }
     $$('[data-header-search-form]').forEach(form => {
       form.addEventListener('submit', event => {
@@ -1246,8 +1266,8 @@
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
 	      </div>
-	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
         ${legalText ? `<div class="footer-legal-text"><p>${linkifyPhoneNumbers(legalText)}</p></div>` : ''}
+	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
 	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
 	    </div>`;
 	  }
@@ -1281,7 +1301,6 @@
             <div class="product-badges-main">
               ${product.badge ? `<span class="badge" style="--badge-bg:${badgeColor(product)}">${esc(product.badge)}</span>` : ''}
             </div>
-            <span class="stock-badge ${out ? 'out' : ''}">${out ? 'Нет' : `В наличии ${esc(product.stock)}`}</span>
           </div>
           <div class="product-card-actions">
             <button class="btn" data-action="quick" data-id="${esc(product.id)}">Быстрый просмотр</button>
