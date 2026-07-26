@@ -779,31 +779,29 @@
   }
   function normalizeMobileHeroMedia(site, defaults){
     const source = {...(defaults.mobileHeroMedia || {}), ...(site?.mobileHeroMedia || {})};
-    const mode = ['image','video','animation'].includes(source.mode) ? source.mode : 'image';
+    const mode = ['image','video'].includes(source.mode) ? source.mode : 'image';
     return {
       enabled:source.enabled === true,
       mode,
       src:String(source.src || '').trim(),
-      animation:['waves','rings','grid'].includes(source.animation) ? source.animation : 'waves',
       opacity:Math.min(1, Math.max(.05, Number(source.opacity ?? .28))),
       veil:Math.min(1, Math.max(0, Number(source.veil ?? .9))),
       overlay:Math.min(.7, Math.max(0, Number(source.overlay ?? 0)))
     };
   }
   function normalizeHeroSlide(slide={}, index=0){
-    const desktopMode = ['video','image','animation','file'].includes(slide.desktopMode) ? slide.desktopMode : (slide.mode || 'video');
-    const mobileMode = ['video','image','animation'].includes(slide.mobileMode) ? slide.mobileMode : 'image';
+    const requestedDesktopMode = slide.desktopMode || slide.mode || 'video';
+    const desktopMode = ['video','image','file'].includes(requestedDesktopMode) ? requestedDesktopMode : 'image';
+    const mobileMode = ['video','image'].includes(slide.mobileMode) ? slide.mobileMode : 'image';
     return {
       id:String(slide.id || `hero-${index + 1}`),
       enabled:slide.enabled !== false,
       href:String(slide.href || '').trim(),
       desktopMode,
       desktopSrc:String(slide.desktopSrc || slide.src || '').trim(),
-      desktopAnimation:['waves','rings','grid'].includes(slide.desktopAnimation) ? slide.desktopAnimation : 'waves',
       mobileEnabled:slide.mobileEnabled === true,
       mobileMode,
-      mobileSrc:String(slide.mobileSrc || '').trim(),
-      mobileAnimation:['waves','rings','grid'].includes(slide.mobileAnimation) ? slide.mobileAnimation : 'waves'
+      mobileSrc:String(slide.mobileSrc || '').trim()
     };
   }
   function normalizeHeroSlides(site, defaults, mobileHero){
@@ -816,11 +814,9 @@
       href:site?.heroHref || defaults.heroHref || '',
       desktopMode:site?.heroMediaMode || defaults.heroMediaMode || 'video',
       desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-video.mp4',
-      desktopAnimation:site?.heroAnimation || defaults.heroAnimation || 'waves',
       mobileEnabled:mobileHero.enabled === true,
       mobileMode:mobileHero.mode || 'image',
-      mobileSrc:mobileHero.src || '',
-      mobileAnimation:mobileHero.animation || 'waves'
+      mobileSrc:mobileHero.src || ''
     };
     const slides = (existing.length ? existing : [fallback]).slice(0,4).map(normalizeHeroSlide);
     return slides.length ? slides : [normalizeHeroSlide(fallback)];
@@ -862,7 +858,7 @@
     merged.heroHref = String(merged.heroHref || '').trim();
     merged.heroMediaMode = merged.heroMediaMode || 'video';
     merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-video.mp4';
-    merged.heroAnimation = merged.heroAnimation || 'waves';
+    delete merged.heroAnimation;
     merged.heroEyebrowColor = colorValue(merged.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow);
     merged.heroTitleColor = colorValue(merged.heroTitleColor, DEFAULT_HERO_COLORS.title);
     merged.heroTextColor = colorValue(merged.heroTextColor, DEFAULT_HERO_COLORS.text);
@@ -1374,10 +1370,14 @@
     const product = productById(item.productId) || {};
     const details = [item.optionLabel, item.flavor].filter(Boolean).join(' · ');
     return `<article class="cart-drawer-item" style="--drawer-item-delay:${Math.min(index, 5) * 45}ms">
-      <img src="${esc(firstImage(product))}" alt="${esc(product.name || 'Товар')}" loading="lazy">
+      <a class="cart-drawer-product-link" href="product.html?id=${esc(item.productId)}" aria-label="Открыть ${esc(product.name || 'товар')}">
+        <img src="${esc(firstImage(product))}" alt="${esc(product.name || 'Товар')}" loading="lazy">
+      </a>
       <div class="cart-drawer-item-main">
-        <h3>${esc(product.name || 'Товар')}</h3>
-        ${details ? `<p>${esc(details)}</p>` : ''}
+        <a class="cart-drawer-product-copy" href="product.html?id=${esc(item.productId)}">
+          <h3>${esc(product.name || 'Товар')}</h3>
+          ${details ? `<p>${esc(details)}</p>` : ''}
+        </a>
         <div class="cart-drawer-item-bottom">
           <strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong>
           <div class="cart-drawer-qty" aria-label="Количество">
@@ -1543,11 +1543,9 @@
       href:site.heroHref || '',
       desktopMode:site.heroMediaMode || 'video',
       desktopSrc:site.heroMediaSrc || 'assets/hero-video.mp4',
-      desktopAnimation:site.heroAnimation || 'waves',
       mobileEnabled:mobileMedia.enabled === true,
       mobileMode:mobileMedia.mode || 'image',
-      mobileSrc:mobileMedia.src || '',
-      mobileAnimation:mobileMedia.animation || 'waves'
+      mobileSrc:mobileMedia.src || ''
     })];
     const mobileEnabled = activeSlides.some(slide => slide.mobileEnabled === true);
     if(hero){
@@ -1571,18 +1569,17 @@
     if(!root) return;
     clearInterval(heroSlideTimer);
     heroSlideTimer = null;
-    const mediaHtml = (mode, src, animation, mobile=false) => {
+    const mediaHtml = (mode, src, mobile=false) => {
       const mediaClass = mobile ? 'hero-mobile-fallback' : 'hero-desktop-media';
-      if(mode === 'animation') return `<div class="${mediaClass} hero-animation ${mobile ? 'hero-mobile-animation' : ''} ${classToken(animation, 'waves')}"><span></span><span></span><span></span></div>`;
       if(mode === 'image' || (mode === 'file' && !isVideoSource(src))) return `<img class="${mediaClass} ${mobile ? 'hero-mobile-custom' : ''}" src="${esc(src || imageFallback)}" alt="">`;
       return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="metadata" poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
     };
     root.dataset.slideCount = String(activeSlides.length);
     root.innerHTML = activeSlides.map((slide, index) => {
-      const desktop = mediaHtml(slide.desktopMode, slide.desktopSrc, slide.desktopAnimation, false);
+      const desktop = mediaHtml(slide.desktopMode, slide.desktopSrc, false);
       const needsMobileFallback = !slide.mobileEnabled && (slide.desktopMode === 'video' || (slide.desktopMode === 'file' && isVideoSource(slide.desktopSrc)));
       const mobile = slide.mobileEnabled
-        ? mediaHtml(slide.mobileMode, slide.mobileSrc, slide.mobileAnimation, true)
+        ? mediaHtml(slide.mobileMode, slide.mobileSrc, true)
         : needsMobileFallback ? `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">` : '';
       const link = slide.href ? `<a class="hero-slide-link" href="${esc(slide.href)}" aria-label="Открыть баннер ${index + 1}"></a>` : '';
       return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
@@ -1682,8 +1679,8 @@
 	    }
 	    if(!root) return;
 	    root.classList.add('catalog-smart');
-	    const cats = getCategories().filter(Boolean).slice(0,8);
-	    root.innerHTML = `<div class="catalog-smart-head"><div><span class="eyebrow">Разделы</span><h2>Быстрый каталог</h2></div><a href="catalog.html">Все товары</a></div>
+	    const cats = getCategories().filter(Boolean);
+	    root.innerHTML = `<div class="catalog-smart-head"><a href="catalog.html">Все категории</a></div>
 	      <div class="catalog-smart-grid">
 	        ${cats.map(category => {
 	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
@@ -1845,7 +1842,7 @@
     }
     const catGrid = $('#homeCategories');
 	    if(catGrid){
-	      catGrid.innerHTML = getCategories().slice(0,8).map(c=>`
+	      catGrid.innerHTML = getCategories().map(c=>`
 	        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
           <h3>${esc(c.name)}</h3>
 	        </a>`).join('');
@@ -1859,7 +1856,7 @@
     configureHomeProductTabs(blocks, discountedProducts, popularProducts);
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
-	      brandRail.innerHTML = brands().slice(0,10).map(brand=>brandCardHtml(brand, site)).join('');
+	      brandRail.innerHTML = brands().map(brand=>brandCardHtml(brand, site)).join('');
 	    }
     orderHomeSections(blocks);
     document.body.classList.add('home-ready');
@@ -2274,10 +2271,11 @@
   }
   function updatePromoFromInput(){
     const code = String($('#promoCode')?.value || '').trim().toUpperCase();
-    const promo = (getSite().promos || []).find(item => item.enabled !== false && item.code === code);
-    if(promo) sessionStorage.setItem('byvit_v60_promo', code);
-    else sessionStorage.removeItem('byvit_v60_promo');
-    renderSummary();
+    const applied = String(sessionStorage.getItem('byvit_v60_promo') || '').toUpperCase();
+    if(applied && code !== applied){
+      sessionStorage.removeItem('byvit_v60_promo');
+      renderSummary();
+    }
   }
   function buildOrderText(order){
     const lines = [];
@@ -2620,7 +2618,7 @@
   }
   function heroSlideEditor(slide={}, index=0){
     const data = normalizeHeroSlide(slide, index);
-    const modeLabel = value => ({video:'Видео',image:'Изображение',animation:'Анимация',file:'Файл'}[value] || value);
+    const modeLabel = value => ({video:'Видео',image:'Изображение',file:'Файл'}[value] || value);
     return `<details class="admin-block-editor hero-slide-editor" data-hero-slide-key="${esc(data.id)}">
       <summary class="hero-slide-summary">
         <span>Баннер ${index + 1}</span>
@@ -2643,16 +2641,7 @@
           <select data-hero-slide-field="desktopMode">
             <option value="video" ${data.desktopMode === 'video' ? 'selected' : ''}>Видео</option>
             <option value="image" ${data.desktopMode === 'image' ? 'selected' : ''}>Изображение</option>
-            <option value="animation" ${data.desktopMode === 'animation' ? 'selected' : ''}>Анимация</option>
             <option value="file" ${data.desktopMode === 'file' ? 'selected' : ''}>Загруженный файл</option>
-          </select>
-        </label>
-        <label class="admin-input-field">
-          <span>Десктоп анимация</span>
-          <select data-hero-slide-field="desktopAnimation">
-            <option value="waves" ${data.desktopAnimation === 'waves' ? 'selected' : ''}>Волны</option>
-            <option value="rings" ${data.desktopAnimation === 'rings' ? 'selected' : ''}>Кольца</option>
-            <option value="grid" ${data.desktopAnimation === 'grid' ? 'selected' : ''}>Сетка</option>
           </select>
         </label>
       </div>
@@ -2677,15 +2666,6 @@
           <select data-hero-slide-field="mobileMode">
             <option value="image" ${data.mobileMode === 'image' ? 'selected' : ''}>Изображение</option>
             <option value="video" ${data.mobileMode === 'video' ? 'selected' : ''}>Видео</option>
-            <option value="animation" ${data.mobileMode === 'animation' ? 'selected' : ''}>Анимация</option>
-          </select>
-        </label>
-        <label class="admin-input-field">
-          <span>Мобильная анимация</span>
-          <select data-hero-slide-field="mobileAnimation">
-            <option value="waves" ${data.mobileAnimation === 'waves' ? 'selected' : ''}>Волны</option>
-            <option value="rings" ${data.mobileAnimation === 'rings' ? 'selected' : ''}>Кольца</option>
-            <option value="grid" ${data.mobileAnimation === 'grid' ? 'selected' : ''}>Сетка</option>
           </select>
         </label>
       </div>
@@ -2862,12 +2842,10 @@
       href:$('[data-hero-slide-field="href"]', card)?.value.trim() || '',
       desktopMode:$('[data-hero-slide-field="desktopMode"]', card)?.value || 'video',
       desktopSrc:$('[data-hero-slide-field="desktopSrc"]', card)?.value.trim() || '',
-      desktopAnimation:$('[data-hero-slide-field="desktopAnimation"]', card)?.value || 'waves',
       mobileEnabled:$('[data-hero-slide-field="mobileEnabled"]', card)?.checked === true,
       mobileMode:$('[data-hero-slide-field="mobileMode"]', card)?.value || 'image',
-      mobileSrc:$('[data-hero-slide-field="mobileSrc"]', card)?.value.trim() || '',
-      mobileAnimation:$('[data-hero-slide-field="mobileAnimation"]', card)?.value || 'waves'
-    })).filter(slide => slide.desktopSrc || slide.desktopMode === 'animation' || slide.mobileSrc || slide.mobileMode === 'animation');
+      mobileSrc:$('[data-hero-slide-field="mobileSrc"]', card)?.value.trim() || ''
+    })).filter(slide => slide.desktopSrc || slide.mobileSrc);
   }
   function primaryHeroSlideFromAdmin(site){
     const existing = normalizeHeroSlide(site.heroSlides?.[0] || {}, 0);
@@ -2880,11 +2858,9 @@
       href:$('#siteHeroHref')?.value.trim() || '',
       desktopMode,
       desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-video.mp4',
-      desktopAnimation:$('#siteHeroAnimation')?.value || existing.desktopAnimation || 'waves',
       mobileEnabled:$('#siteMobileHeroEnabled')?.checked === true,
-      mobileMode:['image','video','animation'].includes(mobileMode) ? mobileMode : 'image',
-      mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
-      mobileAnimation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves'
+      mobileMode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
+      mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || ''
     }, 0);
   }
   function collectGoals(){
@@ -3339,24 +3315,20 @@
   function updateHeroAdminControls(){
     const mode = $('#siteHeroMediaMode')?.value || 'video';
     const srcWrap = $('[data-hero-control="src"]');
-    const animationWrap = $('[data-hero-control="animation"]');
     const brightnessWrap = $('[data-hero-control="brightness"]');
     const mediaInput = $('#siteHeroMediaSrc');
     const uploadInput = $('#siteHeroMediaUpload');
     const uploadHint = $('[data-hero-upload-hint]');
     const srcHint = $('[data-hero-src-hint]');
     if(srcWrap){
-      srcWrap.hidden = mode === 'animation';
       srcWrap.style.gridColumn = '1 / -1';
     }
-    if(animationWrap) animationWrap.hidden = mode !== 'animation';
-    if(brightnessWrap) brightnessWrap.style.gridColumn = mode === 'animation' ? '' : '1 / -1';
+    if(brightnessWrap) brightnessWrap.style.gridColumn = '1 / -1';
     if(mediaInput){
       const placeholders = {
         video:'assets/hero-video.mp4 или ссылка на .mp4/.webm',
         image:'assets/photo.jpg или ссылка на .jpg/.png/.webp/.svg',
-        file:'Загруженный файл или ссылка на медиа',
-        animation:'Для анимации файл не нужен'
+        file:'Загруженный файл или ссылка на медиа'
       };
       mediaInput.placeholder = placeholders[mode] || placeholders.image;
     }
@@ -3364,8 +3336,7 @@
       const hints = {
         video:'Видео: MP4 или WebM. Постер не используется, сразу показывается видео.',
         image:'Изображение: JPG, PNG, WebP или SVG.',
-        file:'Файл баннера: видео MP4/WebM или изображение JPG/PNG/WebP/SVG.',
-        animation:'В режиме «Анимация» медиафайл не используется.'
+        file:'Файл баннера: видео MP4/WebM или изображение JPG/PNG/WebP/SVG.'
       };
       srcHint.textContent = hints[mode] || hints.file;
     }
@@ -3373,8 +3344,7 @@
       const hints = {
         video:'Загрузить видео: .mp4 или .webm',
         image:'Загрузить изображение: .jpg, .png, .webp или .svg',
-        file:'Загрузить файл: видео .mp4/.webm или изображение .jpg/.png/.webp/.svg',
-        animation:'В режиме анимации файл не используется'
+        file:'Загрузить файл: видео .mp4/.webm или изображение .jpg/.png/.webp/.svg'
       };
       uploadHint.textContent = hints[mode] || hints.file;
     }
@@ -3382,21 +3352,18 @@
       const accepts = {
         video:'video/mp4,video/webm',
         image:'image/jpeg,image/png,image/webp,image/svg+xml',
-        file:'image/jpeg,image/png,image/webp,image/svg+xml,video/mp4,video/webm',
-        animation:''
+        file:'image/jpeg,image/png,image/webp,image/svg+xml,video/mp4,video/webm'
       };
       uploadInput.accept = accepts[mode] ?? accepts.file;
-      uploadInput.disabled = mode === 'animation';
+      uploadInput.disabled = false;
     }
   }
   function updateMobileHeroAdminControls(){
     const mode = $('#siteMobileHeroMode')?.value || 'image';
     const srcWrap = $('[data-mobile-hero-control="src"]');
     const uploadWrap = $('[data-mobile-hero-control="upload"]');
-    const animationSelect = $('#siteMobileHeroAnimation');
-    if(srcWrap) srcWrap.hidden = mode === 'animation';
-    if(uploadWrap) uploadWrap.hidden = mode === 'animation';
-    if(animationSelect) animationSelect.hidden = mode !== 'animation';
+    if(srcWrap) srcWrap.hidden = false;
+    if(uploadWrap) uploadWrap.hidden = false;
   }
   function renderAdminSite(){
     const site = getSite();
@@ -3412,7 +3379,6 @@
       siteHeroAlign:'heroAlign',
       siteHeroMediaMode:'heroMediaMode',
       siteHeroMediaSrc:'heroMediaSrc',
-      siteHeroAnimation:'heroAnimation',
       siteHeroOpacity:'heroMediaOpacity',
       siteHeroVeil:'heroVeilOpacity',
       siteHeroOverlay:'heroOverlayOpacity',
@@ -3425,11 +3391,9 @@
       href:site.heroHref || '',
       desktopMode:site.heroMediaMode,
       desktopSrc:site.heroMediaSrc,
-      desktopAnimation:site.heroAnimation,
       mobileEnabled:site.mobileHeroMedia?.enabled === true,
       mobileMode:site.mobileHeroMedia?.mode,
-      mobileSrc:site.mobileHeroMedia?.src,
-      mobileAnimation:site.mobileHeroMedia?.animation
+      mobileSrc:site.mobileHeroMedia?.src
     }, 0);
     const heroHref = $('#siteHeroHref');
     if(heroHref) heroHref.value = primarySlide.href || site.heroHref || '';
@@ -3437,8 +3401,6 @@
     if(heroMode) heroMode.value = primarySlide.desktopMode || site.heroMediaMode || 'video';
     const heroSrc = $('#siteHeroMediaSrc');
     if(heroSrc) heroSrc.value = primarySlide.desktopSrc || site.heroMediaSrc || '';
-    const heroAnimation = $('#siteHeroAnimation');
-    if(heroAnimation) heroAnimation.value = primarySlide.desktopAnimation || site.heroAnimation || 'waves';
     const heroCopyDesktop = $('#siteHeroCopyDesktop');
     if(heroCopyDesktop) heroCopyDesktop.checked = site.heroCopyDesktop !== false;
     const heroActionsDesktop = $('#siteHeroActionsDesktop');
@@ -3465,8 +3427,6 @@
     if(mobileHeroMode) mobileHeroMode.value = primarySlide.mobileMode || mobileHero.mode || 'image';
     const mobileHeroSrc = $('#siteMobileHeroMediaSrc');
     if(mobileHeroSrc) mobileHeroSrc.value = primarySlide.mobileSrc || mobileHero.src || '';
-    const mobileHeroAnimation = $('#siteMobileHeroAnimation');
-    if(mobileHeroAnimation) mobileHeroAnimation.value = primarySlide.mobileAnimation || mobileHero.animation || 'waves';
     const mobileHeroOpacity = $('#siteMobileHeroOpacity');
     if(mobileHeroOpacity) mobileHeroOpacity.value = mobileHero.opacity ?? .28;
     const mobileHeroVeil = $('#siteMobileHeroVeil');
@@ -3493,17 +3453,27 @@
     }
 	    const homeRoot = $('#adminHomeBlocks');
 	    if(homeRoot){
-		      const titles = {trust:'Доверие',categories:'Категории',goals:'Цели',featured:'Популярное',brands:'Бренды',service:'Сервис',sale:'Акции'};
-	      homeRoot.innerHTML = Object.entries(site.homeBlocks || DEFAULT_HOME_BLOCKS).sort(([keyA, blockA], [keyB, blockB]) => homeBlockOrder(keyA, blockA) - homeBlockOrder(keyB, blockB)).map(([key, block])=>`
-	        <article class="admin-block-editor" data-home-block-key="${esc(key)}">
-	          <div class="admin-block-head">
-	            <h4>${esc(titles[key] || key)}</h4>
-	            <label class="mini-toggle"><input type="checkbox" data-block-field="visible" ${block.visible !== false ? 'checked' : ''}> Включен</label>
-	          </div>
-	          <label class="admin-input-field">
-	            <span>Позиция блока на главной</span>
-	            <input data-block-field="order" type="number" min="1" max="20" value="${esc(block.order || homeBlockOrder(key, block))}" placeholder="1">
-	          </label>
+	      const titles = {
+	        sale:'Акции',
+	        featured:'Популярное (вкладка товаров)',
+	        trust:'Почему ByVit',
+	        service:'Сервис (четвёртое преимущество)',
+	        categories:'Категории',
+	        goals:'Цели',
+	        brands:'Бренды'
+	      };
+	      const sectionKeys = new Set(['sale','trust','categories','goals','brands']);
+	      const editorOrder = ['sale','featured','trust','service','categories','goals','brands'];
+	      const homeBlocks = site.homeBlocks || DEFAULT_HOME_BLOCKS;
+	      homeRoot.innerHTML = editorOrder.filter(key => homeBlocks[key]).map(key => {
+	        const block = homeBlocks[key];
+	        return `
+		        <article class="admin-block-editor" data-home-block-key="${esc(key)}">
+		          <div class="admin-block-head">
+		            <h4>${esc(titles[key] || key)}</h4>
+		            ${sectionKeys.has(key) ? `<label class="admin-home-order"><span>Позиция</span><input data-block-field="order" type="number" min="1" max="20" value="${esc(block.order || homeBlockOrder(key, block))}" aria-label="Позиция блока"></label>` : ''}
+		            <label class="mini-toggle"><input type="checkbox" data-block-field="visible" ${block.visible !== false ? 'checked' : ''}> Включен</label>
+		          </div>
 	          <div class="field-row">
 	            <input data-block-field="eyebrow" value="${esc(block.eyebrow || '')}" placeholder="Надпись над заголовком">
 	            <input data-block-field="title" value="${esc(block.title || '')}" placeholder="Заголовок">
@@ -3522,7 +3492,8 @@
             <input data-block-field="featureThreeTitle" value="${esc(block.featureThreeTitle || '')}" placeholder="Заголовок пункта 3">
             <textarea data-block-field="featureThreeText" placeholder="Текст пункта 3">${esc(block.featureThreeText || '')}</textarea>
 	          ` : `<div class="field-row"><input data-block-field="buttonText" value="${esc(block.buttonText || '')}" placeholder="Текст кнопки"><input data-block-field="buttonUrl" value="${esc(block.buttonUrl || '')}" placeholder="Ссылка кнопки"></div>`}
-	        </article>`).join('');
+	        </article>`;
+	      }).join('');
 	    }
 	    const goalsRoot = $('#adminGoalsList');
 	    if(goalsRoot){
@@ -3564,7 +3535,6 @@
     if($('#siteHeroActionsMobile')) site.heroActionsMobile = $('#siteHeroActionsMobile').checked === true;
     if($('#siteHeroMediaMode')) site.heroMediaMode = $('#siteHeroMediaMode').value;
     if($('#siteHeroMediaSrc')) site.heroMediaSrc = $('#siteHeroMediaSrc').value || site.heroMediaSrc;
-    if($('#siteHeroAnimation')) site.heroAnimation = $('#siteHeroAnimation').value;
     if($('#siteHeroOpacity')) site.heroMediaOpacity = Number($('#siteHeroOpacity').value || .78);
     if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
     if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
@@ -3574,9 +3544,8 @@
       const mobileMode = $('#siteMobileHeroMode').value;
       site.mobileHeroMedia = {
         enabled:$('#siteMobileHeroEnabled')?.checked === true,
-        mode:['image','video','animation'].includes(mobileMode) ? mobileMode : 'image',
+        mode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
         src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
-        animation:['waves','rings','grid'].includes($('#siteMobileHeroAnimation')?.value) ? $('#siteMobileHeroAnimation').value : 'waves',
         opacity:Number($('#siteMobileHeroOpacity')?.value || .28),
         veil:Number($('#siteMobileHeroVeil')?.value || .9),
         overlay:Number($('#siteMobileHeroOverlay')?.value || 0)
@@ -3585,7 +3554,6 @@
     const primarySlide = primaryHeroSlideFromAdmin(site);
     site.heroMediaMode = primarySlide.desktopMode;
     site.heroMediaSrc = primarySlide.desktopSrc;
-    site.heroAnimation = primarySlide.desktopAnimation;
     site.heroHref = primarySlide.href;
     site.heroSlides = [primarySlide, ...collectHeroSlides()].slice(0,4);
 	    site.heroMetrics = collectHeroMetrics();
@@ -3677,8 +3645,7 @@
     const previous = $('#siteHeroMediaSrc')?.value.trim() || '';
     const values = {
       siteHeroMediaMode:defaults.heroMediaMode || 'video',
-      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-video.mp4',
-      siteHeroAnimation:defaults.heroAnimation || 'waves'
+      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-video.mp4'
     };
     Object.entries(values).forEach(([id, value]) => {
       const field = $('#'+id);
@@ -4204,7 +4171,7 @@
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
 	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
 	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
-	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
+	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',mobileEnabled:false,mobileMode:'image',mobileSrc:''}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
 	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ const block = heroSlideDelete.closest('[data-hero-slide-key]'); deleteUploadedSource($('[data-hero-slide-field="desktopSrc"]', block)?.value); deleteUploadedSource($('[data-hero-slide-field="mobileSrc"]', block)?.value); block?.remove(); return; }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
