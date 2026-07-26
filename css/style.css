@@ -739,6 +739,8 @@ html[data-theme="dark"] :where(
   .info-card,
   .store-card,
   .admin-card,
+  .admin-nav,
+  .admin-tools,
   .delivery-card,
   .faq-item,
   .goal-card,

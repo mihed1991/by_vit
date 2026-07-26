@@ -412,7 +412,6 @@
   let serverAvailable = false;
   let persistTimer = null;
   const pendingMediaDeletes = new Set();
-  let quickContactDrag = null;
   let heroSlideTimer = null;
   function canUseServer(){
     return location.protocol === 'http:' || location.protocol === 'https:';
@@ -1128,56 +1127,6 @@
       return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
     }).join('');
     root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
-  }
-  function startQuickContactDrag(event){
-    const button = event.target.closest('[data-contact-drag]');
-    if(!button || event.button > 0) return;
-    const root = button.closest('[data-quick-contact]');
-    if(!root) return;
-    const rect = root.getBoundingClientRect();
-    quickContactDrag = {
-      root,
-      button,
-      pointerId:event.pointerId,
-      startX:event.clientX,
-      startY:event.clientY,
-      left:rect.left,
-      top:rect.top,
-      moved:false
-    };
-    button.setPointerCapture?.(event.pointerId);
-  }
-  function moveQuickContactDrag(event){
-    if(!quickContactDrag || quickContactDrag.pointerId !== event.pointerId) return;
-    const dx = event.clientX - quickContactDrag.startX;
-    const dy = event.clientY - quickContactDrag.startY;
-    if(Math.abs(dx) + Math.abs(dy) > 5) quickContactDrag.moved = true;
-    if(!quickContactDrag.moved) return;
-    const rect = quickContactDrag.root.getBoundingClientRect();
-    const left = Math.min(window.innerWidth - rect.width - 8, Math.max(8, quickContactDrag.left + dx));
-    const top = Math.min(window.innerHeight - rect.height - 8, Math.max(8, quickContactDrag.top + dy));
-    quickContactDrag.root.classList.add('dragging');
-    quickContactDrag.root.style.left = `${Math.round(left)}px`;
-    quickContactDrag.root.style.top = `${Math.round(top)}px`;
-    quickContactDrag.root.style.right = 'auto';
-    quickContactDrag.root.style.bottom = 'auto';
-    event.preventDefault();
-  }
-  function endQuickContactDrag(event){
-    if(!quickContactDrag || quickContactDrag.pointerId !== event.pointerId) return;
-    const drag = quickContactDrag;
-    quickContactDrag = null;
-    drag.root.classList.remove('dragging');
-    drag.button.releasePointerCapture?.(event.pointerId);
-    if(!drag.moved) return;
-    const rect = drag.root.getBoundingClientRect();
-    const site = getSite();
-    site.quickContact = site.quickContact || {};
-    site.quickContact.position = {x:Math.round(rect.left),y:Math.round(rect.top)};
-    saveSite(site);
-    renderAdminQuickContact();
-    drag.button.dataset.dragMoved = '1';
-    setTimeout(() => { delete drag.button.dataset.dragMoved; }, 80);
   }
   function brandMarkContent(header){
     const src = String(header.logoImage || '').trim();
@@ -2520,15 +2469,6 @@
       };
     }).filter(item => item.label || item.value || item.href);
   }
-  function footerBadgesToLines(items){
-    return (items || []).map(item => `${item.text || ''} | ${item.href || ''} | ${item.enabled === false ? '0' : '1'} | ${item.image || ''}`).join('\n');
-  }
-  function linesToFooterBadges(value){
-    return String(value || '').split(/\n+/).map(line => line.trim()).filter(Boolean).map((line, index) => {
-      const [text='', href='', enabled='1', image=''] = line.split('|').map(part => part.trim());
-      return {id:categoryIdFromName(text || `badge-${index + 1}`, index),text,href,image,enabled:enabled !== '0'};
-    }).filter(item => item.text || item.href || item.image);
-  }
   function footerBadgeEditor(badge={}, index=0){
     const id = String(badge.id || `footer-badge-${Date.now()}-${index}`);
     const image = badge.image || '';
@@ -3678,7 +3618,7 @@
   }
   function renderAdminTelegram(){
     const telegram = getSite().telegram || {};
-    const map = {tgContact:'contact',tgBot:'botToken',tgChat:'chatId'};
+    const map = {tgBot:'botToken',tgChat:'chatId'};
     Object.entries(map).forEach(([id,key]) => {
       const el = $('#'+id);
       if(el) el.value = telegram[key] || '';
@@ -3688,7 +3628,6 @@
     event.preventDefault();
     const site = getSite();
     site.telegram = site.telegram || {};
-    site.telegram.contact = $('#tgContact')?.value.trim() || '';
     site.telegram.botToken = $('#tgBot')?.value.trim() || '';
     site.telegram.chatId = $('#tgChat')?.value.trim() || '';
     saveSite(site); renderAdminTelegram(); toast('Telegram сохранён');
@@ -3720,18 +3659,6 @@
     renderQuickContact(getSite());
     renderAdminQuickContact();
     toast('Связь сохранена');
-  }
-  function resetQuickContactPosition(){
-    const x = $('#quickContactX');
-    const y = $('#quickContactY');
-    if(x) x.value = '';
-    if(y) y.value = '';
-    const site = getSite();
-    site.quickContact = site.quickContact || {};
-    site.quickContact.position = {x:'',y:''};
-    saveSite(site);
-    renderQuickContact(getSite());
-    toast('Кнопка вернётся в угол');
   }
   function resetHeroColors(){
     const fields = {
@@ -3830,7 +3757,6 @@
     const phones = $('#footerPhones'); if(phones) phones.value = (contacts.phones || []).join('\n');
     const extra = $('#footerExtraContacts'); if(extra) extra.value = footerContactsToLines(contacts.extra || []);
     const badgesList = $('#footerBadgesList'); if(badgesList) badgesList.innerHTML = (footer.badges || []).map(footerBadgeEditor).join('');
-    const badges = $('#footerBadges'); if(badges) badges.value = footerBadgesToLines(footer.badges || []);
     const columns = $('#footerColumns'); if(columns) columns.value = footerColumnsToLines(footer.columns || []);
   }
   function saveAdminFooter(event){
@@ -3847,7 +3773,7 @@
       phones:parseList($('#footerPhones')?.value || ''),
       extra:linesToFooterContacts($('#footerExtraContacts')?.value || '')
     };
-    site.footer.badges = $('#footerBadgesList') ? collectFooterBadges() : linesToFooterBadges($('#footerBadges')?.value || '');
+    site.footer.badges = collectFooterBadges();
     site.footer.columns = linesToFooterColumns($('#footerColumns')?.value || '');
     saveSite(site); renderFooter(); renderAdminFooter(); toast('Футер сохранён');
   }
@@ -4320,9 +4246,6 @@
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });
-    document.addEventListener('pointerdown', startQuickContactDrag);
-    document.addEventListener('pointermove', moveQuickContactDrag, {passive:false});
-    document.addEventListener('pointerup', endQuickContactDrag);
     document.addEventListener('change', event => {
       if(event.target.matches('[data-related-product]')){
         const selected = $$('[data-related-product]:checked');
@@ -4370,7 +4293,6 @@
     $('#adminDeliveryForm')?.addEventListener('submit', saveAdminSite);
     $('#adminTelegramForm')?.addEventListener('submit', saveAdminTelegram);
     $('#adminQuickContactForm')?.addEventListener('submit', saveAdminQuickContact);
-    $('[data-quick-contact-reset-position]')?.addEventListener('click', resetQuickContactPosition);
     $('#adminStoresForm')?.addEventListener('submit', saveAdminStores);
     $('#adminHeaderForm')?.addEventListener('submit', saveAdminHeader);
     $('#adminFooterForm')?.addEventListener('submit', saveAdminFooter);

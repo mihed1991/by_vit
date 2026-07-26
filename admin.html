@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=64">
+  <link rel="stylesheet" href="css/style.css?v=66">
   <script src="js/data.js?v=63" defer></script>
-  <script src="js/app.js?v=64" defer></script>
+  <script src="js/app.js?v=66" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -409,12 +409,9 @@
                 <form class="admin-form" id="adminTelegramForm">
                   <div class="admin-form-section">
                     <h4>Получатели заказов</h4>
-                    <div class="field-row">
-                      <input id="tgContact" placeholder="Telegram контакт @name для связи">
-                      <textarea id="tgChat" placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
-                    </div>
+                    <textarea id="tgChat" placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
                     <input id="tgBot" placeholder="Bot Token">
-                    <p class="admin-hint">Бот отправляет заказ только по Chat ID. Пользователь должен заранее открыть бота или это должен быть чат/канал, куда бот добавлен.</p>
+                    <p class="admin-hint">Бот отправляет заказ только по Chat ID. Публичная ссылка Telegram настраивается отдельно в разделе «Футер» или «Связь».</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
                 </form>
@@ -625,7 +622,6 @@
                   <div class="admin-form-section">
                     <h4>Значки и платежи</h4>
                     <div class="admin-blocks" id="footerBadgesList"></div>
-                    <textarea id="footerBadges" hidden></textarea>
                     <button class="btn btn-light small" data-footer-badge-add type="button">Добавить значок</button>
                   </div>
                   <div class="admin-form-section">
