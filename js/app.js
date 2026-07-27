@@ -898,9 +898,40 @@
   function getReviews(){ return read(KEYS.reviews, getDefaults().reviews || []); }
   function saveReviews(reviews){ write(KEYS.reviews, reviews); }
   function productById(id){ return getProducts().find(p => String(p.id) === String(id)); }
-  function productRecommendationTags(product){
+  function productGoalLabels(product){
     const source = Array.isArray(product?.recommendationTags) ? product.recommendationTags : parseList(product?.recommendationTags || '');
-    return [...new Set(source.map(tag => slugText(tag)).filter(Boolean))];
+    const seen = new Set();
+    return source.map(tag => String(tag || '').trim()).filter(tag => {
+      const key = slugText(tag);
+      if(!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  function productRecommendationTags(product){
+    return productGoalLabels(product).map(tag => slugText(tag));
+  }
+  function storefrontGoals(){
+    const configured = getGoals().filter(item => item && item.enabled !== false);
+    const covered = configured.map(goal => slugText(`${goal.title || ''} ${goal.text || ''}`));
+    const generated = [];
+    const generatedKeys = new Set();
+    getProducts().forEach(product => {
+      productGoalLabels(product).forEach(label => {
+        const key = slugText(label);
+        if(!key || generatedKeys.has(key) || covered.some(value => value.includes(key))) return;
+        generatedKeys.add(key);
+        generated.push({
+          id:`product-goal-${key}`,
+          title:label.charAt(0).toLocaleUpperCase('ru') + label.slice(1),
+          text:`Подборка товаров для цели «${label}».`,
+          href:`catalog.html?q=${encodeURIComponent(label)}`,
+          enabled:true,
+          generated:true
+        });
+      });
+    });
+    return [...configured, ...generated].slice(0, 12);
   }
   function relatedProductIds(product){
     return [...new Set((Array.isArray(product?.relatedProductIds) ? product.relatedProductIds : []).map(Number).filter(Boolean))];
@@ -1290,7 +1321,7 @@
     return `
       <article class="product-card" data-product-id="${esc(product.id)}">
         <div class="product-media">
-          <a href="product.html?id=${esc(product.id)}"><img src="${esc(firstImage(product))}" alt="${esc(product.name)}" loading="lazy"></a>
+          <a href="product.html?id=${esc(product.id)}"><img src="${esc(firstImage(product))}" alt="${esc(product.name)}" loading="lazy" onerror="this.alt='';this.hidden=true;this.closest('.product-media').classList.add('is-image-missing')"></a>
           <div class="product-badges">
             <div class="product-badges-main">
               ${product.badge ? `<span class="badge" style="--badge-bg:${badgeColor(product)}">${esc(product.badge)}</span>` : ''}
@@ -1662,7 +1693,7 @@
 	  function renderGoals(){
 	    const root = $('#homeGoals');
 	    if(!root) return;
-	    const goals = getGoals().filter(item => item.enabled !== false).slice(0,8);
+	    const goals = storefrontGoals();
 	    root.innerHTML = goals.length ? goals.map(goalCard).join('') : '';
 	  }
 	  function categorySubLink(category, sub){
