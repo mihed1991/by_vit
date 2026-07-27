@@ -1173,7 +1173,7 @@
         ${categories.map(category => `<div class="catalog-mega-group">
           <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
           <div class="catalog-mega-subcategories">
-            ${(category.subcategories || []).slice(0, 3).map(item => `<a href="catalog.html?category=${encodeURIComponent(category.id)}&q=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
+            ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?category=${encodeURIComponent(category.id)}&q=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
           </div>
         </div>`).join('')}
       </nav>
@@ -2859,7 +2859,15 @@
       <button class="btn btn-danger small" data-delivery-method-delete type="button">Удалить способ</button>
     </article>`;
   }
+  function categorySubcategoryEditor(item={}, index=0){
+    return `<div class="admin-category-subcategory" data-category-subcategory>
+      <input data-category-subcategory-title value="${esc(item.title || '')}" placeholder="Название, например BCAA">
+      <input data-category-subcategory-query value="${esc(item.query || item.title || '')}" placeholder="Поисковый запрос">
+      <button class="btn btn-danger small" data-category-subcategory-delete type="button" aria-label="Удалить подкатегорию">Удалить</button>
+    </div>`;
+  }
   function categoryEditor(category={}, index=0){
+    const subcategories = normalizeSubcategories(category.subcategories || []);
     return `<article class="admin-block-editor" data-category-key="${esc(category.id || `category-${index + 1}`)}">
       <div class="admin-block-head">
         <h4>Категория ${index + 1}</h4>
@@ -2869,6 +2877,15 @@
         <input data-category-id value="${esc(category.id || '')}" placeholder="ID для ссылки">
       </div>
       <textarea data-category-description placeholder="Описание категории">${esc(category.description || '')}</textarea>
+      <div class="admin-category-subcategories">
+        <div class="admin-block-head">
+          <h5>Подкатегории</h5>
+          <button class="btn btn-light small" data-category-subcategory-add type="button">Добавить</button>
+        </div>
+        <div class="admin-category-subcategory-list" data-category-subcategories>
+          ${subcategories.map(categorySubcategoryEditor).join('')}
+        </div>
+      </div>
       <button class="btn btn-danger small" data-category-delete type="button">Удалить категорию</button>
     </article>`;
   }
@@ -2994,7 +3011,15 @@
       return {
         id,
         name,
-        description:$('[data-category-description]', card)?.value.trim() || ''
+        description:$('[data-category-description]', card)?.value.trim() || '',
+        subcategories:$$('[data-category-subcategory]', card).map(item => {
+          const title = $('[data-category-subcategory-title]', item)?.value.trim() || '';
+          return {
+            title,
+            query:$('[data-category-subcategory-query]', item)?.value.trim() || title,
+            enabled:true
+          };
+        }).filter(item => item.title)
       };
     }).filter(item => {
       if(!item.name || seen.has(item.id)) return false;
@@ -4259,7 +4284,9 @@
       const pickupStoreDelete = event.target.closest('[data-pickup-store-delete]'); if(pickupStoreDelete){ pickupStoreDelete.closest('[data-pickup-store-key]')?.remove(); return; }
       const deliveryMethodAdd = event.target.closest('[data-delivery-method-add]'); if(deliveryMethodAdd){ const root = $('#adminDeliveryList'); if(root) root.insertAdjacentHTML('beforeend', deliveryMethodEditor(`delivery-${Date.now()}`, {title:'',subtitle:'',enabled:true}, $$('[data-delivery-method-key]', root).length)); return; }
       const deliveryMethodDelete = event.target.closest('[data-delivery-method-delete]'); if(deliveryMethodDelete){ deliveryMethodDelete.closest('[data-delivery-method-key]')?.remove(); return; }
-      const categoryAdd = event.target.closest('[data-category-add]'); if(categoryAdd){ const root = $('#adminCategoriesList'); if(root) root.insertAdjacentHTML('beforeend', categoryEditor({id:'',name:'',description:''}, $$('[data-category-key]', root).length)); return; }
+      const categorySubcategoryAdd = event.target.closest('[data-category-subcategory-add]'); if(categorySubcategoryAdd){ const card = categorySubcategoryAdd.closest('[data-category-key]'); const root = $('[data-category-subcategories]', card); if(root) root.insertAdjacentHTML('beforeend', categorySubcategoryEditor({}, $$('[data-category-subcategory]', root).length)); return; }
+      const categorySubcategoryDelete = event.target.closest('[data-category-subcategory-delete]'); if(categorySubcategoryDelete){ categorySubcategoryDelete.closest('[data-category-subcategory]')?.remove(); return; }
+      const categoryAdd = event.target.closest('[data-category-add]'); if(categoryAdd){ const root = $('#adminCategoriesList'); if(root) root.insertAdjacentHTML('beforeend', categoryEditor({id:'',name:'',description:'',subcategories:[]}, $$('[data-category-key]', root).length)); return; }
       const categoryDelete = event.target.closest('[data-category-delete]'); if(categoryDelete){ categoryDelete.closest('[data-category-key]')?.remove(); return; }
       const faqAdd = event.target.closest('[data-faq-add]'); if(faqAdd){ const root = $('#adminFaqItems'); if(root) root.insertAdjacentHTML('beforeend', faqItemEditor({id:`faq-${Date.now()}`,question:'',answer:'',enabled:true}, $$('[data-faq-key]', root).length)); return; }
       const faqDelete = event.target.closest('[data-faq-delete]'); if(faqDelete){ faqDelete.closest('[data-faq-key]')?.remove(); return; }
