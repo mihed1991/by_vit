@@ -1192,7 +1192,7 @@
         ${categories.map(category => `<div class="catalog-mega-group">
           <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
           <div class="catalog-mega-subcategories">
-            ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?category=${encodeURIComponent(category.id)}&q=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
+            ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?tag=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
           </div>
         </div>`).join('')}
       </nav>
@@ -1754,7 +1754,7 @@
 	    root.innerHTML = goals.length ? goals.map(goalCard).join('') : '';
 	  }
 	  function categorySubLink(category, sub){
-	    const href = sub.href || `catalog.html?category=${encodeURIComponent(category.id)}${sub.query ? `&q=${encodeURIComponent(sub.query)}` : ''}`;
+	    const href = sub.href || `catalog.html?tag=${encodeURIComponent(sub.query || sub.title || '')}`;
 	    return `<a href="${esc(href)}">${esc(sub.title)}</a>`;
 	  }
 	  function renderCatalogSmart(){
@@ -1962,10 +1962,12 @@
     const searchInput = $('#catalogSearch');
     const sortInput = $('#catalogSort');
     const q = slugText(searchInput?.value || params.get('q') || '');
+    const recommendationTag = slugText(params.get('tag') || '');
     const categoryValues = $$('input[name="category"]:checked').map(i=>i.value);
     const brandValues = $$('input[name="brand"]:checked').map(i=>i.value);
     const stockOnly = $('#stockOnly')?.checked;
     if(q) list = list.filter(p => slugText([p.name,p.brand,p.shortDescription,p.description,p.ingredients,p.usage,p.category,formTypeLabel(p.formType),...productGoalLabels(p)].join(' ')).includes(q));
+    if(recommendationTag) list = list.filter(p => productRecommendationTags(p).includes(recommendationTag));
     if(categoryValues.length) list = list.filter(p => categoryValues.includes(p.category));
     if(brandValues.length) list = list.filter(p => brandValues.includes(p.brand));
     if(stockOnly) list = list.filter(p => Number(p.stock || 0) > 0);
@@ -1981,9 +1983,12 @@
   function syncCatalogUrl(){
     if(document.body.dataset.page !== 'catalog') return;
     const params = new URLSearchParams();
+    const currentParams = new URLSearchParams(location.search);
     const q = $('#catalogSearch')?.value.trim();
     const sort = $('#catalogSort')?.value || 'default';
+    const recommendationTag = currentParams.get('tag');
     if(q) params.set('q', q);
+    if(recommendationTag) params.set('tag', recommendationTag);
     if(sort && sort !== 'default') params.set('sort', sort);
     $$('input[name="category"]:checked').forEach(input => params.append('category', input.value));
     $$('input[name="brand"]:checked').forEach(input => params.append('brand', input.value));
@@ -2011,12 +2016,20 @@
     }
     const q = params.get('q');
     if(q && $('#catalogSearch')) $('#catalogSearch').value = q;
+    const recommendationTag = params.get('tag');
+    if(recommendationTag && !q && $('#catalogSearch')) $('#catalogSearch').value = recommendationTag;
     const sortParam = params.get('sort');
     if(sortParam && $('#catalogSort')) $('#catalogSort').value = sortParam;
     const apply = () => { syncCatalogUrl(); renderCatalogProducts(); };
     const searchEl = $('#catalogSearch');
     if(searchEl){
-      searchEl.addEventListener('input', () => { updateCatalogSuggestPanel(); apply(); });
+      searchEl.addEventListener('input', () => {
+        const nextParams = new URLSearchParams(location.search);
+        nextParams.delete('tag');
+        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
+        updateCatalogSuggestPanel();
+        apply();
+      });
       searchEl.addEventListener('focus', () => updateCatalogSuggestPanel());
       searchEl.addEventListener('keydown', event => { if(event.key === 'Escape' && $('#catalogSearchPanel')) $('#catalogSearchPanel').hidden = true; });
     }
@@ -2040,6 +2053,9 @@
         $$('input[type="checkbox"]', filters).forEach(input => { input.checked = false; });
         const search = $('#catalogSearch'); if(search) search.value = '';
         const sort = $('#catalogSort'); if(sort) sort.value = 'default';
+        const nextParams = new URLSearchParams(location.search);
+        nextParams.delete('tag');
+        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
         apply();
       });
     }
