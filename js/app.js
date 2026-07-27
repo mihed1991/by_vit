@@ -888,6 +888,25 @@
   function productRecommendationTags(product){
     return productGoalLabels(product).map(tag => slugText(tag));
   }
+  function recommendationTagOptions(){
+    const options = [];
+    const seen = new Set();
+    const add = (label, value=label, group='Цели') => {
+      const cleanLabel = String(label || value || '').trim();
+      const cleanValue = String(value || label || '').trim();
+      const key = slugText(cleanValue);
+      if(!cleanLabel || !key || seen.has(key)) return;
+      seen.add(key);
+      options.push({label:cleanLabel,value:cleanValue,group});
+    };
+    getGoals().filter(item => item?.enabled !== false).forEach(item => add(item.title, item.title, 'Цели'));
+    getCategories().forEach(category => {
+      (category.subcategories || []).filter(item => item?.enabled !== false).forEach(item => {
+        add(item.title || item.query, item.query || item.title, category.name);
+      });
+    });
+    return options;
+  }
   function storefrontGoals(){
     return getGoals().filter(item => item && item.enabled !== false).slice(0, 12);
   }
@@ -1769,8 +1788,14 @@
       [product.name, product.brand, categoryName(product.category), formTypeLabel(product.formType)].filter(Boolean).forEach(value => values.add(String(value).trim()));
       (product.options || []).forEach(option => values.add(String(option.label || '').trim()));
       (product.flavors || []).forEach(flavor => values.add(String(flavor || '').trim()));
+      productGoalLabels(product).forEach(tag => values.add(tag));
     });
-    getCategories().forEach(category => values.add(category.name));
+    getCategories().forEach(category => {
+      values.add(category.name);
+      (category.subcategories || []).filter(item => item?.enabled !== false).forEach(item => {
+        values.add(String(item.title || item.query || '').trim());
+      });
+    });
     brands().forEach(brand => values.add(brand));
     return [...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')).slice(0,80);
   }
@@ -1940,7 +1965,7 @@
     const categoryValues = $$('input[name="category"]:checked').map(i=>i.value);
     const brandValues = $$('input[name="brand"]:checked').map(i=>i.value);
     const stockOnly = $('#stockOnly')?.checked;
-    if(q) list = list.filter(p => slugText([p.name,p.brand,p.shortDescription,p.description,p.ingredients,p.usage,p.category,formTypeLabel(p.formType)].join(' ')).includes(q));
+    if(q) list = list.filter(p => slugText([p.name,p.brand,p.shortDescription,p.description,p.ingredients,p.usage,p.category,formTypeLabel(p.formType),...productGoalLabels(p)].join(' ')).includes(q));
     if(categoryValues.length) list = list.filter(p => categoryValues.includes(p.category));
     if(brandValues.length) list = list.filter(p => brandValues.includes(p.brand));
     if(stockOnly) list = list.filter(p => Number(p.stock || 0) > 0);
@@ -3102,6 +3127,7 @@
     }
     fillCategorySelect($('#adminCategory'));
     fillFormTypeSelect($('#adminFormType'));
+    renderAdminRecommendationOptions(parseList($('#adminRecommendationTags')?.value || ''));
     renderAdminRelatedProducts([], $('#adminProductId')?.value || '');
   }
   function renderAdminRelatedProducts(selectedIds=[], currentId=''){
@@ -3115,6 +3141,32 @@
         <img src="${esc(firstImage(product))}" alt="">
         <span><strong>${esc(product.name)}</strong><small>${esc(product.brand)} · ${esc(categoryName(product.category))}</small></span>
       </label>`).join('') : '<p class="admin-hint">Сначала добавьте ещё один товар.</p>';
+  }
+  function renderAdminRecommendationOptions(selectedValues=[]){
+    const root = $('#adminRecommendationOptions');
+    if(!root) return;
+    const selected = new Set(selectedValues.map(slugText));
+    const options = recommendationTagOptions();
+    root.innerHTML = options.length ? options.map(option => `
+      <label class="admin-recommendation-option" title="${esc(option.group)}">
+        <input type="checkbox" data-recommendation-tag value="${esc(option.value)}" ${selected.has(slugText(option.value)) ? 'checked' : ''}>
+        <span>${esc(option.label)}</span>
+        <small>${esc(option.group)}</small>
+      </label>`).join('') : '<p class="admin-hint">Добавьте цели или подкатегории, чтобы они появились здесь.</p>';
+  }
+  function syncAdminRecommendationOptions(){
+    const selected = new Set(parseList($('#adminRecommendationTags')?.value || '').map(slugText));
+    $$('[data-recommendation-tag]').forEach(input => { input.checked = selected.has(slugText(input.value)); });
+  }
+  function toggleAdminRecommendationTag(input){
+    const field = $('#adminRecommendationTags');
+    if(!field) return;
+    const values = parseList(field.value);
+    const key = slugText(input.value);
+    const next = values.filter(value => slugText(value) !== key);
+    if(input.checked) next.push(input.value);
+    field.value = next.join(', ');
+    syncAdminRecommendationOptions();
   }
   function renderAdminCategories(){
     const root = $('#adminCategoriesList');
@@ -3139,6 +3191,7 @@
     site.goals = goals;
     saveSite(site);
     renderAdminSite();
+    renderAdminRecommendationOptions(parseList($('#adminRecommendationTags')?.value || ''));
     toast('Цели сохранены');
   }
   function fillCategorySelect(select){
@@ -3172,6 +3225,7 @@
     $('#adminImageRemoved').value = '0';
     $('#adminPopular').checked = false;
     $('#adminRecommendationTags').value = '';
+    renderAdminRecommendationOptions([]);
     $('#adminRelatedAuto').checked = true;
     renderAdminRelatedProducts([], '');
   }
@@ -3204,6 +3258,7 @@
     $('#adminImageRemoved').value = '0';
     $('#adminPopular').checked = product.popular === true;
     $('#adminRecommendationTags').value = (Array.isArray(product.recommendationTags) ? product.recommendationTags : parseList(product.recommendationTags || '')).join(', ');
+    renderAdminRecommendationOptions(parseList($('#adminRecommendationTags').value));
     $('#adminRelatedAuto').checked = product.relatedAuto !== false;
     renderAdminRelatedProducts(relatedProductIds(product), product.id);
     $('#adminProductForm')?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -4317,6 +4372,7 @@
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });
     document.addEventListener('change', event => {
+      if(event.target.matches('[data-recommendation-tag]')){ toggleAdminRecommendationTag(event.target); return; }
       if(event.target.matches('[data-related-product]')){
         const selected = $$('[data-related-product]:checked');
         if(selected.length > 4){ event.target.checked = false; toast('Можно закрепить максимум 4 товара'); }
@@ -4330,6 +4386,7 @@
       if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     document.addEventListener('input', event => {
+      if(event.target.matches('#adminRecommendationTags')){ syncAdminRecommendationOptions(); return; }
       if(event.target.matches('#adminSectionSearch')){ filterAdminSections(event.target.value); return; }
       if(event.target.matches('[data-brand-image-src],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });

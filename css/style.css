@@ -3365,6 +3365,44 @@ body[data-page="product"] .product-recommendations .product-grid{
 .admin-related-option strong{font-size:11px;color:var(--ink)}
 .admin-related-option small{font-size:9px;color:var(--muted)}
 
+.admin-recommendation-options{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  max-height:190px;
+  overflow:auto;
+  padding-right:3px;
+}
+.admin-recommendation-option{
+  display:grid;
+  grid-template-columns:16px minmax(0,1fr);
+  gap:2px 7px;
+  align-items:center;
+  min-width:0;
+  padding:7px 8px;
+  border:1px solid var(--line);
+  background:#fff;
+  cursor:pointer;
+}
+.admin-recommendation-option:has(input:checked){
+  border-color:var(--green);
+  background:var(--green-soft);
+}
+.admin-recommendation-option input{
+  grid-row:1 / span 2;
+  width:15px!important;
+  min-height:15px!important;
+  accent-color:var(--green);
+}
+.admin-recommendation-option span,
+.admin-recommendation-option small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.admin-recommendation-option span{font-size:11px;font-weight:750;color:var(--ink)}
+.admin-recommendation-option small{font-size:9px;color:var(--muted)}
+
 .admin-storage-status{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -3435,6 +3473,7 @@ body[data-page="product"] .product-recommendations .product-grid{
   .analytics-columns{grid-template-columns:1fr;gap:14px}
   .admin-storage-status{grid-template-columns:repeat(2,minmax(0,1fr))}
   .admin-related-products{grid-template-columns:1fr;max-height:220px}
+  .admin-recommendation-options{grid-template-columns:repeat(2,minmax(0,1fr));max-height:180px}
   body[data-page="product"] .product-recommendations .product-grid{
     display:grid;
     grid-template-columns:none;
