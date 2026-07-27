@@ -1138,6 +1138,86 @@
   function brandLinkHtml(header, extra=''){
     return `<a class="brand" href="index.html" ${extra}><span class="brand-mark ${String(header.logoImage || '').trim() ? 'has-image' : ''}">${brandMarkContent(header)}</span><span class="brand-name ${String(header.brandImage || '').trim() ? 'has-image' : ''}">${brandNameContent(header)}</span></a>`;
   }
+  function renderCatalogMegaMenu(){
+    const header = $('.site-header');
+    const nav = header ? $('.main-nav', header) : null;
+    if(!header || !nav) return;
+    const catalogLink = $$('a', nav).find(link => String(link.getAttribute('href') || '').split(/[?#]/)[0].endsWith('catalog.html'));
+    if(!catalogLink) return;
+
+    catalogLink.classList.add('catalog-menu-trigger');
+    catalogLink.setAttribute('aria-haspopup', 'true');
+    catalogLink.setAttribute('aria-expanded', 'false');
+    catalogLink.innerHTML = `<span>${esc(catalogLink.textContent || 'Каталог')}</span><span class="catalog-menu-chevron" aria-hidden="true"></span>`;
+
+    let panel = $('[data-catalog-mega]', header);
+    if(!panel){
+      panel = document.createElement('div');
+      panel.className = 'catalog-mega';
+      panel.id = 'catalogMegaMenu';
+      panel.hidden = true;
+      panel.setAttribute('data-catalog-mega', '');
+      header.appendChild(panel);
+    }
+    catalogLink.setAttribute('aria-controls', panel.id);
+
+    const categories = getCategories().filter(item => item && item.enabled !== false);
+    panel.innerHTML = `<div class="container catalog-mega-shell">
+      <div class="catalog-mega-intro">
+        <span class="catalog-mega-kicker">Каталог ByVit</span>
+        <h2>Выберите нужное направление</h2>
+        <p>Все категории спортивного питания в одном спокойном и понятном меню.</p>
+        <a class="catalog-mega-all" href="catalog.html">Все товары <span aria-hidden="true">→</span></a>
+      </div>
+      <nav class="catalog-mega-grid" aria-label="Категории каталога">
+        ${categories.map(category => `<div class="catalog-mega-group">
+          <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
+          <div class="catalog-mega-subcategories">
+            ${(category.subcategories || []).slice(0, 3).map(item => `<a href="catalog.html?category=${encodeURIComponent(category.id)}&q=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
+          </div>
+        </div>`).join('')}
+      </nav>
+    </div>`;
+
+    const currentTrigger = () => $('.catalog-menu-trigger', nav);
+    const closeMenu = () => {
+      panel.hidden = true;
+      panel.classList.remove('open');
+      currentTrigger()?.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('catalog-mega-open');
+    };
+    const openMenu = () => {
+      panel.hidden = false;
+      panel.classList.add('open');
+      currentTrigger()?.setAttribute('aria-expanded', 'true');
+      document.body.classList.add('catalog-mega-open');
+    };
+
+    if(header.dataset.catalogMegaBound === '1') return;
+    header.dataset.catalogMegaBound = '1';
+    header.addEventListener('click', event => {
+      const trigger = event.target.closest('.catalog-menu-trigger');
+      if(trigger && window.matchMedia('(min-width:1101px)').matches){
+        event.preventDefault();
+        panel.hidden ? openMenu() : closeMenu();
+        return;
+      }
+      if(event.target.closest('[data-catalog-mega] a')) closeMenu();
+    });
+    document.addEventListener('click', event => {
+      if(panel.hidden || header.contains(event.target)) return;
+      closeMenu();
+    });
+    document.addEventListener('keydown', event => {
+      if(event.key === 'Escape' && !panel.hidden){
+        closeMenu();
+        currentTrigger()?.focus();
+      }
+    });
+    window.addEventListener('resize', () => {
+      if(!window.matchMedia('(min-width:1101px)').matches) closeMenu();
+    });
+  }
   function applyHeader(){
     const site = getSite();
     const header = site.header || {};
@@ -1161,6 +1241,7 @@
 	    renderBottomNav();
 	    renderQuickContact(site);
 	    setActiveNav();
+	    renderCatalogMegaMenu();
     const burger = $('[data-burger]');
     const mobile = $('[data-mobile-panel]');
     if(burger && mobile && burger.dataset.menuBound !== '1'){
