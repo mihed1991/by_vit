@@ -1,18 +1,10 @@
 (function(){
   'use strict';
 
-  const THEME_KEY = 'byvit_theme';
-  const savedTheme = (() => {
-    try{
-      const value = localStorage.getItem(THEME_KEY);
-      return value === 'dark' || value === 'light' ? value : null;
-    }catch(error){
-      return null;
-    }
-  })();
-  const initialTheme = savedTheme || 'light';
-  document.documentElement.dataset.theme = initialTheme;
-  document.documentElement.style.colorScheme = initialTheme;
+  document.documentElement.dataset.theme = 'light';
+  document.documentElement.style.colorScheme = 'light';
+  try{ localStorage.removeItem('byvit_theme'); }
+  catch(error){ console.warn('Theme preference was not cleared', error); }
 
   const KEYS = {
     products:'byvit_v60_products',
@@ -159,30 +151,6 @@
 
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => Array.from(root.querySelectorAll(selector));
-
-  function currentTheme(){
-    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  }
-  function syncThemeControls(){
-    const dark = currentTheme() === 'dark';
-    $$('[data-theme-toggle]').forEach(button => {
-      button.setAttribute('aria-pressed', dark ? 'true' : 'false');
-      button.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
-      button.title = dark ? 'Светлая тема' : 'Тёмная тема';
-      const icon = $('[data-theme-icon]', button);
-      if(icon) icon.textContent = dark ? '☼' : '◐';
-    });
-  }
-  function setTheme(theme, persist=true){
-    const next = theme === 'dark' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = next;
-    document.documentElement.style.colorScheme = next;
-    if(persist){
-      try{ localStorage.setItem(THEME_KEY, next); }
-      catch(error){ console.warn('Theme preference was not saved', error); }
-    }
-    syncThemeControls();
-  }
 
   function clone(value){ return JSON.parse(JSON.stringify(value)); }
   function read(key, fallback){
@@ -921,26 +889,7 @@
     return productGoalLabels(product).map(tag => slugText(tag));
   }
   function storefrontGoals(){
-    const configured = getGoals().filter(item => item && item.enabled !== false);
-    const covered = configured.map(goal => slugText(`${goal.title || ''} ${goal.text || ''}`));
-    const generated = [];
-    const generatedKeys = new Set();
-    getProducts().forEach(product => {
-      productGoalLabels(product).forEach(label => {
-        const key = slugText(label);
-        if(!key || generatedKeys.has(key) || covered.some(value => value.includes(key))) return;
-        generatedKeys.add(key);
-        generated.push({
-          id:`product-goal-${key}`,
-          title:label.charAt(0).toLocaleUpperCase('ru') + label.slice(1),
-          text:`Подборка товаров для цели «${label}».`,
-          href:`catalog.html?q=${encodeURIComponent(label)}`,
-          enabled:true,
-          generated:true
-        });
-      });
-    });
-    return [...configured, ...generated].slice(0, 12);
+    return getGoals().filter(item => item && item.enabled !== false).slice(0, 12);
   }
   function relatedProductIds(product){
     return [...new Set((Array.isArray(product?.relatedProductIds) ? product.relatedProductIds : []).map(Number).filter(Boolean))];
@@ -1293,7 +1242,6 @@
           ${brandLinkHtml(header, 'style="color:#fff"')}
           <div class="footer-brand-tools">
             <a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a>
-            <button class="footer-theme-toggle" type="button" data-theme-toggle aria-label="Переключить тему" aria-pressed="false"><span aria-hidden="true" data-theme-icon>◐</span></button>
           </div>
         </div>
         ${columns}
@@ -1303,7 +1251,6 @@
 	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
 	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
 	    </div>`;
-    syncThemeControls();
 	  }
   function applyPageHeader(){
     const page = document.body.dataset.page;
@@ -4145,8 +4092,6 @@
 
 	  function bindGlobal(){
 	    document.addEventListener('click', event => {
-	      const themeToggle = event.target.closest('[data-theme-toggle]');
-	      if(themeToggle){ setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); return; }
 	      const drawerClose = event.target.closest('[data-cart-drawer-close]'); if(drawerClose){ closeCartDrawer(); return; }
 	      const drawerOpen = event.target.closest('.header-actions a[href="cart.html"]');
 	      if(drawerOpen && document.body.dataset.page !== 'cart' && !window.matchMedia('(max-width: 760px)').matches){
