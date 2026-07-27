@@ -38,15 +38,15 @@
     bar:'Батончик',
     accessory:'Аксессуар'
   };
-  const DEFAULT_HOME_BLOCK_ORDER = ['sale', 'trust', 'categories', 'goals', 'brands'];
+  const DEFAULT_HOME_BLOCK_ORDER = ['categories', 'sale', 'trust', 'goals', 'brands'];
   const DEFAULT_HOME_BLOCKS = {
     trust:{visible:true,order:2,eyebrow:'Почему ByVit',title:'Покупка без сюрпризов',text:'Важные условия видны до оформления заказа.',titleSize:36,textSize:15,featureOneTitle:'Понятный товар',featureOneText:'Бренд, страна, состав, фасовка и остаток указаны в карточке.',featureTwoTitle:'Удобное получение',featureTwoText:'Самовывоз, курьер, Европочта или почта по Беларуси.',featureThreeTitle:'Подтверждение заказа',featureThreeText:'Магазин уточняет детали заказа и способ оплаты до отправки.'},
-    categories:{visible:true,order:2,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
-    goals:{visible:true,order:3,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
+    categories:{visible:true,order:1,eyebrow:'Категории',title:'Быстрый вход в нужный раздел',text:'Разделы каталога помогают быстро перейти к нужному типу спортивного питания.',titleSize:36,textSize:15,buttonText:'Весь каталог',buttonUrl:'catalog.html'},
+    goals:{visible:true,order:4,eyebrow:'Цели',title:'Выбери свою цель',text:'Если не знаешь название добавки, начни с задачи: масса, восстановление, сон, суставы или иммунитет.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html'},
     featured:{visible:true,order:4,eyebrow:'Популярное',title:'Товары, которые покупают чаще',text:'Чистые карточки, нормальная типографика и понятные действия.',titleSize:36,textSize:15,buttonText:'Открыть каталог',buttonUrl:'catalog.html?sort=popular'},
     service:{visible:true,order:5,eyebrow:'Сервис',title:'Магазин без лишнего шума',text:'Заказ, доставка и контроль товара собраны в понятный сценарий.',titleSize:36,textSize:15,featureOneTitle:'Быстрый заказ',featureOneText:'Корзина, промокод, доставка и Telegram-уведомление через бота.',featureTwoTitle:'Контроль товара',featureTwoText:'Остатки, скидки, фасовки, вкусы, страна производства и админка.'},
     brands:{visible:true,order:6,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
-    sale:{visible:true,order:1,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
+    sale:{visible:true,order:2,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
   const PAGE_SEO = {
     home:{title:'ByVit — спортивное питание и БАДы с доставкой по Беларуси',description:'Спортивное питание, витамины и БАДы в ByVit: понятные карточки, актуальные цены, самовывоз и доставка по Беларуси.',path:'/'},
@@ -501,13 +501,21 @@
     const defaultSite = getDefaults().site || {};
     const source = site.homeBlocks || {};
     const defaultSource = defaultSite.homeBlocks || {};
-    return Object.fromEntries(Object.entries(DEFAULT_HOME_BLOCKS).map(([key, value], index) => {
+    const blocks = Object.fromEntries(Object.entries(DEFAULT_HOME_BLOCKS).map(([key, value], index) => {
       const block = {...value, ...(defaultSource[key] || {}), ...(source[key] || {})};
       const fallbackOrder = DEFAULT_HOME_BLOCK_ORDER.indexOf(key) + 1 || index + 1;
       const order = Number(block.order);
       block.order = Number.isFinite(order) && order > 0 ? order : fallbackOrder;
       return [key, block];
     }));
+    if(Number(site?.homeLayoutVersion || 1) < 2){
+      blocks.categories.order = 1;
+      blocks.sale.order = 2;
+      blocks.trust.order = 3;
+      blocks.goals.order = 4;
+      blocks.brands.order = 5;
+    }
+    return blocks;
   }
   function normalizeLinks(links){
     return (Array.isArray(links) ? links : []).map(link => ({
@@ -838,6 +846,7 @@
     merged.checkout = normalizeCheckout(site, defaults);
     merged.aboutPage = normalizeAboutPage(site, defaults);
     merged.homeBlocks = normalizeHomeBlocks(merged);
+    merged.homeLayoutVersion = Math.max(2, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
@@ -1674,7 +1683,8 @@
     if(!main) return;
     const sections = $$('[data-home-block]', main).map((section, index) => {
       const key = section.dataset.homeBlock;
-      return {section, key, index, order:homeBlockOrder(key, blocks[key], index)};
+      const order = key === 'categories' ? 0 : homeBlockOrder(key, blocks[key], index);
+      return {section, key, index, order};
     }).sort((a, b) => a.order - b.order || a.index - b.index);
     sections.forEach(item => main.appendChild(item.section));
     sections.filter(item => !item.section.hidden).forEach((item, visibleIndex) => {
@@ -3068,6 +3078,16 @@
     renderAdminProducts();
     toast('Категории сохранены');
   }
+  function saveAdminGoals(event){
+    event.preventDefault();
+    const goals = collectGoals();
+    if(!goals.length){ toast('Добавьте хотя бы одну цель'); return; }
+    const site = getSite();
+    site.goals = goals;
+    saveSite(site);
+    renderAdminSite();
+    toast('Цели сохранены');
+  }
   function fillCategorySelect(select){
     if(!select) return;
     select.innerHTML = getCategories().map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
@@ -3489,11 +3509,11 @@
 	        featured:'Популярное (вкладка товаров)',
 	        trust:'Почему ByVit',
 	        service:'Сервис (четвёртое преимущество)',
-	        categories:'Категории',
+	        categories:'Категории (сразу после баннера)',
 	        goals:'Цели',
 	        brands:'Бренды'
 	      };
-	      const sectionKeys = new Set(['sale','trust','categories','goals','brands']);
+	      const sectionKeys = new Set(['sale','trust','goals','brands']);
 	      const editorOrder = ['sale','featured','trust','service','categories','goals','brands'];
 	      const homeBlocks = site.homeBlocks || DEFAULT_HOME_BLOCKS;
 	      homeRoot.innerHTML = editorOrder.filter(key => homeBlocks[key]).map(key => {
@@ -3600,7 +3620,6 @@
 	      });
 	      site.homeBlocks[key] = block;
 	    });
-	    if($('#adminGoalsList')) site.goals = collectGoals();
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
@@ -4268,6 +4287,7 @@
     $('#adminLoginForm')?.addEventListener('submit', adminLogin);
     $('#adminProductForm')?.addEventListener('submit', saveProduct);
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
+    $('#adminGoalsForm')?.addEventListener('submit', saveAdminGoals);
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
     $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData', {scope:'products'}));
     $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc', {scope:'hero'}));

@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=5">
-  <link rel="stylesheet" href="css/style.css?v=68">
-  <script src="js/data.js?v=63" defer></script>
-  <script src="js/app.js?v=68" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=72">
+  <script src="js/data.js?v=64" defer></script>
+  <script src="js/app.js?v=72" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -71,6 +71,7 @@
             <button data-admin-tab="faq">FAQ</button>
             <button data-admin-tab="products">Товары</button>
             <button data-admin-tab="categories">Категории</button>
+            <button data-admin-tab="goals">Цели</button>
             <button data-admin-tab="footer">Футер</button>
             <button data-admin-tab="header">Хэдер</button>
           </nav>
@@ -179,6 +180,21 @@
                     <button class="btn btn-light" data-category-add type="button">Добавить категорию</button>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить категории</button>
+                </form>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-goals">
+              <article class="admin-card">
+                <h3>Цели покупателей</h3>
+                <p class="admin-hint">Добавляйте и редактируйте сценарии выбора, которые показываются в блоке «Выбери свою цель» на главной.</p>
+                <form class="admin-form" id="adminGoalsForm">
+                  <div class="admin-form-section">
+                    <h4>Список целей</h4>
+                    <div class="admin-blocks admin-goals-list" id="adminGoalsList"></div>
+                    <button class="btn btn-light" data-goal-add type="button">Добавить цель</button>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Сохранить цели</button>
                 </form>
               </article>
             </section>
@@ -335,12 +351,6 @@
 	                  <div class="admin-form-section admin-home-wide">
 	                    <h4>Блоки главной</h4>
 	                    <div class="admin-blocks" id="adminHomeBlocks"></div>
-	                  </div>
-
-	                  <div class="admin-form-section admin-home-wide">
-	                    <h4>Цели</h4>
-	                    <div class="admin-blocks" id="adminGoalsList"></div>
-	                    <button class="btn btn-light" data-goal-add type="button">Добавить цель</button>
 	                  </div>
 
 	                  <button class="btn btn-primary" type="submit">Сохранить главную</button>

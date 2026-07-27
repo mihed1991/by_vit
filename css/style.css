@@ -5460,7 +5460,190 @@ body[data-page="catalog"] .catalog-smart-grid::-webkit-scrollbar,
     min-height:36px;
     margin:0;
   }
-  body[data-page="catalog"] #catalogProducts .circle-action{
+body[data-page="catalog"] #catalogProducts .circle-action{
     display:none;
+  }
+}
+
+/* Shared product-card rhythm: every storefront rail uses the same content rows. */
+.product-grid{
+  align-items:stretch;
+}
+.product-grid .product-card{
+  height:100%;
+}
+.product-grid .product-body{
+  min-width:0;
+}
+.product-grid .product-brand,
+.product-grid .product-title,
+.product-grid .product-desc,
+.product-grid .product-card-tags,
+.product-grid .product-meta,
+.product-grid .card-buttons{
+  min-width:0;
+  min-height:0;
+  margin:0;
+}
+.product-grid .product-brand{
+  grid-area:brand;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.product-grid .product-title{
+  grid-area:title;
+  display:-webkit-box;
+  overflow:hidden;
+  line-height:1.2;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+.product-grid .product-desc{
+  grid-area:desc;
+  display:-webkit-box;
+  min-height:0;
+  max-height:none;
+  overflow:hidden;
+  line-height:1.45;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3;
+}
+.product-grid .product-card-tags{
+  grid-area:tags;
+  height:24px;
+  flex-wrap:nowrap;
+  overflow:hidden;
+}
+.product-grid .product-card-tags span{
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.product-grid .product-meta{
+  grid-area:meta;
+  height:auto;
+  padding-top:6px;
+}
+.product-grid .card-buttons{
+  grid-area:buttons;
+  height:40px;
+  align-self:end;
+}
+
+@media(min-width:761px){
+  .product-grid .product-body{
+    display:grid;
+    grid-template-areas:
+      "brand"
+      "title"
+      "desc"
+      "tags"
+      "meta"
+      "buttons";
+    grid-template-rows:15px 44px 60px 26px 54px 40px;
+    gap:6px;
+    height:301px;
+    min-height:301px;
+    padding:16px;
+  }
+}
+
+@media(max-width:760px){
+  .product-grid .product-body,
+  body[data-page="catalog"] #catalogProducts .product-body{
+    display:grid;
+    grid-template-areas:
+      "meta"
+      "title"
+      "tags"
+      "buttons";
+    grid-template-rows:38px 34px 22px 36px;
+    gap:5px;
+    height:166px;
+    min-height:166px;
+    padding:8px;
+    overflow:hidden;
+  }
+  .product-grid .product-brand,
+  .product-grid .product-desc{
+    display:none;
+  }
+  .product-grid .product-title{
+    order:initial;
+    align-self:start;
+    height:34px;
+    min-height:34px;
+    margin:0 !important;
+    font-size:13px;
+    line-height:1.2;
+  }
+  .product-grid .product-card-tags{
+    order:initial;
+    height:22px;
+    min-height:22px;
+    margin:0 !important;
+  }
+  .product-grid .product-card-tags span{
+    min-height:22px;
+    padding:3px 6px;
+    font-size:9px;
+  }
+  .product-grid .product-meta{
+    order:initial;
+    display:flex;
+    align-items:center;
+    height:38px;
+    min-height:38px;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  .product-grid .product-meta .stars{
+    display:none;
+  }
+  .product-grid .card-buttons{
+    order:initial;
+    height:36px;
+    min-height:36px;
+    margin:0 !important;
+  }
+  .product-grid .card-buttons .btn{
+    height:36px;
+    min-height:36px;
+    padding:7px 8px;
+  }
+  .product-grid .circle-action{
+    display:none;
+  }
+}
+
+/* Goals now have their own compact admin workspace. */
+body[data-page="admin"] .admin-goals-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+body[data-page="admin"] .admin-goals-list .admin-block-editor{
+  align-content:start;
+  gap:7px;
+  padding:10px;
+}
+body[data-page="admin"] .admin-goals-list textarea{
+  min-height:64px;
+}
+
+/* Store information comes first; the full-width map closes the section. */
+.stores-section .map-box{
+  margin:16px 0 0;
+}
+
+@media(max-width:760px){
+  body[data-page="admin"] .admin-goals-list{
+    grid-template-columns:1fr;
+  }
+  .stores-section .map-box{
+    margin-top:10px;
   }
 }
