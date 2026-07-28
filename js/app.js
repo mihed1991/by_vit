@@ -1851,7 +1851,13 @@
       const text = $('[data-block-text]', section);
       const link = $('[data-block-button]', section);
       const href = block.buttonUrl || (active === 'sale' ? 'sale.html' : 'catalog.html?sort=popular');
-      if(eyebrow) eyebrow.innerHTML = `<a href="${esc(href)}">${esc(block.eyebrow || (active === 'sale' ? 'Акции' : 'Популярное'))}</a>`;
+      if(eyebrow){
+        eyebrow.innerHTML = `<a href="${esc(href)}">${esc(block.eyebrow || (active === 'sale' ? 'Акции' : 'Популярное'))}</a>`;
+        const eyebrowLink = $('a', eyebrow);
+        if(eyebrowLink){
+          eyebrowLink.dataset.mobileLabel = block.title || (active === 'sale' ? 'Скидки и спецпредложения' : 'Товары, которые покупают чаще');
+        }
+      }
       if(title) title.innerHTML = `<a href="${esc(href)}">${esc(block.title || '')}</a>`;
       if(text){
         text.textContent = block.text || '';
@@ -1868,7 +1874,50 @@
     });
     selectTab(section.dataset.activeProductTab || available[0]);
   }
-	  function renderHome(){
+
+  function setupHomeBrandMarquee(root){
+    if(!root) return;
+    if(typeof root._brandMarqueeCleanup === 'function') root._brandMarqueeCleanup();
+
+    const mobile = window.matchMedia('(max-width: 760px)');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if(!mobile.matches || reducedMotion.matches) return;
+
+    let frame = 0;
+    let lastTime = 0;
+    let pauseUntil = performance.now() + 1000;
+    const firstOriginal = $('.brand-card:not(.brand-card-copy)', root);
+    const firstCopy = $('.brand-card-copy', root);
+    if(!firstOriginal || !firstCopy) return;
+
+    const pause = (duration=3200) => {
+      pauseUntil = performance.now() + duration;
+    };
+    const tick = time => {
+      const delta = lastTime ? Math.min(64, time - lastTime) : 0;
+      lastTime = time;
+      const loopWidth = firstCopy.offsetLeft - firstOriginal.offsetLeft;
+      if(document.visibilityState === 'visible' && time >= pauseUntil && loopWidth > 0){
+        root.scrollLeft += delta * 0.022;
+        if(root.scrollLeft >= loopWidth) root.scrollLeft -= loopWidth;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const pauseOnInteraction = () => pause();
+    root.addEventListener('pointerdown', pauseOnInteraction, {passive:true});
+    root.addEventListener('touchstart', pauseOnInteraction, {passive:true});
+    root.addEventListener('wheel', pauseOnInteraction, {passive:true});
+    frame = requestAnimationFrame(tick);
+    root._brandMarqueeCleanup = () => {
+      cancelAnimationFrame(frame);
+      root.removeEventListener('pointerdown', pauseOnInteraction);
+      root.removeEventListener('touchstart', pauseOnInteraction);
+      root.removeEventListener('wheel', pauseOnInteraction);
+      root._brandMarqueeCleanup = null;
+    };
+  }
+
+  function renderHome(){
     const site = getSite();
     const products = getProducts();
     const blocks = site.homeBlocks || DEFAULT_HOME_BLOCKS;
@@ -1950,7 +1999,17 @@
     configureHomeProductTabs(blocks, discountedProducts, popularProducts);
 	    const brandRail = $('#homeBrands');
 	    if(brandRail){
+	      if(typeof brandRail._brandMarqueeCleanup === 'function') brandRail._brandMarqueeCleanup();
 	      brandRail.innerHTML = brands().map(brand=>brandCardHtml(brand, site)).join('');
+        [...brandRail.children].forEach(card => {
+          const copy = card.cloneNode(true);
+          copy.classList.add('brand-card-copy', 'reveal-item', 'is-revealed');
+          copy.dataset.revealReady = '1';
+          copy.setAttribute('aria-hidden', 'true');
+          copy.setAttribute('tabindex', '-1');
+          brandRail.append(copy);
+        });
+        setupHomeBrandMarquee(brandRail);
 	    }
     orderHomeSections(blocks);
     document.body.classList.add('home-ready');
