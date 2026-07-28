@@ -6616,3 +6616,60 @@ body[data-page="home"] [data-home-block="categories"]{
     margin-bottom:2px!important;
   }
 }
+
+/* Header and navigation polish. */
+.brand-mark.has-image{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.brand-mark.has-image .brand-mark-img{
+  object-fit:contain;
+}
+.site-header .header-actions > .icon-link,
+.site-header .header-actions > .burger{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.site-header .header-actions > .icon-link:hover,
+.site-header .header-actions > .burger:hover{
+  background:transparent!important;
+  color:var(--green);
+}
+.header-search-trigger{
+  color:var(--ink);
+}
+.header-result-link span{
+  font-weight:400;
+}
+
+body[data-page="admin"] #adminPanel.admin-shell{
+  padding-top:12px;
+}
+body[data-page="admin"] #adminPanel > .container > .section-head{
+  margin-bottom:8px;
+  padding-top:0!important;
+  border-top:0!important;
+}
+
+@media(min-width:1101px){
+  .catalog-mega-grid{
+    column-gap:15px;
+  }
+}
+
+@media(max-width:1100px){
+  .header-search-trigger{
+    display:grid!important;
+    flex:0 0 44px;
+  }
+}
+
+@media(max-width:760px){
+  #homeCategories .category-card h3{
+    font-weight:400;
+  }
+}
