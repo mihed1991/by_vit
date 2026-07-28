@@ -1059,29 +1059,123 @@
     if(contacts.email) items.push({label:'Почта',type:'email',value:contacts.email});
     return items.filter(item => item.value || item.href);
   }
-  function renderMobileSearch(header){
+  function renderHeaderSearch(header){
     const headerEl = $('.site-header');
     if(!headerEl) return;
     const actions = $('.header-actions', headerEl);
-    if(actions && !$('[data-mobile-search]', actions)){
+    if(actions && !$('[data-header-search-toggle]', actions)){
       const burger = $('[data-burger]', actions);
       const button = document.createElement('button');
-      button.className = 'icon-link mobile-search-trigger';
+      button.className = 'icon-link header-search-trigger';
       button.type = 'button';
       button.setAttribute('aria-label', 'Поиск');
-      button.setAttribute('data-mobile-search', '');
-      button.textContent = '⌕';
+      button.setAttribute('aria-controls', 'headerSearchOverlay');
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('data-header-search-toggle', '');
+      button.innerHTML = '<span class="header-search-glyph" aria-hidden="true"></span>';
       if(burger) actions.insertBefore(button, burger);
       else actions.appendChild(button);
     }
-    let panel = $('[data-mobile-search-panel]', headerEl);
-    if(!panel){
-      panel = document.createElement('div');
-      panel.className = 'mobile-search-panel';
-      panel.setAttribute('data-mobile-search-panel', '');
-      headerEl.appendChild(panel);
+    let overlay = $('[data-header-search-overlay]');
+    if(!overlay){
+      overlay = document.createElement('div');
+      overlay.id = 'headerSearchOverlay';
+      overlay.className = 'header-search-overlay';
+      overlay.setAttribute('data-header-search-overlay', '');
+      overlay.hidden = true;
+      headerEl.insertAdjacentElement('afterend', overlay);
     }
-    panel.innerHTML = `<div class="container"><form class="header-search" data-header-search-form action="catalog.html" method="get"><input data-header-search name="q" placeholder="${esc(header.searchPlaceholder || 'Поиск товара')}"><button type="submit" aria-label="Искать">⌕</button></form></div>`;
+    overlay.innerHTML = `
+      <button class="header-overlay-backdrop" type="button" data-header-overlay-close aria-label="Закрыть поиск"></button>
+      <section class="header-overlay-sheet" role="dialog" aria-modal="true" aria-label="Поиск по магазину">
+        <div class="container header-overlay-content">
+          <form class="header-overlay-form" data-header-search-form action="catalog.html" method="get">
+            <span class="header-search-glyph" aria-hidden="true"></span>
+            <input data-header-search data-overlay-search-input name="q" autocomplete="off" placeholder="${esc(header.searchPlaceholder || 'Поиск товара')}">
+            <button class="header-overlay-close" type="button" data-header-overlay-close aria-label="Закрыть поиск"></button>
+          </form>
+          <div class="header-overlay-body">
+            <p class="header-overlay-label">Быстрые ссылки</p>
+            <nav class="header-quick-links" aria-label="Быстрые ссылки">
+              <a href="catalog.html">Весь каталог</a>
+              <a href="sale.html">Акции</a>
+              <a href="brands.html">Бренды</a>
+              <a href="delivery.html">Доставка</a>
+              <a href="stores.html">Магазины</a>
+            </nav>
+            <div class="header-live-results" data-header-search-results hidden></div>
+          </div>
+        </div>
+      </section>`;
+
+    const trigger = $('[data-header-search-toggle]', actions);
+    const input = $('[data-overlay-search-input]', overlay);
+    const results = $('[data-header-search-results]', overlay);
+    const setOverlayTop = () => {
+      overlay.style.setProperty('--header-overlay-top', `${Math.max(0, Math.round(headerEl.getBoundingClientRect().bottom))}px`);
+    };
+    const closeSearch = (restoreFocus = false) => {
+      if(overlay.hidden) return;
+      overlay.classList.remove('open');
+      overlay.hidden = true;
+      document.body.classList.remove('search-open');
+      trigger?.setAttribute('aria-expanded', 'false');
+      if(restoreFocus) trigger?.focus();
+    };
+    const openSearch = () => {
+      const mobile = $('[data-mobile-panel]');
+      const burger = $('[data-burger]');
+      mobile?.classList.remove('open');
+      document.body.classList.remove('menu-open');
+      burger?.setAttribute('aria-expanded', 'false');
+      setOverlayTop();
+      overlay.hidden = false;
+      requestAnimationFrame(() => overlay.classList.add('open'));
+      document.body.classList.add('search-open');
+      trigger?.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => input?.focus());
+    };
+    const renderResults = value => {
+      const query = String(value || '').trim().toLocaleLowerCase('ru');
+      if(!query){
+        results.hidden = true;
+        results.innerHTML = '';
+        return;
+      }
+      const matches = getProducts().filter(product => {
+        const haystack = [
+          product.name,
+          product.brand,
+          product.category,
+          product.description,
+          product.form,
+          ...(Array.isArray(product.tags) ? product.tags : []),
+          ...(Array.isArray(product.recommendationTags) ? product.recommendationTags : [])
+        ].filter(Boolean).join(' ').toLocaleLowerCase('ru');
+        return haystack.includes(query);
+      }).slice(0, 6);
+      results.hidden = false;
+      results.innerHTML = matches.length
+        ? `<p class="header-overlay-label">Товары</p>${matches.map(product => `
+            <a class="header-result-link" href="product.html?id=${encodeURIComponent(product.id)}">
+              <span>${esc(product.name || 'Товар')}</span>
+              <small>${esc([product.brand, product.category].filter(Boolean).join(' · '))}</small>
+            </a>`).join('')}`
+        : '<p class="header-search-empty">Ничего не найдено. Попробуйте другое название или бренд.</p>';
+    };
+
+    if(trigger && trigger.dataset.searchBound !== '1'){
+      trigger.dataset.searchBound = '1';
+      trigger.addEventListener('click', () => overlay.hidden ? openSearch() : closeSearch(true));
+    }
+    overlay.addEventListener('click', event => {
+      if(event.target.closest('[data-header-overlay-close]')) closeSearch(true);
+    });
+    input?.addEventListener('input', event => renderResults(event.currentTarget.value));
+    document.addEventListener('keydown', event => {
+      if(event.key === 'Escape' && !overlay.hidden) closeSearch(true);
+    });
+    window.addEventListener('resize', setOverlayTop);
   }
   function renderBottomNav(){
     let nav = $('[data-mobile-bottom-nav]');
@@ -1246,15 +1340,14 @@
     const navHtml = (header.nav || []).filter(link => link.enabled !== false).map(link => `<a data-nav href="${esc(link.href)}">${esc(link.text)}</a>`).join('');
     $$('.main-nav').forEach(nav => { nav.innerHTML = navHtml; });
 	    $$('.mobile-panel .container').forEach(panel => {
-	      const searchForm = $('.header-search', panel)?.outerHTML || '';
 	      const utility = [
 	        {text:'Избранное',href:'wishlist.html'},
 	        {text:'Сравнение',href:'compare.html'},
 	        {text:'Корзина',href:'cart.html'}
 	      ].map(link => `<a href="${link.href}">${link.text}</a>`).join('');
-	      panel.innerHTML = `${navHtml.replaceAll(' data-nav','')} ${utility}${searchForm}`;
+	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${navHtml.replaceAll(' data-nav','')}</nav><nav class="mobile-menu-utility" aria-label="Дополнительное меню">${utility}</nav>`;
 	    });
-	    renderMobileSearch(header);
+	    renderHeaderSearch(header);
 	    renderBottomNav();
 	    renderQuickContact(site);
 	    setActiveNav();
@@ -1263,14 +1356,24 @@
     const mobile = $('[data-mobile-panel]');
     if(burger && mobile && burger.dataset.menuBound !== '1'){
       burger.dataset.menuBound = '1';
+      burger.innerHTML = '<span class="burger-lines" aria-hidden="true"></span>';
       const closeMobileMenu = () => {
         document.body.classList.remove('menu-open');
         mobile.classList.remove('open');
         burger.setAttribute('aria-expanded', 'false');
       };
+      const setMobileTop = () => {
+        const headerEl = $('.site-header');
+        mobile.style.setProperty('--mobile-menu-top', `${Math.max(0, Math.round(headerEl?.getBoundingClientRect().bottom || 0))}px`);
+      };
       burger.setAttribute('aria-expanded', 'false');
       burger.addEventListener('click', () => {
         const open = !mobile.classList.contains('open');
+        if(open){
+          const searchOverlay = $('[data-header-search-overlay]');
+          searchOverlay?.querySelector('[data-header-overlay-close]')?.click();
+          setMobileTop();
+        }
         document.body.classList.toggle('menu-open', open);
         mobile.classList.toggle('open', open);
         burger.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1283,6 +1386,13 @@
         if(mobile.contains(event.target) || burger.contains(event.target)) return;
         closeMobileMenu();
       });
+      document.addEventListener('keydown', event => {
+        if(event.key === 'Escape' && mobile.classList.contains('open')){
+          closeMobileMenu();
+          burger.focus();
+        }
+      });
+      window.addEventListener('resize', setMobileTop);
     }
     $$('[data-header-search-form]').forEach(form => {
       form.addEventListener('submit', event => {
@@ -4342,15 +4452,6 @@
 	      const drawerMinus = event.target.closest('[data-drawer-cart-minus]'); if(drawerMinus){ changeDrawerCart(drawerMinus.dataset.drawerCartMinus, -1); return; }
 	      const drawerRemove = event.target.closest('[data-drawer-cart-remove]'); if(drawerRemove){ removeDrawerCart(drawerRemove.dataset.drawerCartRemove); return; }
 	      const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
-	      const mobileSearch = event.target.closest('[data-mobile-search]');
-	      if(mobileSearch){
-	        const panel = $('[data-mobile-search-panel]');
-	        const open = panel?.classList.toggle('open');
-	        document.body.classList.toggle('search-open', Boolean(open));
-	        mobileSearch.setAttribute('aria-expanded', open ? 'true' : 'false');
-	        if(open) $('[data-header-search]', panel)?.focus();
-	        return;
-	      }
 	      const contactToggle = event.target.closest('[data-contact-toggle]');
 	      if(contactToggle){
 	        if(contactToggle.dataset.dragMoved === '1') return;
