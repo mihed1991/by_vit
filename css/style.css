@@ -6070,8 +6070,9 @@ body[data-page="admin"] .admin-category-subcategory input{
   }
 }
 
-/* Dense mobile section labels and a continuously moving brand rail. */
-#homeBrands .brand-card-copy{
+/* Dense mobile section labels and continuously moving storefront rails. */
+#homeCategories .home-rail-copy,
+#homeBrands .home-rail-copy{
   display:none!important;
 }
 
@@ -6104,18 +6105,24 @@ body[data-page="admin"] .admin-category-subcategory input{
     font-size:12px;
   }
 
+  body[data-page="home"] #homeCategories,
   body[data-page="home"] #homeBrands{
     scroll-snap-type:none;
     scroll-behavior:auto;
     touch-action:pan-x;
+    overscroll-behavior-inline:contain;
   }
-  body[data-page="home"] #homeBrands .brand-card-copy{
+  body[data-page="home"] #homeCategories .home-rail-copy,
+  body[data-page="home"] #homeBrands .home-rail-copy{
     display:grid!important;
   }
-}
 
-@media(max-width:760px) and (prefers-reduced-motion:reduce){
-  body[data-page="home"] #homeBrands .brand-card-copy{
-    display:none!important;
+  .product-grid .product-body,
+  body[data-page="catalog"] #catalogProducts .product-body{
+    grid-template-areas:
+      "title"
+      "meta"
+      "tags"
+      "buttons";
   }
 }

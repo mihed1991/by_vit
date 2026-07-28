@@ -1875,46 +1875,57 @@
     selectTab(section.dataset.activeProductTab || available[0]);
   }
 
-  function setupHomeBrandMarquee(root){
+  function setupHomeMarquee(root, itemSelector){
     if(!root) return;
-    if(typeof root._brandMarqueeCleanup === 'function') root._brandMarqueeCleanup();
+    if(typeof root._homeMarqueeCleanup === 'function') root._homeMarqueeCleanup();
 
     const mobile = window.matchMedia('(max-width: 760px)');
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if(!mobile.matches || reducedMotion.matches) return;
+    if(!mobile.matches) return;
 
-    let frame = 0;
-    let lastTime = 0;
-    let pauseUntil = performance.now() + 1000;
-    const firstOriginal = $('.brand-card:not(.brand-card-copy)', root);
-    const firstCopy = $('.brand-card-copy', root);
+    let pauseUntil = Date.now() + 800;
+    const firstOriginal = $(`${itemSelector}:not(.home-rail-copy)`, root);
+    const firstCopy = $(`${itemSelector}.home-rail-copy`, root);
     if(!firstOriginal || !firstCopy) return;
 
-    const pause = (duration=3200) => {
-      pauseUntil = performance.now() + duration;
+    const pause = (duration=1400) => {
+      pauseUntil = Date.now() + duration;
     };
-    const tick = time => {
-      const delta = lastTime ? Math.min(64, time - lastTime) : 0;
-      lastTime = time;
+    const tick = () => {
       const loopWidth = firstCopy.offsetLeft - firstOriginal.offsetLeft;
-      if(document.visibilityState === 'visible' && time >= pauseUntil && loopWidth > 0){
-        root.scrollLeft += delta * 0.022;
+      if(document.visibilityState === 'visible' && Date.now() >= pauseUntil && loopWidth > 0){
+        root.scrollLeft += 1;
         if(root.scrollLeft >= loopWidth) root.scrollLeft -= loopWidth;
       }
-      frame = requestAnimationFrame(tick);
     };
     const pauseOnInteraction = () => pause();
     root.addEventListener('pointerdown', pauseOnInteraction, {passive:true});
     root.addEventListener('touchstart', pauseOnInteraction, {passive:true});
+    root.addEventListener('touchend', pauseOnInteraction, {passive:true});
     root.addEventListener('wheel', pauseOnInteraction, {passive:true});
-    frame = requestAnimationFrame(tick);
-    root._brandMarqueeCleanup = () => {
-      cancelAnimationFrame(frame);
+    const timer = window.setInterval(tick, 32);
+    root._homeMarqueeCleanup = () => {
+      window.clearInterval(timer);
       root.removeEventListener('pointerdown', pauseOnInteraction);
       root.removeEventListener('touchstart', pauseOnInteraction);
+      root.removeEventListener('touchend', pauseOnInteraction);
       root.removeEventListener('wheel', pauseOnInteraction);
-      root._brandMarqueeCleanup = null;
+      root._homeMarqueeCleanup = null;
     };
+  }
+
+  function fillHomeMarquee(root, html, itemSelector){
+    if(!root) return;
+    if(typeof root._homeMarqueeCleanup === 'function') root._homeMarqueeCleanup();
+    root.innerHTML = html;
+    [...root.children].forEach(item => {
+      const copy = item.cloneNode(true);
+      copy.classList.add('home-rail-copy', 'reveal-item', 'is-revealed');
+      copy.dataset.revealReady = '1';
+      copy.setAttribute('aria-hidden', 'true');
+      copy.setAttribute('tabindex', '-1');
+      root.append(copy);
+    });
+    setupHomeMarquee(root, itemSelector);
   }
 
   function renderHome(){
@@ -1984,33 +1995,27 @@
       }
     }
     const catGrid = $('#homeCategories');
-	    if(catGrid){
-	      catGrid.innerHTML = getCategories().map(c=>`
-	        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
+    if(catGrid){
+      fillHomeMarquee(catGrid, getCategories().map(c=>`
+        <a class="category-card" href="catalog.html?category=${esc(c.id)}">
           <h3>${esc(c.name)}</h3>
-	        </a>`).join('');
-	    }
-	    renderGoals();
+        </a>`).join(''), '.category-card');
+    }
+    renderGoals();
     const featuredProducts = products.filter(p => p.popular && !p.oldPrice);
     const popularProducts = (featuredProducts.length ? featuredProducts : products.filter(p => p.popular)).slice(0,5);
     const discountedProducts = products.filter(p => p.oldPrice).slice(0,5);
     renderGrid($('#featuredProducts'), popularProducts);
     renderGrid($('#saleProducts'), discountedProducts);
     configureHomeProductTabs(blocks, discountedProducts, popularProducts);
-	    const brandRail = $('#homeBrands');
-	    if(brandRail){
-	      if(typeof brandRail._brandMarqueeCleanup === 'function') brandRail._brandMarqueeCleanup();
-	      brandRail.innerHTML = brands().map(brand=>brandCardHtml(brand, site)).join('');
-        [...brandRail.children].forEach(card => {
-          const copy = card.cloneNode(true);
-          copy.classList.add('brand-card-copy', 'reveal-item', 'is-revealed');
-          copy.dataset.revealReady = '1';
-          copy.setAttribute('aria-hidden', 'true');
-          copy.setAttribute('tabindex', '-1');
-          brandRail.append(copy);
-        });
-        setupHomeBrandMarquee(brandRail);
-	    }
+    const brandRail = $('#homeBrands');
+    if(brandRail){
+      fillHomeMarquee(
+        brandRail,
+        brands().map(brand=>brandCardHtml(brand, site)).join(''),
+        '.brand-card'
+      );
+    }
     orderHomeSections(blocks);
     document.body.classList.add('home-ready');
   }
