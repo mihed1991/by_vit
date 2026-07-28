@@ -1095,14 +1095,6 @@
             <button class="header-overlay-close" type="button" data-header-overlay-close aria-label="Закрыть поиск"></button>
           </form>
           <div class="header-overlay-body">
-            <p class="header-overlay-label">Быстрые ссылки</p>
-            <nav class="header-quick-links" aria-label="Быстрые ссылки">
-              <a href="catalog.html">Весь каталог</a>
-              <a href="sale.html">Акции</a>
-              <a href="brands.html">Бренды</a>
-              <a href="delivery.html">Доставка</a>
-              <a href="stores.html">Магазины</a>
-            </nav>
             <div class="header-live-results" data-header-search-results hidden></div>
           </div>
         </div>
@@ -1125,9 +1117,11 @@
     const openSearch = () => {
       const mobile = $('[data-mobile-panel]');
       const burger = $('[data-burger]');
+      const catalogMenu = $('[data-catalog-mega]');
       mobile?.classList.remove('open');
       document.body.classList.remove('menu-open');
       burger?.setAttribute('aria-expanded', 'false');
+      catalogMenu?.querySelector('[data-catalog-mega-close]')?.click();
       setOverlayTop();
       overlay.hidden = false;
       requestAnimationFrame(() => overlay.classList.add('open'));
@@ -1263,34 +1257,40 @@
     catalogLink.setAttribute('aria-expanded', 'false');
     catalogLink.innerHTML = `<span>${esc(catalogLink.textContent || 'Каталог')}</span><span class="catalog-menu-chevron" aria-hidden="true"></span>`;
 
-    let panel = $('[data-catalog-mega]', header);
+    let panel = $('[data-catalog-mega]');
     if(!panel){
       panel = document.createElement('div');
       panel.className = 'catalog-mega';
       panel.id = 'catalogMegaMenu';
       panel.hidden = true;
       panel.setAttribute('data-catalog-mega', '');
-      header.appendChild(panel);
+      header.insertAdjacentElement('afterend', panel);
     }
     catalogLink.setAttribute('aria-controls', panel.id);
 
     const categories = getCategories().filter(item => item && item.enabled !== false);
-    panel.innerHTML = `<div class="container catalog-mega-shell">
-      <div class="catalog-mega-intro">
-        <span class="catalog-mega-kicker">Каталог ByVit</span>
-        <a class="catalog-mega-all" href="catalog.html">Все товары <span aria-hidden="true">→</span></a>
-      </div>
-      <nav class="catalog-mega-grid" aria-label="Категории каталога">
-        ${categories.map(category => `<div class="catalog-mega-group">
-          <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
-          <div class="catalog-mega-subcategories">
-            ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?tag=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
+    panel.innerHTML = `
+      <button class="catalog-mega-backdrop" type="button" data-catalog-mega-close aria-label="Закрыть каталог"></button>
+      <section class="catalog-mega-sheet" aria-label="Каталог ByVit">
+        <div class="container catalog-mega-shell">
+          <div class="catalog-mega-intro">
+            <a class="catalog-mega-all" href="catalog.html">Все товары <span aria-hidden="true">→</span></a>
           </div>
-        </div>`).join('')}
-      </nav>
-    </div>`;
+          <nav class="catalog-mega-grid" aria-label="Категории каталога">
+            ${categories.map(category => `<div class="catalog-mega-group">
+              <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
+              <div class="catalog-mega-subcategories">
+                ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?tag=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
+              </div>
+            </div>`).join('')}
+          </nav>
+        </div>
+      </section>`;
 
     const currentTrigger = () => $('.catalog-menu-trigger', nav);
+    const setMenuTop = () => {
+      panel.style.setProperty('--catalog-mega-top', `${Math.max(0, Math.round(header.getBoundingClientRect().bottom))}px`);
+    };
     const closeMenu = () => {
       panel.hidden = true;
       panel.classList.remove('open');
@@ -1298,8 +1298,11 @@
       document.body.classList.remove('catalog-mega-open');
     };
     const openMenu = () => {
+      const searchOverlay = $('[data-header-search-overlay]');
+      searchOverlay?.querySelector('[data-header-overlay-close]')?.click();
+      setMenuTop();
       panel.hidden = false;
-      panel.classList.add('open');
+      requestAnimationFrame(() => panel.classList.add('open'));
       currentTrigger()?.setAttribute('aria-expanded', 'true');
       document.body.classList.add('catalog-mega-open');
     };
@@ -1311,12 +1314,18 @@
       if(trigger && window.matchMedia('(min-width:1101px)').matches){
         event.preventDefault();
         panel.hidden ? openMenu() : closeMenu();
+      }
+    });
+    panel.addEventListener('click', event => {
+      if(event.target.closest('[data-catalog-mega-close]')){
+        closeMenu();
+        currentTrigger()?.focus();
         return;
       }
-      if(event.target.closest('[data-catalog-mega] a')) closeMenu();
+      if(event.target.closest('a')) closeMenu();
     });
     document.addEventListener('click', event => {
-      if(panel.hidden || header.contains(event.target)) return;
+      if(panel.hidden || header.contains(event.target) || panel.contains(event.target)) return;
       closeMenu();
     });
     document.addEventListener('keydown', event => {
@@ -1326,6 +1335,7 @@
       }
     });
     window.addEventListener('resize', () => {
+      if(!panel.hidden) setMenuTop();
       if(!window.matchMedia('(min-width:1101px)').matches) closeMenu();
     });
   }
@@ -1340,12 +1350,10 @@
     const navHtml = (header.nav || []).filter(link => link.enabled !== false).map(link => `<a data-nav href="${esc(link.href)}">${esc(link.text)}</a>`).join('');
     $$('.main-nav').forEach(nav => { nav.innerHTML = navHtml; });
 	    $$('.mobile-panel .container').forEach(panel => {
-	      const utility = [
-	        {text:'Избранное',href:'wishlist.html'},
-	        {text:'Сравнение',href:'compare.html'},
-	        {text:'Корзина',href:'cart.html'}
-	      ].map(link => `<a href="${link.href}">${link.text}</a>`).join('');
-	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${navHtml.replaceAll(' data-nav','')}</nav><nav class="mobile-menu-utility" aria-label="Дополнительное меню">${utility}</nav>`;
+	      const mobileNav = `${navHtml.replaceAll(' data-nav','')}
+	        <a href="wishlist.html">Избранное</a>
+	        <a href="compare.html">Сравнение</a>`;
+	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>`;
 	    });
 	    renderHeaderSearch(header);
 	    renderBottomNav();
