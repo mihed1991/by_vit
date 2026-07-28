@@ -6714,6 +6714,66 @@ body[data-page="admin"] #adminPanel > .container > .section-head{
   display:none!important;
 }
 
+/* Thin commerce icons, compact counters and FAQ disclosure controls. */
+.header-action-glyph{
+  display:block;
+  width:22px;
+  height:22px;
+  overflow:visible;
+}
+.header-action-glyph path{
+  stroke:currentColor;
+  stroke-width:1.55;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.site-header .header-actions > .icon-link{
+  font-weight:400;
+}
+.bottom-nav-icon .bottom-nav-glyph{
+  width:21px;
+  height:21px;
+}
+.bottom-nav-count{
+  top:3px;
+  right:calc(50% - 25px);
+  min-width:0;
+  width:auto;
+  height:auto;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--green);
+  font-size:11px;
+  font-weight:650;
+  line-height:1;
+}
+.bottom-nav-count[hidden],
+.bottom-nav-count:empty{
+  display:none!important;
+}
+.faq-question{
+  font-weight:400;
+  letter-spacing:0;
+}
+.faq-question::after{
+  content:"";
+  width:8px;
+  height:8px;
+  margin-right:4px;
+  border:0;
+  border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor;
+  opacity:.72;
+  transform:rotate(45deg);
+  transition:transform .2s ease;
+}
+.faq-item.open .faq-question::after{
+  content:"";
+  transform:rotate(-135deg);
+}
+
 /* Dense, aligned desktop catalog sheet. */
 @media(min-width:1101px){
   .catalog-mega-shell{

@@ -859,10 +859,20 @@
   function getGoals(){ return getSite().goals || DEFAULT_GOALS; }
   function getCart(){ return read(KEYS.cart, []); }
   function saveCart(cart){ write(KEYS.cart, cart); updateCounts(); updateCartDrawer(); }
-  function getWishlist(){ return read(KEYS.wishlist, []); }
-  function saveWishlist(list){ write(KEYS.wishlist, list); updateCounts(); }
-  function getCompare(){ return read(KEYS.compare, []); }
-  function saveCompare(list){ write(KEYS.compare, list); updateCounts(); }
+  function validProductSelection(list){
+    const productIds = new Set(getProducts().map(product => String(product.id)));
+    const seen = new Set();
+    return (Array.isArray(list) ? list : []).map(Number).filter(id => {
+      const key = String(id);
+      if(!Number.isFinite(id) || !productIds.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  function getWishlist(){ return validProductSelection(read(KEYS.wishlist, [])); }
+  function saveWishlist(list){ write(KEYS.wishlist, validProductSelection(list)); updateCounts(); }
+  function getCompare(){ return validProductSelection(read(KEYS.compare, [])); }
+  function saveCompare(list){ write(KEYS.compare, validProductSelection(list)); updateCounts(); }
   function getRecentProductIds(){ return read(KEYS.recent, []).map(Number).filter(Boolean); }
   function rememberProductView(productId){
     const numeric = Number(productId);
@@ -1038,6 +1048,30 @@
       el.hidden = count <= 0;
     });
   }
+  function headerActionIcon(type, extraClass = ''){
+    const className = ['header-action-glyph', extraClass].filter(Boolean).join(' ');
+    if(type === 'wishlist'){
+      return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M12 20.2 4.8 13.3A5.2 5.2 0 0 1 12 5.8a5.2 5.2 0 0 1 7.2 7.5L12 20.2Z"></path></svg>`;
+    }
+    if(type === 'compare'){
+      return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5 8h13"></path><path d="m15 5 3 3-3 3"></path><path d="M19 16H6"></path><path d="m9 13-3 3 3 3"></path></svg>`;
+    }
+    return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5.5 8.5h13l-1 11h-11l-1-11Z"></path><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"></path></svg>`;
+  }
+  function renderHeaderActionIcons(){
+    const actions = $('.site-header .header-actions');
+    if(!actions) return;
+    [
+      {href:'wishlist.html', type:'wishlist', count:'wishlist'},
+      {href:'compare.html', type:'compare', count:'compare'},
+      {href:'cart.html', type:'cart', count:'cart'}
+    ].forEach(item => {
+      const link = $(`a[href="${item.href}"]`, actions);
+      if(!link) return;
+      link.innerHTML = `${headerActionIcon(item.type)}<span class="count-pill" data-count="${item.count}" hidden></span>`;
+    });
+    updateCounts();
+  }
   function currentPageHref(){
     return location.pathname.split('/').pop() || 'index.html';
   }
@@ -1189,15 +1223,16 @@
     const items = [
       {label:'Главная',href:'index.html',icon:'⌂'},
       {label:'Каталог',href:'catalog.html',icon:'▦'},
-      {label:'Корзина',href:'cart.html',icon:'🛒',count:'cart'},
+      {label:'Корзина',href:'cart.html',iconType:'cart',count:'cart'},
       {label:'Магазины',href:'stores.html',iconType:'pin'}
     ];
     nav.innerHTML = items.map(item => `
       <a class="${item.href === activeHref ? 'active' : ''}" href="${esc(item.href)}">
-        ${item.iconType === 'pin' ? '<span class="bottom-nav-icon bottom-nav-pin" aria-hidden="true"></span>' : `<span class="bottom-nav-icon">${item.icon}</span>`}
+        ${item.iconType === 'pin' ? '<span class="bottom-nav-icon bottom-nav-pin" aria-hidden="true"></span>' : item.iconType === 'cart' ? `<span class="bottom-nav-icon">${headerActionIcon('cart', 'bottom-nav-glyph')}</span>` : `<span class="bottom-nav-icon">${item.icon}</span>`}
         <span>${esc(item.label)}</span>
-        ${item.count ? `<span class="bottom-nav-count" data-count="${esc(item.count)}">0</span>` : ''}
+        ${item.count ? `<span class="bottom-nav-count" data-count="${esc(item.count)}" hidden></span>` : ''}
       </a>`).join('');
+    updateCounts();
   }
   function renderQuickContact(site){
     const config = site.quickContact || {};
@@ -1359,6 +1394,7 @@
 	        <a href="compare.html">Сравнение</a>`;
 	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>`;
 	    });
+	    renderHeaderActionIcons();
 	    renderHeaderSearch(header);
 	    renderBottomNav();
 	    renderQuickContact(site);
