@@ -6673,3 +6673,125 @@ body[data-page="admin"] #adminPanel > .container > .section-head{
     font-weight:400;
   }
 }
+
+/* Header counters and controls share one visual size. */
+.site-header .header-actions > .icon-link{
+  width:44px;
+  min-width:44px;
+  height:44px;
+  padding:0;
+  font-size:20px;
+  line-height:1;
+}
+.header-search-glyph{
+  width:22px;
+  height:22px;
+  overflow:visible;
+}
+.header-search-glyph circle,
+.header-search-glyph path{
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+}
+.count-pill{
+  top:0;
+  right:1px;
+  min-width:0;
+  width:auto;
+  height:auto;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--green);
+  font-size:11px;
+  font-weight:700;
+  line-height:1;
+}
+.count-pill[hidden],
+.count-pill:empty{
+  display:none!important;
+}
+
+/* Dense, aligned desktop catalog sheet. */
+@media(min-width:1101px){
+  .catalog-mega-shell{
+    padding-top:18px;
+    padding-bottom:22px;
+  }
+  .catalog-mega-intro{
+    margin-bottom:10px;
+  }
+  .catalog-mega-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    align-items:start;
+    column-gap:12px;
+    row-gap:14px;
+    columns:auto;
+  }
+  .catalog-mega-group{
+    margin:0;
+  }
+}
+
+/* Catalog search uses the same quiet result language as the header search. */
+body[data-page="catalog"] #catalogSort{
+  appearance:none;
+  -webkit-appearance:none;
+  padding-right:46px;
+  background-image:
+    linear-gradient(45deg,transparent 50%,currentColor 50%),
+    linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:
+    calc(100% - 21px) 50%,
+    calc(100% - 16px) 50%;
+  background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat;
+  font-size:14px;
+}
+body[data-page="catalog"] .catalog-suggest-panel{
+  top:calc(100% + 8px);
+  display:block;
+  max-height:280px;
+  padding:14px 16px;
+  border-radius:0;
+  background:color-mix(in srgb,var(--paper) 94%,transparent);
+  box-shadow:0 18px 38px rgba(17,19,16,.1);
+  -webkit-backdrop-filter:blur(18px);
+  backdrop-filter:blur(18px);
+}
+body[data-page="catalog"] .catalog-suggest-panel .header-overlay-label{
+  margin-bottom:5px;
+}
+body[data-page="catalog"] .catalog-suggest-panel .header-result-link{
+  width:100%;
+  min-height:0;
+  padding:9px 0;
+  border:0;
+  border-bottom:1px solid var(--line);
+  border-radius:0;
+  background:transparent;
+  font-weight:400;
+}
+body[data-page="catalog"] .catalog-suggest-panel .header-result-link:hover{
+  background:transparent;
+  color:var(--green);
+}
+
+@media(max-width:760px){
+  .site-header .header-actions > .icon-link{
+    width:44px;
+    min-width:44px;
+    height:44px;
+  }
+  .product-grid .product-card .price,
+  body[data-page="catalog"] #catalogProducts .product-card .price{
+    font-weight:400!important;
+  }
+  .product-grid .product-card-tags,
+  body[data-page="catalog"] #catalogProducts .product-card-tags{
+    transform:translateY(-2px);
+  }
+}

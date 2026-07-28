@@ -1032,7 +1032,11 @@
   function updateCounts(){
     const cartQty = getCart().reduce((sum,item)=>sum + Number(item.qty || 0),0);
     const counts = {cart:cartQty,wishlist:getWishlist().length,compare:getCompare().length};
-    $$('[data-count]').forEach(el => { el.textContent = counts[el.dataset.count] || 0; });
+    $$('[data-count]').forEach(el => {
+      const count = Number(counts[el.dataset.count] || 0);
+      el.textContent = count > 0 ? String(count) : '';
+      el.hidden = count <= 0;
+    });
   }
   function currentPageHref(){
     return location.pathname.split('/').pop() || 'index.html';
@@ -1072,7 +1076,7 @@
       button.setAttribute('aria-controls', 'headerSearchOverlay');
       button.setAttribute('aria-expanded', 'false');
       button.setAttribute('data-header-search-toggle', '');
-      button.innerHTML = '<span class="header-search-glyph" aria-hidden="true"></span>';
+      button.innerHTML = '<svg class="header-search-glyph" aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>';
       if(burger) actions.insertBefore(button, burger);
       else actions.appendChild(button);
     }
@@ -1775,7 +1779,7 @@
     const mediaHtml = (mode, src, mobile=false) => {
       const mediaClass = mobile ? 'hero-mobile-fallback' : 'hero-desktop-media';
       if(mode === 'image' || (mode === 'file' && !isVideoSource(src))) return `<img class="${mediaClass} ${mobile ? 'hero-mobile-custom' : ''}" src="${esc(src || imageFallback)}" alt="">`;
-      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="metadata" poster="${esc(imageFallback)}"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
+      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="auto"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
     };
     root.dataset.slideCount = String(activeSlides.length);
     root.innerHTML = activeSlides.map((slide, index) => {
@@ -1788,6 +1792,9 @@
       return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
     }).join('');
     $$('video', root).forEach(video => {
+      video.load();
+      const playback = video.play();
+      if(playback?.catch) playback.catch(() => {});
       const markReady = () => video.classList.add('is-ready');
       if(video.readyState >= 2) markReady();
       else{
@@ -1884,7 +1891,7 @@
 	    if(!root) return;
 	    root.classList.add('catalog-smart');
 	    const cats = getCategories().filter(Boolean);
-	    root.innerHTML = `<div class="catalog-smart-head"><a href="catalog.html">Все категории</a></div>
+	    root.innerHTML = `<div class="catalog-smart-head"><a href="catalog.html">Все товары</a></div>
 	      <div class="catalog-smart-grid">
 	        ${cats.map(category => {
 	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
@@ -1916,9 +1923,7 @@
     return [...values].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ru')).slice(0,80);
   }
 	  function renderCatalogSuggestions(){
-    const root = $('#catalogSuggestions');
     const values = catalogSuggestionValues();
-    if(root) root.innerHTML = values.map(value => `<option value="${esc(value)}"></option>`).join('');
     updateCatalogSuggestPanel(values);
   }
   function updateCatalogSuggestPanel(values=catalogSuggestionValues()){
@@ -1929,7 +1934,10 @@
     if(!q){ panel.hidden = true; panel.innerHTML = ''; return; }
     const matches = values.filter(value => slugText(value).includes(q)).slice(0,7);
     panel.hidden = !matches.length;
-    panel.innerHTML = matches.map(value => `<button type="button" data-catalog-suggestion="${esc(value)}">${esc(value)}</button>`).join('');
+    panel.innerHTML = `<p class="header-overlay-label">Подсказки</p>${matches.map(value => `
+      <button class="header-result-link" type="button" data-catalog-suggestion="${esc(value)}">
+        <span>${esc(value)}</span>
+      </button>`).join('')}`;
   }
   function chooseCatalogSuggestion(value){
     const input = $('#catalogSearch');
