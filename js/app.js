@@ -1184,8 +1184,6 @@
     panel.innerHTML = `<div class="container catalog-mega-shell">
       <div class="catalog-mega-intro">
         <span class="catalog-mega-kicker">Каталог ByVit</span>
-        <h2>Выберите нужное направление</h2>
-        <p>Все категории спортивного питания в одном спокойном и понятном меню.</p>
         <a class="catalog-mega-all" href="catalog.html">Все товары <span aria-hidden="true">→</span></a>
       </div>
       <nav class="catalog-mega-grid" aria-label="Категории каталога">
