@@ -6899,8 +6899,12 @@ body[data-page="product"] .tab-buttons button.active{
   }
 
   body[data-page="home"] [data-home-block="categories"]{
-    padding-top:6px!important;
-    padding-bottom:6px!important;
+    padding-top:0!important;
+    padding-bottom:0!important;
+  }
+
+  body[data-page="home"] #homeCategories{
+    height:44px;
   }
 
   body[data-page="home"] #homeCategories .category-card{
