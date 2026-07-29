@@ -6880,3 +6880,15 @@ body[data-page="product"] .tab-buttons button.active{
 .page-hero h1{
   font-weight:400;
 }
+
+/* Keep compact mobile sections free of detached divider lines. */
+@media(max-width:760px){
+  body[data-page="cart"] .cart-list,
+  body[data-page="cart"] .summary-card{
+    border-top:0;
+  }
+
+  body[data-page="home"] #homeCategories{
+    border-bottom:0;
+  }
+}
