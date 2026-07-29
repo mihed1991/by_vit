@@ -6888,7 +6888,9 @@ body[data-page="product"] .tab-buttons button.active{
     border-top:0;
   }
 
-  body[data-page="home"] #homeCategories{
-    border-bottom:0;
+  body[data-page="home"] [data-home-block="categories"] .section-head,
+  body[data-page="home"] #homeCategories,
+  body[data-page="home"] #homeCategories .category-card{
+    border:0!important;
   }
 }
