@@ -6855,3 +6855,28 @@ body[data-page="catalog"] .catalog-suggest-panel .header-result-link:hover{
     transform:translateY(-2px);
   }
 }
+
+/* Keep native iOS controls in the storefront palette. */
+button{
+  color:inherit;
+  -webkit-text-fill-color:currentColor;
+}
+.site-header .burger,
+body[data-page="product"] .chip,
+body[data-page="product"] .qty-stepper button,
+body[data-page="product"] .tab-buttons button{
+  color:var(--ink);
+  -webkit-text-fill-color:currentColor;
+  -webkit-appearance:none;
+  appearance:none;
+}
+body[data-page="product"] .chip.active,
+body[data-page="product"] .tab-buttons button.active{
+  color:#fff;
+  -webkit-text-fill-color:currentColor;
+}
+
+/* Internal page titles use a quieter editorial weight. */
+.page-hero h1{
+  font-weight:400;
+}
