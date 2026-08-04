@@ -5063,6 +5063,19 @@ body[data-page="catalog"] .catalog-smart-mark{
   }
 }
 
+/* Footer column rhythm: align desktop headings with the ByVit wordmark. */
+@media(min-width:761px){
+  .footer-grid{
+    align-items:start;
+  }
+  .footer-column{
+    padding-top:6px;
+  }
+}
+.footer-column .footer-toggle span{
+  color:#9fc69a;
+}
+
 /* Catalog, storefront rails and admin density. */
 body[data-page="catalog"] .catalog-layout{
   display:block;
