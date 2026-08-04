@@ -6923,3 +6923,49 @@ body[data-page="product"] .tab-buttons button.active{
     justify-content:center;
   }
 }
+
+/* Final hero and navigation polish. */
+.main-nav a{
+  display:inline-flex;
+  transition:color .2s ease,opacity .2s ease,transform .2s ease;
+}
+.main-nav a:hover{
+  transform:translateY(-2px);
+}
+.catalog-menu-chevron{
+  display:none;
+}
+body[data-page="home"] [data-home-block="brands"] .btn-light:hover{
+  border-color:var(--green);
+  background:var(--green);
+  color:#fff;
+  transform:translateY(-2px);
+}
+
+@media(min-width:761px){
+  body[data-page="home"] .hero-slide .hero-desktop-media{
+    left:-2px;
+    top:-2px;
+    width:calc(100% + 4px);
+    height:calc(100% + 4px);
+    max-width:none;
+    object-fit:cover!important;
+    object-position:center!important;
+  }
+}
+
+@media(max-width:760px){
+  body[data-page="home"] .hero,
+  body[data-page="home"] .hero.hero-mobile-media-enabled{
+    height:clamp(188px,52.5vw,225px);
+    min-height:188px;
+  }
+  body[data-page="home"] .hero-slide .hero-mobile-fallback,
+  body[data-page="home"] .hero-slide .hero-mobile-custom,
+  body[data-page="home"] .hero-slide .hero-mobile-video{
+    width:100%;
+    height:100%;
+    object-fit:cover!important;
+    object-position:center!important;
+  }
+}
