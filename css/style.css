@@ -2502,6 +2502,9 @@ body[data-page="catalog"] #catalogProducts .product-card-tags span{
 .hero-slide video.media-error{
   display:none;
 }
+.hero-slide img.media-error{
+  display:none!important;
+}
 .hero-slide-link{
   position:absolute;
   inset:0;
@@ -7029,11 +7032,11 @@ body[data-page="home"] [data-home-block="brands"] .btn-light:hover{
 
 @media(min-width:761px){
   body[data-page="home"] .hero-slide .hero-desktop-media{
-    left:-2px;
-    top:-2px;
+    inset:-2px;
     width:calc(100% + 4px);
     height:calc(100% + 4px);
     max-width:none;
+    display:block;
     object-fit:cover!important;
     object-position:center!important;
   }

@@ -1843,6 +1843,12 @@
       const link = slide.href ? `<a class="hero-slide-link" href="${esc(slide.href)}" aria-label="Открыть баннер ${index + 1}"></a>` : '';
       return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
     }).join('');
+    $$('img', root).forEach(image => {
+      const markError = () => image.classList.add('media-error');
+      image.addEventListener('error', markError, {once:true});
+      image.addEventListener('load', () => image.classList.remove('media-error'), {once:true});
+      if(image.complete && image.naturalWidth === 0) markError();
+    });
     $$('video', root).forEach(video => {
       video.load();
       const playback = video.play();
