@@ -6967,6 +6967,65 @@ body[data-page="home"] [data-home-block="brands"] .btn-light:hover{
   }
 }
 
+/* Manual storefront rails and consistent brand-card rhythm. */
+body[data-page="home"] .hero,
+.hero-media{
+  touch-action:pan-y pinch-zoom;
+  overscroll-behavior-inline:contain;
+}
+body[data-page="home"] #homeBrands{
+  display:grid!important;
+  grid-template-columns:none!important;
+  grid-auto-flow:column;
+  grid-auto-columns:clamp(168px,16vw,210px);
+  gap:12px;
+  overflow-x:auto!important;
+  overflow-y:hidden;
+  scroll-snap-type:x proximity;
+  touch-action:pan-x;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+body[data-page="home"] #homeBrands .brand-card,
+body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) 22px;
+  min-width:0;
+  height:142px;
+  min-height:142px;
+  scroll-snap-align:start;
+}
+body[data-page="home"] #homeBrands .brand-card h3{
+  display:block!important;
+  height:22px;
+  min-height:22px;
+  margin:0;
+  overflow:hidden;
+  font-size:13px;
+  line-height:22px;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+@media(max-width:760px){
+  .footer-column .footer-toggle span{
+    color:rgba(255,255,255,.68);
+  }
+  body[data-page="home"] #homeBrands{
+    grid-auto-columns:clamp(150px,32vw,190px);
+    gap:8px;
+  }
+  body[data-page="home"] #homeBrands .brand-card,
+  body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+    grid-template-rows:76px;
+    height:76px;
+    min-height:76px;
+  }
+  body[data-page="home"] #homeBrands .brand-card h3{
+    display:none!important;
+  }
+}
+
 @media(max-width:760px){
   body[data-page="home"] .hero,
   body[data-page="home"] .hero.hero-mobile-media-enabled{

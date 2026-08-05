@@ -1810,6 +1810,7 @@
       hero.style.setProperty('--hero-text-color', colorValue(site.heroTextColor, DEFAULT_HERO_COLORS.text));
     }
     if(!root) return;
+    if(typeof root._heroNavigationCleanup === 'function') root._heroNavigationCleanup();
     clearInterval(heroSlideTimer);
     heroSlideTimer = null;
     const mediaHtml = (mode, src, mobile=false) => {
@@ -1840,14 +1841,85 @@
       video.addEventListener('error', () => video.classList.add('media-error'), {once:true});
     });
     if(activeSlides.length > 1){
+      const nodes = $$('.hero-slide', root);
+      const interactionTarget = hero || root;
       let index = 0;
-      heroSlideTimer = setInterval(() => {
-        const nodes = $$('.hero-slide', root);
-        if(nodes.length < 2){ clearInterval(heroSlideTimer); heroSlideTimer = null; return; }
+      let startX = null;
+      let startY = null;
+      let suppressClick = false;
+      let wheelLocked = false;
+
+      const showSlide = nextIndex => {
         nodes[index]?.classList.remove('active');
-        index = (index + 1) % nodes.length;
+        index = (nextIndex + nodes.length) % nodes.length;
         nodes[index]?.classList.add('active');
-      }, 6200);
+        root.dataset.activeSlide = String(index);
+      };
+      const startAutoplay = () => {
+        clearInterval(heroSlideTimer);
+        heroSlideTimer = setInterval(() => showSlide(index + 1), 6200);
+      };
+      const step = direction => {
+        showSlide(index + direction);
+        startAutoplay();
+      };
+      const onPointerDown = event => {
+        if(event.isPrimary === false) return;
+        startX = event.clientX;
+        startY = event.clientY;
+        suppressClick = false;
+      };
+      const finishPointer = event => {
+        if(startX === null || startY === null) return;
+        const distanceX = event.clientX - startX;
+        const distanceY = event.clientY - startY;
+        startX = null;
+        startY = null;
+        if(Math.abs(distanceX) < 44 || Math.abs(distanceX) <= Math.abs(distanceY) * 1.15) return;
+        suppressClick = true;
+        step(distanceX < 0 ? 1 : -1);
+      };
+      const cancelPointer = () => {
+        startX = null;
+        startY = null;
+      };
+      const onClick = event => {
+        if(!suppressClick) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick = false;
+      };
+      const onWheel = event => {
+        const horizontalDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+          ? event.deltaX
+          : event.shiftKey ? event.deltaY : 0;
+        if(Math.abs(horizontalDelta) < 12 || wheelLocked) return;
+        event.preventDefault();
+        wheelLocked = true;
+        step(horizontalDelta > 0 ? 1 : -1);
+        window.setTimeout(() => { wheelLocked = false; }, 500);
+      };
+      const preventDrag = event => event.preventDefault();
+
+      root.dataset.activeSlide = '0';
+      interactionTarget.addEventListener('pointerdown', onPointerDown, {passive:true});
+      interactionTarget.addEventListener('pointerup', finishPointer, {passive:true});
+      interactionTarget.addEventListener('pointercancel', cancelPointer, {passive:true});
+      interactionTarget.addEventListener('click', onClick, true);
+      interactionTarget.addEventListener('wheel', onWheel, {passive:false});
+      interactionTarget.addEventListener('dragstart', preventDrag);
+      root._heroNavigationCleanup = () => {
+        clearInterval(heroSlideTimer);
+        heroSlideTimer = null;
+        interactionTarget.removeEventListener('pointerdown', onPointerDown);
+        interactionTarget.removeEventListener('pointerup', finishPointer);
+        interactionTarget.removeEventListener('pointercancel', cancelPointer);
+        interactionTarget.removeEventListener('click', onClick, true);
+        interactionTarget.removeEventListener('wheel', onWheel);
+        interactionTarget.removeEventListener('dragstart', preventDrag);
+        root._heroNavigationCleanup = null;
+      };
+      startAutoplay();
     }
   }
 	  function applyHomeBlock(key, block){
