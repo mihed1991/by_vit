@@ -3591,6 +3591,10 @@ p{line-height:1.55}
 .eyebrow::before{width:36px;height:1px}
 .hero-actions{margin-bottom:42px}
 .hero-metrics{gap:0;border:1px solid rgba(25,26,23,.18)}
+.hero-metrics[hidden],
+.hero-metrics:empty{
+  display:none!important;
+}
 .metric{
   border:0;
   border-right:1px solid rgba(25,26,23,.18);
