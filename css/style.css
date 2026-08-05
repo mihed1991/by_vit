@@ -448,6 +448,92 @@ p{line-height:1.7;margin:0;color:var(--muted)}
   .toast{left:12px;right:12px;bottom:88px;text-align:center}
 }
 
+/* Brand logos read as one continuous partner rail, not as product cards. */
+body[data-page="home"] #homeBrands{
+  grid-auto-columns:clamp(112px,12vw,148px);
+  gap:28px;
+  align-items:center;
+}
+body[data-page="home"] #homeBrands .brand-card,
+body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+  display:block!important;
+  height:82px;
+  min-height:82px;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+body[data-page="home"] #homeBrands .brand-card:hover{
+  color:var(--green);
+  transform:none!important;
+}
+body[data-page="home"] #homeBrands .brand-media,
+body[data-page="home"] #homeBrands .brand-card.has-image .brand-media{
+  width:100%;
+  height:100%;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  overflow:hidden;
+}
+body[data-page="home"] #homeBrands .brand-media img,
+body[data-page="home"] #homeBrands .brand-card.has-image .brand-media img{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:none;
+  object-fit:contain;
+  object-position:center;
+  transform:none;
+}
+body[data-page="home"] #homeBrands .brand-letter{
+  display:grid;
+  width:100%;
+  height:100%;
+  place-items:center;
+  font-size:34px;
+  font-weight:500;
+}
+body[data-page="home"] [data-home-block="brands"] .btn-light{
+  min-height:0;
+  padding:3px 0;
+  border:0;
+  background:transparent;
+  color:var(--green);
+  text-decoration:underline;
+  text-underline-offset:4px;
+}
+body[data-page="home"] [data-home-block="brands"] .btn-light:hover{
+  background:transparent;
+  color:var(--green-dark);
+  transform:none;
+}
+.brand-image-admin-preview img{
+  object-fit:contain;
+  object-position:center;
+  transform:none;
+}
+.brand-image-admin-preview span,
+.home-gallery-admin-preview span{
+  padding:12px;
+  text-align:center;
+}
+
+@media(max-width:760px){
+  body[data-page="home"] #homeBrands{
+    grid-auto-columns:clamp(110px,30vw,142px);
+    gap:16px;
+  }
+  body[data-page="home"] #homeBrands .brand-card,
+  body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+    height:66px;
+    min-height:66px;
+  }
+}
+
 @media(max-width:760px){
   .trust-section{padding:34px 0}
   .trust-section .section-head{margin-bottom:18px}
@@ -5067,6 +5153,85 @@ body[data-page="catalog"] .catalog-smart-mark{
     white-space:normal;
     -webkit-box-orient:vertical;
     -webkit-line-clamp:2;
+  }
+}
+
+/* Final partner-rail layout. */
+body[data-page="home"] #homeBrands{
+  grid-auto-columns:clamp(112px,12vw,148px)!important;
+  gap:28px!important;
+  align-items:center;
+}
+body[data-page="home"] #homeBrands .brand-card,
+body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+  display:block!important;
+  height:82px!important;
+  min-height:82px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+body[data-page="home"] #homeBrands .brand-letter{
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%!important;
+  padding:0 4px;
+  color:var(--ink);
+  font-size:clamp(13px,1.3vw,17px);
+  font-weight:600;
+  line-height:1.15;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body[data-page="home"] #homeBrands .brand-media,
+body[data-page="home"] #homeBrands .brand-card.has-image .brand-media{
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+body[data-page="home"] #homeBrands .brand-media img,
+body[data-page="home"] #homeBrands .brand-card.has-image .brand-media img{
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  max-width:none;
+  object-fit:contain!important;
+  object-position:center!important;
+  transform:none!important;
+}
+body[data-page="home"] [data-home-block="brands"] .btn-light,
+body[data-page="home"] [data-home-block="brands"] .btn-light:hover{
+  min-height:0;
+  padding:3px 0;
+  border:0;
+  background:transparent;
+  color:var(--green);
+  text-decoration:underline;
+  text-underline-offset:4px;
+  transform:none;
+}
+
+@media(max-width:760px){
+  body[data-page="home"] #homeBrands{
+    grid-auto-columns:clamp(110px,30vw,142px)!important;
+    gap:16px!important;
+  }
+  body[data-page="home"] #homeBrands .brand-card,
+  body[data-page="home"] #homeBrands .brand-card:nth-child(n){
+    height:66px!important;
+    min-height:66px!important;
+  }
+  body[data-page="home"] #homeBrands .brand-letter{
+    font-size:13px;
   }
 }
 

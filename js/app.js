@@ -678,13 +678,12 @@
     const source = value && typeof value === 'object' && !Array.isArray(value)
       ? value
       : {src:value};
-    const fit = ['contain','cover'].includes(source.fit) ? source.fit : DEFAULT_BRAND_IMAGE.fit;
     return {
       src:String(source.src || source.image || '').trim(),
-      fit,
-      positionX:clampNumber(source.positionX, 0, 100, DEFAULT_BRAND_IMAGE.positionX),
-      positionY:clampNumber(source.positionY, 0, 100, DEFAULT_BRAND_IMAGE.positionY),
-      scale:clampNumber(source.scale, .5, 2, DEFAULT_BRAND_IMAGE.scale)
+      fit:'contain',
+      positionX:50,
+      positionY:50,
+      scale:1
     };
   }
   function brandImageStyle(value){
@@ -972,9 +971,34 @@
   function brandCardHtml(brand, site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
     return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
-      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy">` : `<div class="brand-letter">${esc(brand[0] || 'B')}</div>`}</div>
+      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy" data-brand-logo><div class="brand-letter brand-letter-fallback" hidden>${esc(brand)}</div>` : `<div class="brand-letter">${esc(brand)}</div>`}</div>
       <h3 title="${esc(brand)}">${esc(brand)}</h3>
     </a>`;
+  }
+
+  function bindBrandLogoFallbacks(root){
+    $$('[data-brand-logo]', root || document).forEach(image => {
+      const showFallback = () => {
+        image.hidden = true;
+        const fallback = image.nextElementSibling;
+        if(fallback) fallback.hidden = false;
+      };
+      image.addEventListener('error', showFallback, {once:true});
+      if(image.complete && !image.naturalWidth) showFallback();
+    });
+  }
+
+  function bindGalleryImageFallbacks(section, rail){
+    $$('img', rail).forEach(image => {
+      const removeBrokenItem = () => {
+        image.closest('.home-gallery-item')?.remove();
+        const visibleItems = $$('.home-gallery-item', rail);
+        rail.classList.toggle('is-single', visibleItems.length === 1);
+        section.hidden = visibleItems.length === 0;
+      };
+      image.addEventListener('error', removeBrokenItem, {once:true});
+      if(image.complete && !image.naturalWidth) removeBrokenItem();
+    });
   }
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
   function defaultPackage(product){ return product?.packageOptions?.[0] || {id:'base',label:'1 шт.',price:Number(product?.price || 0)}; }
@@ -2268,6 +2292,7 @@
         brands().map(brand=>brandCardHtml(brand, site)).join(''),
         '.brand-card'
       );
+      bindBrandLogoFallbacks(brandRail);
     }
     orderHomeSections(blocks);
     const gallerySection = $('#homeGallerySection');
@@ -2277,9 +2302,10 @@
       gallerySection.hidden = !galleryItems.length;
       galleryRail.innerHTML = galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
-          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" loading="lazy">
+          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}">
         </figure>`).join('');
       galleryRail.classList.toggle('is-single', galleryItems.length === 1);
+      bindGalleryImageFallbacks(gallerySection, galleryRail);
       $('[data-home-block="brands"]')?.insertAdjacentElement('afterend', gallerySection);
     }
     document.body.classList.add('home-ready');
@@ -2975,24 +3001,8 @@
   function collectBrandImageEditorValue(block){
     if(!block) return {...DEFAULT_BRAND_IMAGE};
     return normalizeBrandImageValue({
-      src:$('[data-brand-image-src]', block)?.value.trim() || '',
-      fit:$('[data-brand-image-fit]', block)?.value || DEFAULT_BRAND_IMAGE.fit,
-      positionX:$('[data-brand-image-x]', block)?.value,
-      positionY:$('[data-brand-image-y]', block)?.value,
-      scale:$('[data-brand-image-scale]', block)?.value
+      src:$('[data-brand-image-src]', block)?.value.trim() || ''
     });
-  }
-  function resetBrandImageControls(block){
-    if(!block) return;
-    const fit = $('[data-brand-image-fit]', block);
-    const x = $('[data-brand-image-x]', block);
-    const y = $('[data-brand-image-y]', block);
-    const scale = $('[data-brand-image-scale]', block);
-    if(fit) fit.value = DEFAULT_BRAND_IMAGE.fit;
-    if(x) x.value = DEFAULT_BRAND_IMAGE.positionX;
-    if(y) y.value = DEFAULT_BRAND_IMAGE.positionY;
-    if(scale) scale.value = DEFAULT_BRAND_IMAGE.scale;
-    updateBrandImagePreview(block);
   }
   function updateBrandImagePreview(block){
     if(!block) return;
@@ -3000,14 +3010,18 @@
     if(!preview) return;
     const image = collectBrandImageEditorValue(block);
     const brand = block?.dataset.brandImageKey || 'Brand';
-    preview.setAttribute('style', brandImageStyle(image));
-    preview.innerHTML = image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`;
-    const xValue = $('[data-brand-image-x-value]', block);
-    const yValue = $('[data-brand-image-y-value]', block);
-    const scaleValue = $('[data-brand-image-scale-value]', block);
-    if(xValue) xValue.textContent = `${Math.round(image.positionX)}%`;
-    if(yValue) yValue.textContent = `${Math.round(image.positionY)}%`;
-    if(scaleValue) scaleValue.textContent = `${Math.round(image.scale * 100)}%`;
+    preview.removeAttribute('style');
+    preview.innerHTML = image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}"><span hidden>Файл недоступен. Загрузите изображение заново.</span>` : `<span>${esc(brand[0] || 'B')}</span>`;
+    const previewImage = $('img', preview);
+    if(previewImage){
+      const showError = () => {
+        previewImage.remove();
+        const message = $('span', preview);
+        if(message) message.hidden = false;
+      };
+      previewImage.addEventListener('error', showError, {once:true});
+      if(previewImage.complete && !previewImage.naturalWidth) showError();
+    }
   }
   async function readBrandImageFile(input){
     const file = input.files?.[0];
@@ -3015,7 +3029,7 @@
     if(!file || !block) return;
     setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:900, scope:'brands'});
+      const source = await fileToStoredSource(file, {maxEdge:900, scope:'brands', inline:true});
       if(!source) return;
       const target = $('[data-brand-image-src]', block);
       const previous = target?.value.trim() || '';
@@ -3137,13 +3151,10 @@
       <div class="home-gallery-admin-preview" data-home-gallery-preview>
         ${data.src ? `<img src="${esc(data.src)}" alt="">` : '<span>Фото не выбрано</span>'}
       </div>
-      <label class="admin-input-field">
-        <span>Файл / ссылка</span>
-        <input data-home-gallery-src value="${esc(data.src)}" placeholder="Ссылка или загруженный файл">
-      </label>
+      <input data-home-gallery-src type="hidden" value="${esc(data.src)}">
       <input data-home-gallery-alt value="${esc(data.alt)}" placeholder="Краткое описание фото">
       <label class="admin-file-field">
-        <span>Загрузить фото</span>
+        <span>Загрузить или заменить фото</span>
         <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
       </label>
     </article>`;
@@ -3161,7 +3172,17 @@
     const preview = $('[data-home-gallery-preview]', block);
     if(!preview) return;
     const src = $('[data-home-gallery-src]', block)?.value.trim() || '';
-    preview.innerHTML = src ? `<img src="${esc(src)}" alt="">` : '<span>Фото не выбрано</span>';
+    preview.innerHTML = src ? `<img src="${esc(src)}" alt=""><span hidden>Фото недоступно. Загрузите файл заново.</span>` : '<span>Фото не выбрано</span>';
+    const previewImage = $('img', preview);
+    if(previewImage){
+      const showError = () => {
+        previewImage.remove();
+        const message = $('span', preview);
+        if(message) message.hidden = false;
+      };
+      previewImage.addEventListener('error', showError, {once:true});
+      if(previewImage.complete && !previewImage.naturalWidth) showError();
+    }
   }
   async function readHomeGalleryFile(input){
     const file = input.files?.[0];
@@ -3169,7 +3190,7 @@
     if(!file || !block) return;
     setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:1800, scope:'home-gallery'});
+      const source = await fileToStoredSource(file, {maxEdge:1600, quality:.82, scope:'home-gallery', inline:true});
       if(!source) return;
       const target = $('[data-home-gallery-src]', block);
       const previous = target?.value.trim() || '';
@@ -3207,46 +3228,15 @@
         <h4>${esc(brand)}</h4>
         <span class="mono">${String(index + 1).padStart(2,'0')}</span>
       </div>
-      <div class="brand-image-admin-preview" data-brand-image-preview style="${esc(brandImageStyle(settings))}">
+      <div class="brand-image-admin-preview" data-brand-image-preview>
         ${settings.src ? `<img src="${esc(settings.src)}" alt="${esc(brand)}">` : `<span>${esc(brand[0] || 'B')}</span>`}
       </div>
-      <label class="admin-input-field">
-        <span>Изображение бренда</span>
-        <input data-brand-image-src value="${esc(settings.src)}" placeholder="Ссылка или загруженный файл">
+      <input data-brand-image-src type="hidden" value="${esc(settings.src)}">
+      <label class="admin-file-field">
+        <span>Загрузить или заменить логотип</span>
+        <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
       </label>
-      <label class="admin-input-field">
-        <span>Подгонка изображения</span>
-        <select data-brand-image-fit>
-          <option value="contain" ${settings.fit === 'contain' ? 'selected' : ''}>Авто: вписать целиком</option>
-          <option value="cover" ${settings.fit === 'cover' ? 'selected' : ''}>Заполнить область</option>
-        </select>
-        <small>Авто не обрезает логотип. «Заполнить» подходит для фото и широких баннеров.</small>
-      </label>
-      <details class="brand-image-advanced">
-        <summary>Ручная настройка</summary>
-        <label class="range-field">
-          <span>Сдвиг по X <strong data-brand-image-x-value>${Math.round(settings.positionX)}%</strong></span>
-          <input data-brand-image-x type="range" min="0" max="100" step="1" value="${esc(settings.positionX)}">
-        </label>
-        <label class="range-field">
-          <span>Сдвиг по Y <strong data-brand-image-y-value>${Math.round(settings.positionY)}%</strong></span>
-          <input data-brand-image-y type="range" min="0" max="100" step="1" value="${esc(settings.positionY)}">
-        </label>
-        <label class="range-field">
-          <span>Масштаб <strong data-brand-image-scale-value>${Math.round(settings.scale * 100)}%</strong></span>
-          <input data-brand-image-scale type="range" min="0.5" max="2" step="0.05" value="${esc(settings.scale)}">
-        </label>
-      </details>
-      <div class="field-row brand-image-actions">
-        <label class="admin-file-field">
-          <span>Загрузить файл</span>
-          <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
-        </label>
-        <button class="btn btn-light small" data-brand-image-reset type="button">Авто-подгонка</button>
-      </div>
-      <div class="field-row">
-        <button class="btn btn-light small" data-brand-image-clear type="button">Убрать картинку</button>
-      </div>
+      <button class="btn btn-light small" data-brand-image-clear type="button">Убрать логотип</button>
     </article>`;
   }
   function storeBlockEditor(block={}, index=0){
@@ -3817,6 +3807,7 @@
     }
     if(file.type.startsWith('image/')){
       const source = await imageFileToStoredSource(file, options);
+      if(options.inline === true) return source;
       if(serverAvailable && isAdminSession()) return uploadAdminFile(dataUrlToBlob(source), file, options.scope);
       return source;
     }
@@ -4067,6 +4058,7 @@
 	      galleryRoot.innerHTML = gallery.length
 	        ? gallery.map(homeGalleryEditor).join('')
 	        : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
+	      $$('[data-home-gallery-key]', galleryRoot).forEach(updateHomeGalleryPreview);
 	      const addButton = $('[data-home-gallery-add]');
 	      if(addButton) addButton.disabled = gallery.length >= MAX_HOME_GALLERY_IMAGES;
 	    }
@@ -4080,6 +4072,7 @@
 	      brandImagesRoot.innerHTML = brandList.length
 	        ? brandList.map((brand, index) => brandImageEditor(brand, site.brandImages?.[brand] || '', index)).join('')
 	        : '<p class="admin-hint">Добавьте товары с брендами, и здесь появятся поля для изображений.</p>';
+	      $$('[data-brand-image-key]', brandImagesRoot).forEach(updateBrandImagePreview);
 	    }
     const deliveryRoot = $('#adminDeliveryList');
     if(deliveryRoot){
@@ -4762,7 +4755,6 @@
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); deleteUploadedSource(input?.value); if(input) input.value = ''; updateBrandImagePreview(block); return; }
-	      const brandImageReset = event.target.closest('[data-brand-image-reset]'); if(brandImageReset){ resetBrandImageControls(brandImageReset.closest('[data-brand-image-key]')); return; }
 	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
       const storeDelete = event.target.closest('[data-store-block-delete]'); if(storeDelete){ storeDelete.closest('[data-store-block-key]')?.remove(); return; }
       const pickupStoreAdd = event.target.closest('[data-pickup-store-add]'); if(pickupStoreAdd){ const root = $('#adminPickupStores'); if(root) root.insertAdjacentHTML('beforeend', pickupStoreEditor({id:`pickup-${Date.now()}`,title:'',address:'',note:'',enabled:true}, $$('[data-pickup-store-key]', root).length)); return; }
@@ -4814,13 +4806,10 @@
       if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
       if(event.target.matches('[data-home-gallery-upload]')){ readHomeGalleryFile(event.target); return; }
       if(event.target.matches('[data-hero-slide-upload]')){ readHeroSlideFile(event.target); return; }
-      if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     document.addEventListener('input', event => {
       if(event.target.matches('#adminRecommendationTags')){ syncAdminRecommendationOptions(); return; }
       if(event.target.matches('#adminSectionSearch')){ filterAdminSections(event.target.value); return; }
-      if(event.target.matches('[data-home-gallery-src]')) updateHomeGalleryPreview(event.target.closest('[data-home-gallery-key]'));
-      if(event.target.matches('[data-brand-image-src],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
     $('#promoApply')?.addEventListener('click', applyPromo);
