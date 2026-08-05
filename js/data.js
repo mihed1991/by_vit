@@ -208,6 +208,7 @@
 	        brands:{visible:true,order:6,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
 	        sale:{visible:true,order:2,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
 	      },
+	      homeGallery:[],
 	      brandImages:{},
 	      deliveryMethods:{
         pickup:{enabled:true,title:'Самовывоз',subtitle:'из магазина ByVit'},

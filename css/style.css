@@ -5063,6 +5063,78 @@ body[data-page="catalog"] .catalog-smart-mark{
   }
 }
 
+/* Editorial photo rail below the brands block. */
+.home-gallery-section{
+  padding-top:0;
+}
+.home-gallery-rail{
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:calc((100% - 14px)/2);
+  gap:14px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
+}
+.home-gallery-rail::-webkit-scrollbar{
+  display:none;
+}
+.home-gallery-rail.is-single{
+  grid-auto-columns:100%;
+}
+.home-gallery-item{
+  margin:0;
+  aspect-ratio:16/10;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:var(--paper);
+  scroll-snap-align:start;
+}
+.home-gallery-item img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.home-gallery-admin-list{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.home-gallery-admin-preview{
+  display:grid;
+  aspect-ratio:16/9;
+  place-items:center;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:var(--paper);
+  color:var(--muted);
+}
+.home-gallery-admin-preview img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+@media(max-width:760px){
+  .home-gallery-section{
+    padding:18px 0;
+  }
+  .home-gallery-rail,
+  .home-gallery-rail.is-single{
+    grid-auto-columns:100%;
+    gap:8px;
+  }
+  .home-gallery-item{
+    aspect-ratio:4/3;
+  }
+  .home-gallery-admin-list{
+    grid-template-columns:1fr;
+  }
+}
+
 /* Footer column rhythm: align desktop headings with the ByVit wordmark. */
 @media(min-width:761px){
   .footer-grid{

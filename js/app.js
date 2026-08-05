@@ -40,6 +40,7 @@
     brands:{visible:true,order:6,eyebrow:'Бренды',title:'Оригинальные производители',text:'Быстрый выбор по брендам, которым доверяют покупатели.',titleSize:36,textSize:15,buttonText:'Все бренды',buttonUrl:'brands.html'},
     sale:{visible:true,order:2,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
+  const MAX_HOME_GALLERY_IMAGES = 6;
   const PAGE_SEO = {
     home:{title:'ByVit — спортивное питание и БАДы с доставкой по Беларуси',description:'Спортивное питание, витамины и БАДы в ByVit: понятные карточки, актуальные цены, самовывоз и доставка по Беларуси.',path:'/'},
     catalog:{title:'Каталог спортивного питания | ByVit',description:'Каталог спортивного питания ByVit: протеины, креатин, аминокислоты, витамины и добавки с фильтрами по брендам и категориям.',path:'/catalog.html'},
@@ -485,6 +486,19 @@
     }
     return blocks;
   }
+  function normalizeHomeGallery(site, defaults){
+    const source = Array.isArray(site?.homeGallery)
+      ? site.homeGallery
+      : Array.isArray(defaults?.homeGallery) ? defaults.homeGallery : [];
+    return source.slice(0, MAX_HOME_GALLERY_IMAGES).map((item, index) => {
+      const value = typeof item === 'string' ? {src:item} : (item || {});
+      return {
+        id:String(value.id || `gallery-${index + 1}`),
+        src:String(value.src || '').trim(),
+        alt:String(value.alt || '').trim()
+      };
+    }).filter(item => item.src);
+  }
   function normalizeLinks(links){
     return (Array.isArray(links) ? links : []).map(link => ({
       text:String(link.text || '').trim(),
@@ -814,6 +828,7 @@
     merged.checkout = normalizeCheckout(site, defaults);
     merged.aboutPage = normalizeAboutPage(site, defaults);
     merged.homeBlocks = normalizeHomeBlocks(merged);
+    merged.homeGallery = normalizeHomeGallery(site, defaults);
     merged.homeLayoutVersion = Math.max(2, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
@@ -2249,6 +2264,18 @@
       );
     }
     orderHomeSections(blocks);
+    const gallerySection = $('#homeGallerySection');
+    const galleryRail = $('#homeGallery');
+    const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
+    if(gallerySection && galleryRail){
+      gallerySection.hidden = !galleryItems.length;
+      galleryRail.innerHTML = galleryItems.map((item, index) => `
+        <figure class="home-gallery-item">
+          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" loading="lazy">
+        </figure>`).join('');
+      galleryRail.classList.toggle('is-single', galleryItems.length === 1);
+      $('[data-home-block="brands"]')?.insertAdjacentElement('afterend', gallerySection);
+    }
     document.body.classList.add('home-ready');
   }
 
@@ -3089,6 +3116,68 @@
         </div>
       </div>
     </details>`;
+  }
+  function homeGalleryEditor(item={}, index=0){
+    const data = {
+      id:String(item.id || `gallery-${Date.now()}-${index}`),
+      src:String(item.src || '').trim(),
+      alt:String(item.alt || '').trim()
+    };
+    return `<article class="admin-block-editor home-gallery-editor" data-home-gallery-key="${esc(data.id)}">
+      <div class="admin-block-head">
+        <h4>Фото ${index + 1}</h4>
+        <button class="btn btn-danger small" data-home-gallery-delete type="button">Удалить</button>
+      </div>
+      <div class="home-gallery-admin-preview" data-home-gallery-preview>
+        ${data.src ? `<img src="${esc(data.src)}" alt="">` : '<span>Фото не выбрано</span>'}
+      </div>
+      <label class="admin-input-field">
+        <span>Файл / ссылка</span>
+        <input data-home-gallery-src value="${esc(data.src)}" placeholder="Ссылка или загруженный файл">
+      </label>
+      <input data-home-gallery-alt value="${esc(data.alt)}" placeholder="Краткое описание фото">
+      <label class="admin-file-field">
+        <span>Загрузить фото</span>
+        <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+      </label>
+    </article>`;
+  }
+  function collectHomeGallery(){
+    const root = $('#adminHomeGallery');
+    return $$('[data-home-gallery-key]', root || document).slice(0, MAX_HOME_GALLERY_IMAGES).map((block, index) => ({
+      id:block.dataset.homeGalleryKey || `gallery-${index + 1}`,
+      src:$('[data-home-gallery-src]', block)?.value.trim() || '',
+      alt:$('[data-home-gallery-alt]', block)?.value.trim() || ''
+    })).filter(item => item.src);
+  }
+  function updateHomeGalleryPreview(block){
+    if(!block) return;
+    const preview = $('[data-home-gallery-preview]', block);
+    if(!preview) return;
+    const src = $('[data-home-gallery-src]', block)?.value.trim() || '';
+    preview.innerHTML = src ? `<img src="${esc(src)}" alt="">` : '<span>Фото не выбрано</span>';
+  }
+  async function readHomeGalleryFile(input){
+    const file = input.files?.[0];
+    const block = input.closest('[data-home-gallery-key]');
+    if(!file || !block) return;
+    setUploadBusy(input, true);
+    try{
+      const source = await fileToStoredSource(file, {maxEdge:1800, scope:'home-gallery'});
+      if(!source) return;
+      const target = $('[data-home-gallery-src]', block);
+      const previous = target?.value.trim() || '';
+      if(target) target.value = source;
+      if(previous !== source) deleteUploadedSource(previous);
+      updateHomeGalleryPreview(block);
+      toast('Фото подготовлено');
+    }catch(error){
+      console.warn(error);
+      toast('Не удалось загрузить фото');
+    }finally{
+      setUploadBusy(input, false);
+      input.value = '';
+    }
   }
   function goalEditor(goal={}, index=0){
     const id = String(goal.id || `goal-${Date.now()}-${index}`);
@@ -3966,6 +4055,15 @@
 	        </article>`;
 	      }).join('');
 	    }
+	    const galleryRoot = $('#adminHomeGallery');
+	    if(galleryRoot){
+	      const gallery = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
+	      galleryRoot.innerHTML = gallery.length
+	        ? gallery.map(homeGalleryEditor).join('')
+	        : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
+	      const addButton = $('[data-home-gallery-add]');
+	      if(addButton) addButton.disabled = gallery.length >= MAX_HOME_GALLERY_IMAGES;
+	    }
 	    const goalsRoot = $('#adminGoalsList');
 	    if(goalsRoot){
 	      goalsRoot.innerHTML = (site.goals || DEFAULT_GOALS).map(goalEditor).join('');
@@ -4040,6 +4138,7 @@
 	      });
 	      site.homeBlocks[key] = block;
 	    });
+    site.homeGallery = collectHomeGallery();
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
@@ -4632,6 +4731,28 @@
 	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
 	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',mobileEnabled:false,mobileMode:'image',mobileSrc:''}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
 	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ const block = heroSlideDelete.closest('[data-hero-slide-key]'); deleteUploadedSource($('[data-hero-slide-field="desktopSrc"]', block)?.value); deleteUploadedSource($('[data-hero-slide-field="mobileSrc"]', block)?.value); block?.remove(); return; }
+	      const galleryAdd = event.target.closest('[data-home-gallery-add]');
+	      if(galleryAdd){
+	        const root = $('#adminHomeGallery');
+	        const count = root ? $$('[data-home-gallery-key]', root).length : 0;
+	        if(!root) return;
+	        if(count >= MAX_HOME_GALLERY_IMAGES){ toast('Максимум 6 фотографий'); return; }
+	        $('.admin-empty-note', root)?.remove();
+	        root.insertAdjacentHTML('beforeend', homeGalleryEditor({id:`gallery-${Date.now()}`}, count));
+	        galleryAdd.disabled = count + 1 >= MAX_HOME_GALLERY_IMAGES;
+	        return;
+	      }
+	      const galleryDelete = event.target.closest('[data-home-gallery-delete]');
+	      if(galleryDelete){
+	        const block = galleryDelete.closest('[data-home-gallery-key]');
+	        const root = block?.parentElement;
+	        deleteUploadedSource($('[data-home-gallery-src]', block)?.value);
+	        block?.remove();
+	        if(root && !$$('[data-home-gallery-key]', root).length) root.innerHTML = '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
+	        const addButton = $('[data-home-gallery-add]');
+	        if(addButton) addButton.disabled = false;
+	        return;
+	      }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); deleteUploadedSource(input?.value); if(input) input.value = ''; updateBrandImagePreview(block); return; }
@@ -4685,12 +4806,14 @@
       if(event.target.matches('#adminImportFile')){ importDataFile(event.target); return; }
       if(event.target.matches('[data-footer-badge-image]')) updateFooterBadgePreview(event.target.closest('[data-footer-badge-key]'));
       if(event.target.matches('[data-brand-image-upload]')){ readBrandImageFile(event.target); return; }
+      if(event.target.matches('[data-home-gallery-upload]')){ readHomeGalleryFile(event.target); return; }
       if(event.target.matches('[data-hero-slide-upload]')){ readHeroSlideFile(event.target); return; }
       if(event.target.matches('[data-brand-image-src],[data-brand-image-fit],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     document.addEventListener('input', event => {
       if(event.target.matches('#adminRecommendationTags')){ syncAdminRecommendationOptions(); return; }
       if(event.target.matches('#adminSectionSearch')){ filterAdminSections(event.target.value); return; }
+      if(event.target.matches('[data-home-gallery-src]')) updateHomeGalleryPreview(event.target.closest('[data-home-gallery-key]'));
       if(event.target.matches('[data-brand-image-src],[data-brand-image-x],[data-brand-image-y],[data-brand-image-scale]')) updateBrandImagePreview(event.target.closest('[data-brand-image-key]'));
     });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
