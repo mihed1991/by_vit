@@ -971,15 +971,18 @@
   function brandCardHtml(brand, site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
     return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
-      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy" data-brand-logo>` : `<div class="brand-letter" title="${esc(brand)}">${esc(brand)}</div>`}</div>
+      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" decoding="async" data-brand-logo>` : `<div class="brand-letter" title="${esc(brand)}">${esc(brand)}</div>`}</div>
     </a>`;
   }
 
   function bindBrandLogoFallbacks(root){
     $$('[data-brand-logo]', root || document).forEach(image => {
       const hideBrokenLogo = () => {
-        image.hidden = true;
-        image.closest('.brand-card')?.classList.add('is-logo-missing');
+        const card = image.closest('.brand-card');
+        const media = image.closest('.brand-media');
+        const brand = String(image.alt || 'Бренд').trim();
+        if(media) media.innerHTML = `<div class="brand-letter" title="${esc(brand)}">${esc(brand)}</div>`;
+        card?.classList.remove('has-image', 'is-logo-missing');
       };
       image.addEventListener('error', hideBrokenLogo, {once:true});
       if(image.complete && !image.naturalWidth) hideBrokenLogo();
@@ -3032,7 +3035,7 @@
     if(!file || !block) return;
     setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:900, scope:'brands', inline:true});
+      const source = await fileToStoredSource(file, {maxEdge:900, scope:'brands', inline:true, format:'image/png'});
       if(!source) return;
       const target = $('[data-brand-image-src]', block);
       const previous = target?.value.trim() || '';
@@ -3193,7 +3196,7 @@
     if(!file || !block) return;
     setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:1600, quality:.82, scope:'home-gallery', inline:true});
+      const source = await fileToStoredSource(file, {maxEdge:1600, quality:.84, scope:'home-gallery', inline:true, format:'image/jpeg'});
       if(!source) return;
       const target = $('[data-home-gallery-src]', block);
       const previous = target?.value.trim() || '';
@@ -3796,7 +3799,15 @@
     canvas.height = height;
     const context = canvas.getContext('2d');
     if(!context) return original;
+    const requestedFormat = ['image/png', 'image/jpeg'].includes(options.format) ? options.format : '';
+    if(requestedFormat === 'image/jpeg'){
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+    }
     context.drawImage(image, 0, 0, width, height);
+    if(requestedFormat){
+      return canvas.toDataURL(requestedFormat, Number(options.quality || INLINE_IMAGE_QUALITY));
+    }
     const webp = canvas.toDataURL('image/webp', Number(options.quality || INLINE_IMAGE_QUALITY));
     if(webp.startsWith('data:image/webp') && webp.length < original.length) return webp;
     const jpeg = canvas.toDataURL('image/jpeg', Number(options.quality || INLINE_IMAGE_QUALITY));

@@ -5,6 +5,7 @@ const path = require('path');
 const {createMedia} = require('../lib/media');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'byvit-media-'));
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
 
 try{
   const media = createMedia({driver:'file', uploadDir:root, publicPath:'/uploads', maxBytes:1024, persistent:true});
@@ -16,6 +17,9 @@ try{
   assert.throws(() => media.save({buffer:Buffer.alloc(1025), originalName:'large.png', contentType:'image/png'}), /больше/);
   assert.strictEqual(media.delete(saved.url), true);
   assert.strictEqual(media.info().files, 0);
+  assert.match(appSource, /scope:'brands', inline:true, format:'image\/png'/);
+  assert.match(appSource, /scope:'home-gallery', inline:true, format:'image\/jpeg'/);
+  assert.doesNotMatch(appSource, /data-brand-logo[^>]*loading="lazy"/);
   console.log('Media storage check passed.');
 }finally{
   fs.rmSync(root, {recursive:true, force:true});
