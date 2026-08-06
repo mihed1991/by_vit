@@ -971,33 +971,32 @@
   function brandCardHtml(brand, site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
     return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
-      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy" data-brand-logo><div class="brand-letter brand-letter-fallback" hidden>${esc(brand)}</div>` : `<div class="brand-letter">${esc(brand)}</div>`}</div>
-      <h3 title="${esc(brand)}">${esc(brand)}</h3>
+      <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" loading="lazy" data-brand-logo>` : `<div class="brand-letter" title="${esc(brand)}">${esc(brand)}</div>`}</div>
     </a>`;
   }
 
   function bindBrandLogoFallbacks(root){
     $$('[data-brand-logo]', root || document).forEach(image => {
-      const showFallback = () => {
+      const hideBrokenLogo = () => {
         image.hidden = true;
-        const fallback = image.nextElementSibling;
-        if(fallback) fallback.hidden = false;
+        image.closest('.brand-card')?.classList.add('is-logo-missing');
       };
-      image.addEventListener('error', showFallback, {once:true});
-      if(image.complete && !image.naturalWidth) showFallback();
+      image.addEventListener('error', hideBrokenLogo, {once:true});
+      if(image.complete && !image.naturalWidth) hideBrokenLogo();
     });
   }
 
   function bindGalleryImageFallbacks(section, rail){
     $$('img', rail).forEach(image => {
-      const removeBrokenItem = () => {
-        image.closest('.home-gallery-item')?.remove();
-        const visibleItems = $$('.home-gallery-item', rail);
-        rail.classList.toggle('is-single', visibleItems.length === 1);
-        section.hidden = visibleItems.length === 0;
+      const showPlaceholder = () => {
+        const item = image.closest('.home-gallery-item');
+        image.hidden = true;
+        item?.classList.add('is-error');
+        const placeholder = $('.home-gallery-placeholder', item);
+        if(placeholder) placeholder.hidden = false;
       };
-      image.addEventListener('error', removeBrokenItem, {once:true});
-      if(image.complete && !image.naturalWidth) removeBrokenItem();
+      image.addEventListener('error', showPlaceholder, {once:true});
+      if(image.complete && !image.naturalWidth) showPlaceholder();
     });
   }
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
@@ -2299,12 +2298,16 @@
     const galleryRail = $('#homeGallery');
     const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
     if(gallerySection && galleryRail){
-      gallerySection.hidden = !galleryItems.length;
-      galleryRail.innerHTML = galleryItems.map((item, index) => `
+      gallerySection.hidden = false;
+      galleryRail.innerHTML = galleryItems.length ? galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
-          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}">
-        </figure>`).join('');
-      galleryRail.classList.toggle('is-single', galleryItems.length === 1);
+          <img src="${esc(item.src)}" alt="" aria-label="${esc(item.alt || `Фото ByVit ${index + 1}`)}">
+          <span class="home-gallery-placeholder" hidden>Фото временно недоступно</span>
+        </figure>`).join('') : `
+        <figure class="home-gallery-item is-placeholder">
+          <span class="home-gallery-placeholder">Добавьте фото через админку</span>
+        </figure>`;
+      galleryRail.classList.toggle('is-single', galleryItems.length <= 1);
       bindGalleryImageFallbacks(gallerySection, galleryRail);
       $('[data-home-block="brands"]')?.insertAdjacentElement('afterend', gallerySection);
     }
