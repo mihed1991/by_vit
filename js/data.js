@@ -113,7 +113,7 @@
         legalTitle:'Реквизиты и контакты',
         legalText:'Здесь можно указать юридическое лицо, УНП, адрес регистрации, email, телефоны и условия работы магазина.'
       },
-      telegram:{mode:'bot',contact:'',botToken:'',chatId:'',recoveryChatId:''},
+      telegram:{mode:'bot',contact:'',botToken:'',chatId:'',recoveryChatId:'',recoveryName:'',recoveryUsername:''},
       quickContact:{
         enabled:true,
         buttonText:'Связаться',

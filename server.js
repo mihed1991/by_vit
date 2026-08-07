@@ -36,6 +36,9 @@ const media = createMedia({driver:MEDIA_DRIVER, uploadDir:UPLOAD_DIR, publicPath
 const sessions = new Map();
 const recoveryChallenges = new Map();
 const recoveryRequestLog = new Map();
+const telegramLinkChallenges = new Map();
+const telegramUpdateOffsets = new Map();
+const telegramUpdatePolls = new Map();
 
 function loadDefaults(){
   const code = fs.readFileSync(path.join(ROOT, 'js', 'data.js'), 'utf8');
@@ -393,6 +396,10 @@ function recoveryTelegramSettings(site){
   };
 }
 
+function telegramBotToken(site, override=''){
+  return ADMIN_RECOVERY_BOT_TOKEN || String(override || site?.telegram?.botToken || '').trim();
+}
+
 function requestIp(req){
   return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
 }
@@ -401,6 +408,9 @@ function pruneRecoveryState(){
   const now = Date.now();
   recoveryChallenges.forEach((challenge, id) => {
     if(challenge.expiresAt <= now) recoveryChallenges.delete(id);
+  });
+  telegramLinkChallenges.forEach((challenge, id) => {
+    if(challenge.expiresAt <= now) telegramLinkChallenges.delete(id);
   });
   recoveryRequestLog.forEach((timestamps, ip) => {
     const active = timestamps.filter(timestamp => now - timestamp < ADMIN_RECOVERY_REQUEST_WINDOW_MS);
@@ -475,6 +485,37 @@ function postForm(url, form){
   });
 }
 
+function telegramApi(token, method, form={}){
+  return new Promise((resolve, reject) => {
+    const data = new URLSearchParams(form).toString();
+    const request = https.request(`https://api.telegram.org/bot${token}/${method}`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/x-www-form-urlencoded',
+        'Content-Length':Buffer.byteLength(data)
+      }
+    }, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => {
+        try{
+          const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+          if(response.statusCode < 200 || response.statusCode >= 300 || body.ok !== true){
+            reject(new Error(body.description || `Telegram API ${response.statusCode}`));
+            return;
+          }
+          resolve(body.result);
+        }catch(error){
+          reject(error);
+        }
+      });
+    });
+    request.on('error', reject);
+    request.write(data);
+    request.end();
+  });
+}
+
 async function sendTelegram(site, order){
   const token = site?.telegram?.botToken;
   const recipients = telegramRecipients(site);
@@ -499,6 +540,79 @@ async function sendRecoveryCode(site, code){
   const delivered = results.filter(result => result.status === 'fulfilled' && result.value >= 200 && result.value < 300).length;
   if(!delivered) throw new Error('Telegram rejected recovery message');
   return delivered;
+}
+
+function telegramOwnerLabel(chat, from){
+  const fullName = [from?.first_name, from?.last_name].filter(Boolean).join(' ').trim();
+  return fullName || (from?.username ? `@${from.username}` : '') || chat?.title || `Chat ${chat?.id || ''}`;
+}
+
+async function connectTelegramOwner(challenge, message){
+  const chat = message?.chat || {};
+  const from = message?.from || {};
+  if(!chat.id || (chat.type && chat.type !== 'private')) return false;
+  const adminStore = loadStore();
+  adminStore.site.telegram = adminStore.site.telegram || {};
+  adminStore.site.telegram.recoveryChatId = String(chat.id);
+  adminStore.site.telegram.recoveryName = telegramOwnerLabel(chat, from);
+  adminStore.site.telegram.recoveryUsername = String(from.username || '');
+  saveStore(adminStore);
+  challenge.connected = {
+    chatId:String(chat.id),
+    name:adminStore.site.telegram.recoveryName,
+    username:adminStore.site.telegram.recoveryUsername
+  };
+  challenge.connectedAt = Date.now();
+  try{
+    await telegramApi(challenge.token, 'sendMessage', {
+      chat_id:String(chat.id),
+      text:'Telegram подключён к админке ByVit. Сюда будут приходить коды восстановления доступа.'
+    });
+  }catch(error){
+    console.warn('Telegram link confirmation error:', error.message);
+  }
+  return true;
+}
+
+async function processTelegramLinkUpdates(token){
+  const tokenKey = sha256(token);
+  if(telegramUpdatePolls.has(tokenKey)) return telegramUpdatePolls.get(tokenKey);
+  const task = (async () => {
+    const offset = telegramUpdateOffsets.get(tokenKey) || 0;
+    let updates;
+    try{
+      updates = await telegramApi(token, 'getUpdates', {
+        offset:String(offset),
+        limit:'100',
+        timeout:'0',
+        allowed_updates:JSON.stringify(['message'])
+      });
+    }catch(error){
+      if(/webhook/i.test(error.message)){
+        throw new Error('У бота уже включён webhook. Отключите его или используйте отдельного бота для восстановления.');
+      }
+      throw error;
+    }
+    let nextOffset = offset;
+    for(const update of Array.isArray(updates) ? updates : []){
+      nextOffset = Math.max(nextOffset, Number(update.update_id || 0) + 1);
+      const message = update.message;
+      const text = String(message?.text || '').trim();
+      const match = text.match(/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]{1,64})$/);
+      if(!match) continue;
+      const candidates = Array.from(telegramLinkChallenges.values()).filter(challenge => (
+        challenge.tokenKey === tokenKey &&
+        challenge.startParameter === match[1] &&
+        challenge.expiresAt > Date.now() &&
+        !challenge.connected
+      ));
+      for(const challenge of candidates) await connectTelegramOwner(challenge, message);
+    }
+    telegramUpdateOffsets.set(tokenKey, nextOffset);
+  })();
+  telegramUpdatePolls.set(tokenKey, task);
+  try{ await task; }
+  finally{ telegramUpdatePolls.delete(tokenKey); }
 }
 
 function contentType(filePath){
@@ -685,6 +799,89 @@ async function handleApi(req, res){
       const token = parseCookies(req)[SESSION_COOKIE];
       if(token) sessions.delete(token);
       send(res, 200, {ok:true}, {'Set-Cookie':sessionCookie(req, '', 0)});
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/telegram/recovery-link'){
+      if(!requireAdmin(req, res)) return;
+      const body = await readJson(req);
+      const token = telegramBotToken(store.site, body.botToken);
+      if(!token){
+        send(res, 400, {error:'Сначала вставьте Bot Token от BotFather.'});
+        return;
+      }
+      let bot;
+      try{
+        bot = await telegramApi(token, 'getMe');
+      }catch(error){
+        send(res, 400, {error:'Bot Token не принят Telegram. Проверьте его и попробуйте снова.'});
+        return;
+      }
+      if(!bot?.username){
+        send(res, 400, {error:'У бота нет username, поэтому ссылку подключения создать нельзя.'});
+        return;
+      }
+      if(!ADMIN_RECOVERY_BOT_TOKEN && String(body.botToken || '').trim()){
+        store.site.telegram = store.site.telegram || {};
+        store.site.telegram.botToken = String(body.botToken).trim();
+        saveStore(store);
+      }
+      pruneRecoveryState();
+      const challengeId = crypto.randomBytes(24).toString('hex');
+      const startParameter = `byvit_${crypto.randomBytes(18).toString('base64url')}`;
+      telegramLinkChallenges.set(challengeId, {
+        token,
+        tokenKey:sha256(token),
+        startParameter,
+        botUsername:String(bot.username),
+        expiresAt:Date.now() + ADMIN_RECOVERY_TTL_MS,
+        connected:null
+      });
+      send(res, 200, {
+        ok:true,
+        challengeId,
+        deepLink:`https://t.me/${bot.username}?start=${startParameter}`,
+        botUsername:String(bot.username),
+        expiresIn:Math.round(ADMIN_RECOVERY_TTL_MS / 1000)
+      });
+      return;
+    }
+    if(req.method === 'GET' && url.pathname === '/api/admin/telegram/recovery-link/status'){
+      if(!requireAdmin(req, res)) return;
+      pruneRecoveryState();
+      const challengeId = String(url.searchParams.get('challengeId') || '');
+      const challenge = telegramLinkChallenges.get(challengeId);
+      if(!challenge){
+        send(res, 404, {error:'Ссылка подключения истекла. Создайте новую.'});
+        return;
+      }
+      if(!challenge.connected){
+        try{
+          await processTelegramLinkUpdates(challenge.token);
+        }catch(error){
+          console.error('Telegram link error:', error.message);
+          send(res, 502, {error:error.message || 'Не удалось проверить подключение Telegram.'});
+          return;
+        }
+      }
+      send(res, 200, {
+        ok:true,
+        connected:Boolean(challenge.connected),
+        owner:challenge.connected,
+        botUsername:challenge.botUsername,
+        expiresIn:Math.max(0, Math.round((challenge.expiresAt - Date.now()) / 1000))
+      });
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/telegram/recovery-link/disconnect'){
+      if(!requireAdmin(req, res)) return;
+      const adminStore = loadStore();
+      adminStore.site.telegram = adminStore.site.telegram || {};
+      adminStore.site.telegram.recoveryChatId = '';
+      adminStore.site.telegram.recoveryName = '';
+      adminStore.site.telegram.recoveryUsername = '';
+      saveStore(adminStore);
+      telegramLinkChallenges.clear();
+      send(res, 200, {ok:true});
       return;
     }
     if(req.method === 'POST' && url.pathname === '/api/admin/recovery/request'){

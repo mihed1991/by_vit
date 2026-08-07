@@ -21,6 +21,13 @@
   --container:1240px;
 }
 
+.telegram-link-state{display:grid;gap:4px;padding:14px;border:1px solid var(--line);background:var(--paper)}
+.telegram-link-state span{color:var(--muted);font-size:14px}
+.telegram-link-state.is-connected{border-color:var(--green);background:#edf5ea}
+.admin-inline-actions{display:flex;flex-wrap:wrap;gap:8px}
+.telegram-link-open{width:max-content;color:var(--green);text-decoration:underline;text-underline-offset:3px}
+#tgRecoveryMessage.is-error{color:#b42318}
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{

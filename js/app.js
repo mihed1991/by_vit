@@ -381,6 +381,8 @@
   let serverAvailable = false;
   let persistTimer = null;
   let adminRecoveryChallengeId = sessionStorage.getItem('byvit_admin_recovery_challenge') || '';
+  let telegramRecoveryLinkChallengeId = '';
+  let telegramRecoveryLinkTimer = null;
   const pendingMediaDeletes = new Set();
   let heroSlideTimer = null;
   function canUseServer(){
@@ -4237,11 +4239,21 @@
   }
   function renderAdminTelegram(){
     const telegram = getSite().telegram || {};
-    const map = {tgBot:'botToken',tgChat:'chatId',tgRecoveryChat:'recoveryChatId'};
+    const map = {tgBot:'botToken',tgChat:'chatId'};
     Object.entries(map).forEach(([id,key]) => {
       const el = $('#'+id);
       if(el) el.value = telegram[key] || '';
     });
+    const connected = Boolean(String(telegram.recoveryChatId || '').trim());
+    const owner = telegram.recoveryName || (telegram.recoveryUsername ? `@${telegram.recoveryUsername}` : 'владелец админки');
+    const state = $('#tgRecoveryState');
+    state?.classList.toggle('is-connected', connected);
+    if($('#tgRecoveryStateTitle')) $('#tgRecoveryStateTitle').textContent = connected ? 'Telegram подключён' : 'Telegram не подключён';
+    if($('#tgRecoveryStateText')) $('#tgRecoveryStateText').textContent = connected
+      ? `Коды восстановления получает ${owner}.`
+      : 'Chat ID определится автоматически.';
+    if($('#tgRecoveryConnect')) $('#tgRecoveryConnect').textContent = connected ? 'Переподключить Telegram' : 'Подключить Telegram';
+    if($('#tgRecoveryDisconnect')) $('#tgRecoveryDisconnect').hidden = !connected;
   }
   function saveAdminTelegram(event){
     event.preventDefault();
@@ -4249,8 +4261,98 @@
     site.telegram = site.telegram || {};
     site.telegram.botToken = $('#tgBot')?.value.trim() || '';
     site.telegram.chatId = $('#tgChat')?.value.trim() || '';
-    site.telegram.recoveryChatId = $('#tgRecoveryChat')?.value.trim() || '';
     saveSite(site); renderAdminTelegram(); toast('Telegram сохранён');
+  }
+  function setTelegramRecoveryMessage(message='', isError=false){
+    const node = $('#tgRecoveryMessage');
+    if(!node) return;
+    node.textContent = message;
+    node.classList.toggle('is-error', isError);
+  }
+  function stopTelegramRecoveryPolling(){
+    clearTimeout(telegramRecoveryLinkTimer);
+    telegramRecoveryLinkTimer = null;
+  }
+  async function checkTelegramRecoveryLink(){
+    if(!telegramRecoveryLinkChallengeId) return;
+    try{
+      const result = await fetchJson(`/api/admin/telegram/recovery-link/status?challengeId=${encodeURIComponent(telegramRecoveryLinkChallengeId)}`);
+      if(result.connected){
+        stopTelegramRecoveryPolling();
+        telegramRecoveryLinkChallengeId = '';
+        await loadAdminState();
+        renderAdminTelegram();
+        const openLink = $('#tgRecoveryOpen');
+        if(openLink) openLink.hidden = true;
+        setTelegramRecoveryMessage('Готово. Telegram подключён и будет получать коды восстановления.');
+        toast('Telegram подключён');
+        return;
+      }
+      setTelegramRecoveryMessage('Откройте бота и нажмите «Запустить». Ожидаем подтверждение…');
+      telegramRecoveryLinkTimer = setTimeout(checkTelegramRecoveryLink, 2000);
+    }catch(error){
+      stopTelegramRecoveryPolling();
+      if(error.status === 404) telegramRecoveryLinkChallengeId = '';
+      setTelegramRecoveryMessage(error.message || 'Не удалось проверить подключение Telegram.', true);
+    }
+  }
+  async function connectTelegramRecovery(){
+    if(!serverAvailable){
+      setTelegramRecoveryMessage('Подключение доступно только при работающем сервере.', true);
+      return;
+    }
+    const botToken = $('#tgBot')?.value.trim() || '';
+    if(!botToken){
+      setTelegramRecoveryMessage('Сначала вставьте Bot Token, полученный у BotFather.', true);
+      $('#tgBot')?.focus();
+      return;
+    }
+    const button = $('#tgRecoveryConnect');
+    const popup = window.open('about:blank', '_blank');
+    if(popup) popup.opener = null;
+    if(button) button.disabled = true;
+    stopTelegramRecoveryPolling();
+    setTelegramRecoveryMessage('Создаём безопасную ссылку подключения…');
+    try{
+      const result = await fetchJson('/api/admin/telegram/recovery-link', {
+        method:'POST',
+        body:JSON.stringify({botToken})
+      });
+      telegramRecoveryLinkChallengeId = result.challengeId || '';
+      const openLink = $('#tgRecoveryOpen');
+      if(openLink){
+        openLink.href = result.deepLink;
+        openLink.hidden = false;
+      }
+      if(popup) popup.location.replace(result.deepLink);
+      else setTelegramRecoveryMessage('Браузер заблокировал новое окно. Нажмите «Открыть бота в Telegram» ниже.', true);
+      telegramRecoveryLinkTimer = setTimeout(checkTelegramRecoveryLink, 1200);
+    }catch(error){
+      if(popup) popup.close();
+      setTelegramRecoveryMessage(error.message || 'Не удалось создать ссылку подключения.', true);
+    }finally{
+      if(button) button.disabled = false;
+    }
+  }
+  async function disconnectTelegramRecovery(){
+    if(!serverAvailable) return;
+    const button = $('#tgRecoveryDisconnect');
+    if(button) button.disabled = true;
+    try{
+      await fetchJson('/api/admin/telegram/recovery-link/disconnect', {method:'POST', body:'{}'});
+      stopTelegramRecoveryPolling();
+      telegramRecoveryLinkChallengeId = '';
+      await loadAdminState();
+      renderAdminTelegram();
+      const openLink = $('#tgRecoveryOpen');
+      if(openLink) openLink.hidden = true;
+      setTelegramRecoveryMessage('Telegram отключён. Его можно подключить снова в любой момент.');
+      toast('Telegram отключён');
+    }catch(error){
+      setTelegramRecoveryMessage(error.message || 'Не удалось отключить Telegram.', true);
+    }finally{
+      if(button) button.disabled = false;
+    }
   }
   function renderAdminQuickContact(){
     const quick = getSite().quickContact || {};
@@ -4917,6 +5019,8 @@
     $('#adminRecoveryToggle')?.addEventListener('click', toggleAdminRecovery);
     $('#adminRecoveryRequest')?.addEventListener('click', requestAdminRecovery);
     $('#adminRecoveryForm')?.addEventListener('submit', resetAdminPassword);
+    $('#tgRecoveryConnect')?.addEventListener('click', connectTelegramRecovery);
+    $('#tgRecoveryDisconnect')?.addEventListener('click', disconnectTelegramRecovery);
     $('#adminProductForm')?.addEventListener('submit', saveProduct);
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
     $('#adminGoalsForm')?.addEventListener('submit', saveAdminGoals);

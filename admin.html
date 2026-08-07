@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=101">
-  <script src="js/data.js?v=65" defer></script>
-  <script src="js/app.js?v=93" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=102">
+  <script src="js/data.js?v=66" defer></script>
+  <script src="js/app.js?v=94" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -432,8 +432,16 @@
                   </div>
                   <div class="admin-form-section">
                     <h4>Восстановление доступа</h4>
-                    <textarea id="tgRecoveryChat" placeholder="Chat ID владельца для кодов восстановления"></textarea>
-                    <p class="admin-hint">Если поле пустое, код придёт получателям заказов. На другом сервере адресата можно задать переменной BYVIT_ADMIN_RECOVERY_CHAT_IDS.</p>
+                    <div class="telegram-link-state" id="tgRecoveryState">
+                      <strong id="tgRecoveryStateTitle">Telegram не подключён</strong>
+                      <span id="tgRecoveryStateText">Chat ID определится автоматически.</span>
+                    </div>
+                    <div class="admin-inline-actions">
+                      <button class="btn btn-light" id="tgRecoveryConnect" type="button">Подключить Telegram</button>
+                      <button class="btn btn-light" id="tgRecoveryDisconnect" type="button" hidden>Отключить</button>
+                    </div>
+                    <a class="telegram-link-open" id="tgRecoveryOpen" href="#" target="_blank" rel="noopener" hidden>Открыть бота в Telegram</a>
+                    <p class="admin-hint" id="tgRecoveryMessage" aria-live="polite">Нажмите кнопку, затем «Запустить» в Telegram. Номер телефона и ручной Chat ID не нужны.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
                 </form>
