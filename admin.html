@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=99">
+  <link rel="stylesheet" href="css/style.css?v=101">
   <script src="js/data.js?v=65" defer></script>
-  <script src="js/app.js?v=91" defer></script>
+  <script src="js/app.js?v=93" defer></script>
 </head>
 <body data-page="admin">
   <header class="site-header">
@@ -32,12 +32,26 @@
 
   <main>
     <section class="admin-login" id="adminLogin">
-      <form class="login-card" id="adminLoginForm">
-        <span class="eyebrow">Admin</span>
-        <h1>Вход</h1>
-        <input class="form-control" id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password">
-        <button class="btn btn-primary full" type="submit">Открыть админку</button>
-      </form>
+      <article class="login-card">
+        <form id="adminLoginForm">
+          <span class="eyebrow">Admin</span>
+          <h1>Вход</h1>
+          <input class="form-control" id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password">
+          <button class="btn btn-primary full" type="submit">Открыть админку</button>
+        </form>
+        <button class="admin-recovery-toggle" id="adminRecoveryToggle" type="button" aria-expanded="false">Забыли пароль?</button>
+        <form class="admin-recovery-form" id="adminRecoveryForm" hidden>
+          <p>Код придёт в Telegram владельца и будет действовать 10 минут.</p>
+          <button class="btn btn-light full" id="adminRecoveryRequest" type="button">Получить код</button>
+          <div class="admin-recovery-fields" id="adminRecoveryFields" hidden>
+            <input class="form-control" id="adminRecoveryCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Код из Telegram" autocomplete="one-time-code">
+            <input class="form-control" id="adminRecoveryPassword" type="password" minlength="8" placeholder="Новый пароль" autocomplete="new-password">
+            <input class="form-control" id="adminRecoveryPasswordRepeat" type="password" minlength="8" placeholder="Повторите пароль" autocomplete="new-password">
+            <button class="btn btn-primary full" type="submit">Установить новый пароль</button>
+          </div>
+          <p class="admin-recovery-status" id="adminRecoveryStatus" aria-live="polite"></p>
+        </form>
+      </article>
     </section>
 
     <section class="section admin-shell" id="adminPanel" style="display:none">
@@ -415,6 +429,11 @@
                     <textarea id="tgChat" placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
                     <input id="tgBot" placeholder="Bot Token">
                     <p class="admin-hint">Бот отправляет заказ только по Chat ID. Публичная ссылка Telegram настраивается отдельно в разделе «Футер» или «Связь».</p>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Восстановление доступа</h4>
+                    <textarea id="tgRecoveryChat" placeholder="Chat ID владельца для кодов восстановления"></textarea>
+                    <p class="admin-hint">Если поле пустое, код придёт получателям заказов. На другом сервере адресата можно задать переменной BYVIT_ADMIN_RECOVERY_CHAT_IDS.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
                 </form>

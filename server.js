@@ -18,6 +18,12 @@ const SESSION_COOKIE = 'byvit_admin_session';
 const MAX_BODY = 35 * 1024 * 1024;
 const MAX_BACKUPS = Number(process.env.BYVIT_MAX_BACKUPS || 12);
 const BACKUP_TOKEN = String(process.env.BYVIT_BACKUP_TOKEN || '').trim();
+const ADMIN_RECOVERY_BOT_TOKEN = String(process.env.BYVIT_ADMIN_RECOVERY_BOT_TOKEN || '').trim();
+const ADMIN_RECOVERY_CHAT_IDS = String(process.env.BYVIT_ADMIN_RECOVERY_CHAT_IDS || '').trim();
+const ADMIN_RECOVERY_TTL_MS = Math.max(60 * 1000, Number(process.env.BYVIT_ADMIN_RECOVERY_TTL_MS || 10 * 60 * 1000));
+const ADMIN_RECOVERY_REQUEST_WINDOW_MS = 15 * 60 * 1000;
+const ADMIN_RECOVERY_REQUEST_LIMIT = 3;
+const ADMIN_RECOVERY_ATTEMPT_LIMIT = 5;
 const STORAGE_DRIVER = String(process.env.BYVIT_STORAGE_DRIVER || 'file').trim().toLowerCase();
 const STORAGE_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_STORAGE_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
 const storage = createStorage({driver:STORAGE_DRIVER, dataDir:DATA_DIR, backupDir:BACKUP_DIR, maxBackups:MAX_BACKUPS, persistent:STORAGE_PERSISTENT});
@@ -28,6 +34,8 @@ const MEDIA_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_MEDIA_P
 const media = createMedia({driver:MEDIA_DRIVER, uploadDir:UPLOAD_DIR, publicPath:'/uploads', maxBytes:MAX_UPLOAD_BYTES, persistent:MEDIA_PERSISTENT});
 
 const sessions = new Map();
+const recoveryChallenges = new Map();
+const recoveryRequestLog = new Map();
 
 function loadDefaults(){
   const code = fs.readFileSync(path.join(ROOT, 'js', 'data.js'), 'utf8');
@@ -338,6 +346,80 @@ function sha256(value){
   return crypto.createHash('sha256').update(String(value || '')).digest('hex');
 }
 
+function createPasswordHash(password){
+  const salt = crypto.randomBytes(16).toString('hex');
+  const digest = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  return `scrypt$${salt}$${digest}`;
+}
+
+function verifyPassword(password, storedHash){
+  const stored = String(storedHash || '');
+  if(stored.startsWith('scrypt$')){
+    const [, salt, expectedHex] = stored.split('$');
+    if(!salt || !/^[a-f0-9]{128}$/i.test(expectedHex || '')) return false;
+    const actual = crypto.scryptSync(String(password || ''), salt, 64);
+    const expected = Buffer.from(expectedHex, 'hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  }
+  return tokenMatches(stored, sha256(password));
+}
+
+function strongEnoughPassword(password){
+  return String(password || '').length >= 8;
+}
+
+function sessionCookie(req, token='', maxAge){
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const secure = forwardedProto === 'https' || Boolean(req.socket.encrypted);
+  const parts = [`${SESSION_COOKIE}=${encodeURIComponent(token)}`, 'HttpOnly', 'SameSite=Lax', 'Path=/'];
+  if(Number.isFinite(maxAge)) parts.push(`Max-Age=${maxAge}`);
+  if(secure) parts.push('Secure');
+  return parts.join('; ');
+}
+
+function splitRecipients(value){
+  return String(value || '')
+    .split(/[\n,;]+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+}
+
+function recoveryTelegramSettings(site){
+  const telegram = site?.telegram || {};
+  return {
+    token:ADMIN_RECOVERY_BOT_TOKEN || String(telegram.botToken || '').trim(),
+    recipients:splitRecipients(ADMIN_RECOVERY_CHAT_IDS || telegram.recoveryChatId || telegram.chatId)
+  };
+}
+
+function requestIp(req){
+  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+}
+
+function pruneRecoveryState(){
+  const now = Date.now();
+  recoveryChallenges.forEach((challenge, id) => {
+    if(challenge.expiresAt <= now) recoveryChallenges.delete(id);
+  });
+  recoveryRequestLog.forEach((timestamps, ip) => {
+    const active = timestamps.filter(timestamp => now - timestamp < ADMIN_RECOVERY_REQUEST_WINDOW_MS);
+    if(active.length) recoveryRequestLog.set(ip, active);
+    else recoveryRequestLog.delete(ip);
+  });
+}
+
+function allowRecoveryRequest(req){
+  pruneRecoveryState();
+  const ip = requestIp(req);
+  const now = Date.now();
+  const timestamps = recoveryRequestLog.get(ip) || [];
+  if(timestamps.length >= ADMIN_RECOVERY_REQUEST_LIMIT) return false;
+  timestamps.push(now);
+  recoveryRequestLog.set(ip, timestamps);
+  return true;
+}
+
 function money(value){
   const num = Number(value || 0);
   const formatted = Number.isInteger(num) ? String(num) : num.toFixed(2).replace('.', ',');
@@ -371,11 +453,7 @@ function buildOrderText(order){
 }
 
 function telegramRecipients(site){
-  return String(site?.telegram?.chatId || '')
-    .split(/[\n,;]+/)
-    .map(item => item.trim())
-    .filter(Boolean)
-    .filter((item, index, list) => list.indexOf(item) === index);
+  return splitRecipients(site?.telegram?.chatId);
 }
 
 function postForm(url, form){
@@ -405,6 +483,22 @@ async function sendTelegram(site, order){
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const results = await Promise.allSettled(recipients.map(chatId => postForm(url, {chat_id:chatId, text})));
   return {ok:true, count:recipients.length, results};
+}
+
+async function sendRecoveryCode(site, code){
+  const {token, recipients} = recoveryTelegramSettings(site);
+  if(!token || !recipients.length) throw new Error('Telegram recovery is not configured');
+  const text = [
+    `Код восстановления админки ByVit: ${code}`,
+    '',
+    `Код действует ${Math.round(ADMIN_RECOVERY_TTL_MS / 60000)} минут.`,
+    'Если вы не запрашивали восстановление, проигнорируйте сообщение.'
+  ].join('\n');
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const results = await Promise.allSettled(recipients.map(chatId => postForm(url, {chat_id:chatId, text})));
+  const delivered = results.filter(result => result.status === 'fulfilled' && result.value >= 200 && result.value < 300).length;
+  if(!delivered) throw new Error('Telegram rejected recovery message');
+  return delivered;
 }
 
 function contentType(filePath){
@@ -573,21 +667,97 @@ async function handleApi(req, res){
     }
     if(req.method === 'POST' && url.pathname === '/api/admin/login'){
       const body = await readJson(req);
-      const hash = sha256(body.password || '');
       const expected = store.site?.adminPasswordHash || ADMIN_PASSWORD_HASH;
-      if(hash !== expected){
+      if(!verifyPassword(body.password, expected)){
         send(res, 403, {error:'Wrong password'});
         return;
       }
+      if(!String(expected).startsWith('scrypt$')){
+        store.site.adminPasswordHash = createPasswordHash(body.password);
+        saveStore(store);
+      }
       const token = crypto.randomBytes(24).toString('hex');
       sessions.set(token, {createdAt:Date.now()});
-      send(res, 200, {ok:true}, {'Set-Cookie':`${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/`});
+      send(res, 200, {ok:true}, {'Set-Cookie':sessionCookie(req, token)});
       return;
     }
     if(req.method === 'POST' && url.pathname === '/api/admin/logout'){
       const token = parseCookies(req)[SESSION_COOKIE];
       if(token) sessions.delete(token);
-      send(res, 200, {ok:true}, {'Set-Cookie':`${SESSION_COOKIE}=; Max-Age=0; SameSite=Lax; Path=/`});
+      send(res, 200, {ok:true}, {'Set-Cookie':sessionCookie(req, '', 0)});
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/recovery/request'){
+      const settings = recoveryTelegramSettings(store.site);
+      if(!settings.token || !settings.recipients.length){
+        send(res, 503, {error:'Восстановление через Telegram ещё не настроено.'});
+        return;
+      }
+      if(!allowRecoveryRequest(req)){
+        send(res, 429, {error:'Слишком много запросов. Попробуйте через 15 минут.'});
+        return;
+      }
+      const challengeId = crypto.randomBytes(24).toString('hex');
+      const code = String(crypto.randomInt(100000, 1000000));
+      try{
+        await sendRecoveryCode(store.site, code);
+      }catch(error){
+        console.error('Telegram recovery error:', error.message);
+        send(res, 502, {error:'Не удалось отправить код в Telegram. Проверьте настройки бота.'});
+        return;
+      }
+      recoveryChallenges.set(challengeId, {
+        codeHash:sha256(`${challengeId}:${code}`),
+        expiresAt:Date.now() + ADMIN_RECOVERY_TTL_MS,
+        attempts:0
+      });
+      send(res, 200, {ok:true, challengeId, expiresIn:Math.round(ADMIN_RECOVERY_TTL_MS / 1000)});
+      return;
+    }
+    if(req.method === 'POST' && url.pathname === '/api/admin/recovery/reset'){
+      pruneRecoveryState();
+      const body = await readJson(req);
+      const challengeId = String(body.challengeId || '');
+      const challenge = recoveryChallenges.get(challengeId);
+      if(!challenge){
+        send(res, 400, {error:'Код истёк. Запросите новый.'});
+        return;
+      }
+      challenge.attempts += 1;
+      if(challenge.attempts > ADMIN_RECOVERY_ATTEMPT_LIMIT){
+        recoveryChallenges.delete(challengeId);
+        send(res, 429, {error:'Превышено число попыток. Запросите новый код.'});
+        return;
+      }
+      const codeMatches = tokenMatches(challenge.codeHash, sha256(`${challengeId}:${String(body.code || '').trim()}`));
+      if(!codeMatches){
+        send(res, 400, {error:'Неверный код.'});
+        return;
+      }
+      if(!strongEnoughPassword(body.password)){
+        send(res, 400, {error:'Пароль должен содержать не менее 8 символов.'});
+        return;
+      }
+      const adminStore = loadStore();
+      adminStore.site.adminPasswordHash = createPasswordHash(body.password);
+      saveStore(adminStore);
+      recoveryChallenges.delete(challengeId);
+      sessions.clear();
+      send(res, 200, {ok:true}, {'Set-Cookie':sessionCookie(req, '', 0)});
+      return;
+    }
+    if(req.method === 'PUT' && url.pathname === '/api/admin/password'){
+      if(!requireAdmin(req, res)) return;
+      const body = await readJson(req);
+      if(!strongEnoughPassword(body.password)){
+        send(res, 400, {error:'Пароль должен содержать не менее 8 символов.'});
+        return;
+      }
+      const adminStore = loadStore();
+      adminStore.site.adminPasswordHash = createPasswordHash(body.password);
+      saveStore(adminStore);
+      sessions.clear();
+      send(res, 200, {ok:true}, {'Set-Cookie':sessionCookie(req, '', 0)});
       return;
     }
     if(req.method === 'PUT' && url.pathname === '/api/admin/state'){
@@ -602,7 +772,11 @@ async function handleApi(req, res){
         }
         adminStore.products = body.products;
       }
-      if(body.site && typeof body.site === 'object') adminStore.site = body.site;
+      if(body.site && typeof body.site === 'object'){
+        const passwordHash = adminStore.site?.adminPasswordHash || ADMIN_PASSWORD_HASH;
+        adminStore.site = body.site;
+        adminStore.site.adminPasswordHash = passwordHash;
+      }
       if(Array.isArray(body.reviews)) adminStore.reviews = body.reviews;
       if(Array.isArray(body.orders)) adminStore.orders = body.orders;
       if(body.restoreAnalytics === true && body.analytics && typeof body.analytics === 'object') adminStore.analytics = normalizeAnalytics(body.analytics);

@@ -380,6 +380,7 @@
   let serverState = null;
   let serverAvailable = false;
   let persistTimer = null;
+  let adminRecoveryChallengeId = sessionStorage.getItem('byvit_admin_recovery_challenge') || '';
   const pendingMediaDeletes = new Set();
   let heroSlideTimer = null;
   function canUseServer(){
@@ -3503,6 +3504,74 @@
     if(hash === passwordHash || (!hash && passwordHash === ADMIN_PASSWORD_HASH && passwordCodeMatch(password))){ sessionStorage.setItem(KEYS.admin,'1'); renderAdmin(); toast('Админка открыта'); }
     else toast('Пароль неверный');
   }
+  function setAdminRecoveryStatus(message='', isError=false){
+    const status = $('#adminRecoveryStatus');
+    if(!status) return;
+    status.textContent = message;
+    status.classList.toggle('is-error', isError);
+  }
+  function toggleAdminRecovery(){
+    const form = $('#adminRecoveryForm');
+    const toggle = $('#adminRecoveryToggle');
+    if(!form || !toggle) return;
+    const open = form.hidden;
+    form.hidden = !open;
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.textContent = open ? 'Вернуться ко входу' : 'Забыли пароль?';
+    if(open && adminRecoveryChallengeId) $('#adminRecoveryFields').hidden = false;
+    setAdminRecoveryStatus('');
+  }
+  async function requestAdminRecovery(){
+    if(!serverAvailable){
+      setAdminRecoveryStatus('Восстановление доступно только при работающем сервере.', true);
+      return;
+    }
+    const button = $('#adminRecoveryRequest');
+    if(button) button.disabled = true;
+    setAdminRecoveryStatus('Отправляем код…');
+    try{
+      const result = await fetchJson('/api/admin/recovery/request', {method:'POST', body:'{}'});
+      adminRecoveryChallengeId = result.challengeId || '';
+      sessionStorage.setItem('byvit_admin_recovery_challenge', adminRecoveryChallengeId);
+      const fields = $('#adminRecoveryFields');
+      if(fields) fields.hidden = false;
+      setAdminRecoveryStatus('Код отправлен в Telegram. Он действует 10 минут.');
+      $('#adminRecoveryCode')?.focus();
+    }catch(error){
+      setAdminRecoveryStatus(error.message || 'Не удалось отправить код.', true);
+    }finally{
+      if(button) button.disabled = false;
+    }
+  }
+  async function resetAdminPassword(event){
+    event.preventDefault();
+    const code = $('#adminRecoveryCode')?.value.trim() || '';
+    const password = $('#adminRecoveryPassword')?.value || '';
+    const repeat = $('#adminRecoveryPasswordRepeat')?.value || '';
+    if(!adminRecoveryChallengeId){ setAdminRecoveryStatus('Сначала запросите код.', true); return; }
+    if(!/^\d{6}$/.test(code)){ setAdminRecoveryStatus('Введите шестизначный код из Telegram.', true); return; }
+    if(password.length < 8){ setAdminRecoveryStatus('Пароль должен содержать не менее 8 символов.', true); return; }
+    if(password !== repeat){ setAdminRecoveryStatus('Пароли не совпадают.', true); return; }
+    const submit = event.submitter;
+    if(submit) submit.disabled = true;
+    try{
+      await fetchJson('/api/admin/recovery/reset', {
+        method:'POST',
+        body:JSON.stringify({challengeId:adminRecoveryChallengeId, code, password})
+      });
+      adminRecoveryChallengeId = '';
+      sessionStorage.removeItem('byvit_admin_recovery_challenge');
+      sessionStorage.removeItem(KEYS.admin);
+      event.currentTarget.reset();
+      $('#adminRecoveryFields').hidden = true;
+      setAdminRecoveryStatus('Пароль изменён. Теперь войдите с новым паролем.');
+      toast('Пароль админки изменён');
+    }catch(error){
+      setAdminRecoveryStatus(error.message || 'Не удалось изменить пароль.', true);
+    }finally{
+      if(submit) submit.disabled = false;
+    }
+  }
   async function adminLogout(){
     if(serverAvailable){
       try{ await fetchJson('/api/admin/logout', {method:'POST'}); }
@@ -4168,7 +4237,7 @@
   }
   function renderAdminTelegram(){
     const telegram = getSite().telegram || {};
-    const map = {tgBot:'botToken',tgChat:'chatId'};
+    const map = {tgBot:'botToken',tgChat:'chatId',tgRecoveryChat:'recoveryChatId'};
     Object.entries(map).forEach(([id,key]) => {
       const el = $('#'+id);
       if(el) el.value = telegram[key] || '';
@@ -4180,6 +4249,7 @@
     site.telegram = site.telegram || {};
     site.telegram.botToken = $('#tgBot')?.value.trim() || '';
     site.telegram.chatId = $('#tgChat')?.value.trim() || '';
+    site.telegram.recoveryChatId = $('#tgRecoveryChat')?.value.trim() || '';
     saveSite(site); renderAdminTelegram(); toast('Telegram сохранён');
   }
   function renderAdminQuickContact(){
@@ -4265,8 +4335,22 @@
     event.preventDefault();
     const password = $('#adminNewPassword')?.value || '';
     const repeat = $('#adminNewPasswordRepeat')?.value || '';
-    if(password.length < 4){ toast('Пароль должен быть не короче 4 символов'); return; }
+    if(password.length < 8){ toast('Пароль должен быть не короче 8 символов'); return; }
     if(password !== repeat){ toast('Пароли не совпадают'); return; }
+    if(serverAvailable){
+      try{
+        await fetchJson('/api/admin/password', {method:'PUT', body:JSON.stringify({password})});
+        sessionStorage.removeItem(KEYS.admin);
+        $('#adminNewPassword').value = '';
+        $('#adminNewPasswordRepeat').value = '';
+        renderAdmin();
+        toast('Пароль изменён. Войдите заново');
+      }catch(error){
+        console.warn(error);
+        toast(error.message || 'Не удалось изменить пароль');
+      }
+      return;
+    }
     const hash = await sha256(password);
     if(!hash){ toast('Браузер не смог сохранить новый пароль'); return; }
     const site = getSite();
@@ -4830,6 +4914,9 @@
     $('#promoCode')?.addEventListener('input', updatePromoFromInput);
     $('#checkoutForm')?.addEventListener('submit', submitOrder);
     $('#adminLoginForm')?.addEventListener('submit', adminLogin);
+    $('#adminRecoveryToggle')?.addEventListener('click', toggleAdminRecovery);
+    $('#adminRecoveryRequest')?.addEventListener('click', requestAdminRecovery);
+    $('#adminRecoveryForm')?.addEventListener('submit', resetAdminPassword);
     $('#adminProductForm')?.addEventListener('submit', saveProduct);
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
     $('#adminGoalsForm')?.addEventListener('submit', saveAdminGoals);
