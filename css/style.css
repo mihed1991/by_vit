@@ -7655,3 +7655,45 @@ body[data-page="home"] .home-gallery-head{
     margin-bottom:12px;
   }
 }
+
+/* Keep the category rail compact without sharing desktop sizing with mobile. */
+@media(min-width:761px){
+  body[data-page="home"] [data-home-block="categories"]{
+    padding-top:12px!important;
+    padding-bottom:12px!important;
+  }
+  body[data-page="home"] [data-home-block="categories"] .section-head{
+    min-height:0;
+    margin-bottom:8px!important;
+  }
+  body[data-page="home"] #homeCategories{
+    height:46px;
+    grid-auto-columns:clamp(140px,13vw,178px);
+  }
+  body[data-page="home"] #homeCategories .category-card{
+    height:46px;
+    min-height:46px!important;
+    padding:0 12px!important;
+  }
+  body[data-page="home"] #homeCategories .category-card h3{
+    display:flex;
+    height:100%;
+    align-items:center;
+    justify-content:center;
+    font-weight:500;
+    line-height:1.15;
+  }
+}
+
+@media(max-width:760px){
+  body[data-page="home"] #homeCategories{
+    height:44px;
+    grid-auto-columns:max-content;
+  }
+  body[data-page="home"] #homeCategories .category-card{
+    width:auto;
+    height:44px;
+    min-height:44px!important;
+    padding:0 15px!important;
+  }
+}
