@@ -18,7 +18,7 @@ try{
   assert.strictEqual(media.delete(saved.url), true);
   assert.strictEqual(media.info().files, 0);
   assert.match(appSource, /scope:'brands', inline:true, format:'image\/png'/);
-  assert.match(appSource, /scope:'home-gallery', inline:true, format:'image\/jpeg'/);
+  assert.match(appSource, /scope:'home-gallery', format:'image\/jpeg'/);
   assert.doesNotMatch(appSource, /data-brand-logo[^>]*loading="lazy"/);
   console.log('Media storage check passed.');
 }finally{

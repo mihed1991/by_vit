@@ -831,6 +831,7 @@
     merged.aboutPage = normalizeAboutPage(site, defaults);
     merged.homeBlocks = normalizeHomeBlocks(merged);
     merged.homeGallery = normalizeHomeGallery(site, defaults);
+    merged.homeGalleryTitle = String(site?.homeGalleryTitle || defaults.homeGalleryTitle || 'Наш магазин').trim() || 'Наш магазин';
     merged.homeLayoutVersion = Math.max(2, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
@@ -1772,7 +1773,8 @@
     const list = getWishlist();
     const next = list.includes(numeric) ? list.filter(x => x !== numeric) : [...list, numeric];
     saveWishlist(next);
-    refreshCurrentPage();
+    syncSelectionButtons('wishlist', numeric, next.includes(numeric));
+    if(document.body.dataset.page === 'wishlist') renderWishlist();
     toast(next.includes(numeric) ? 'Добавлено в избранное' : 'Убрано из избранного');
   }
   function toggleCompare(id){
@@ -1785,8 +1787,20 @@
       next = [...list, numeric];
     }
     saveCompare(next);
-    refreshCurrentPage();
+    syncSelectionButtons('compare', numeric, next.includes(numeric));
+    if(document.body.dataset.page === 'compare') renderCompare();
     toast(next.includes(numeric) ? 'Добавлено к сравнению' : 'Убрано из сравнения');
+  }
+
+  function syncSelectionButtons(type, id, active){
+    $$(`[data-action="${type}"][data-id="${id}"]`).forEach(button => {
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      if(button.classList.contains('circle-action')) return;
+      button.textContent = type === 'wishlist'
+        ? `${active ? '♥' : '♡'} Избранное`
+        : `${active ? '⇄' : '⇄'} ${active ? 'В сравнении' : 'Сравнить'}`;
+    });
   }
 
   function openModal(title, body){
@@ -2293,10 +2307,14 @@
     }
     renderGoals();
     const featuredProducts = products.filter(p => p.popular && !p.oldPrice);
-    const popularProducts = (featuredProducts.length ? featuredProducts : products.filter(p => p.popular)).slice(0,5);
-    const discountedProducts = products.filter(p => p.oldPrice).slice(0,5);
-    renderGrid($('#featuredProducts'), popularProducts);
-    renderGrid($('#saleProducts'), discountedProducts);
+    const popularProducts = featuredProducts.length ? featuredProducts : products.filter(p => p.popular);
+    const discountedProducts = products.filter(p => p.oldPrice);
+    const featuredGrid = $('#featuredProducts');
+    const saleGrid = $('#saleProducts');
+    renderGrid(featuredGrid, popularProducts);
+    renderGrid(saleGrid, discountedProducts);
+    featuredGrid?.classList.toggle('is-scrollable', popularProducts.length > 5);
+    saleGrid?.classList.toggle('is-scrollable', discountedProducts.length > 5);
     configureHomeProductTabs(blocks, discountedProducts, popularProducts);
     const brandRail = $('#homeBrands');
     if(brandRail){
@@ -2310,9 +2328,11 @@
     orderHomeSections(blocks);
     const gallerySection = $('#homeGallerySection');
     const galleryRail = $('#homeGallery');
+    const galleryTitle = $('#homeGalleryTitle');
     const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
     if(gallerySection && galleryRail){
       gallerySection.hidden = false;
+      if(galleryTitle) galleryTitle.textContent = site.homeGalleryTitle || 'Наш магазин';
       galleryRail.innerHTML = galleryItems.length ? galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
           <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" decoding="async">
@@ -4147,6 +4167,8 @@
 	    }
 	    const galleryRoot = $('#adminHomeGallery');
 	    if(galleryRoot){
+	      const galleryTitle = $('#adminHomeGalleryTitle');
+	      if(galleryTitle) galleryTitle.value = site.homeGalleryTitle || 'Наш магазин';
 	      const gallery = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
 	      galleryRoot.innerHTML = gallery.length
 	        ? gallery.map(homeGalleryEditor).join('')
@@ -4231,6 +4253,7 @@
 	      site.homeBlocks[key] = block;
 	    });
     site.homeGallery = collectHomeGallery();
+    site.homeGalleryTitle = $('#adminHomeGalleryTitle')?.value.trim() || 'Наш магазин';
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
@@ -4920,6 +4943,8 @@
       }
       const action = event.target.closest('[data-action]');
       if(action){
+        event.preventDefault();
+        event.stopPropagation();
         const id = action.dataset.id;
         if(action.dataset.action === 'cart') addToCart(id);
         if(action.dataset.action === 'wishlist') toggleWishlist(id);
