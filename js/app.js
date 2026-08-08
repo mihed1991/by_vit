@@ -1001,8 +1001,16 @@
         const placeholder = $('.home-gallery-placeholder', item);
         if(placeholder) placeholder.hidden = false;
       };
+      const showImage = () => {
+        const item = image.closest('.home-gallery-item');
+        image.hidden = false;
+        item?.classList.remove('is-error');
+        const placeholder = $('.home-gallery-placeholder', item);
+        if(placeholder) placeholder.hidden = true;
+      };
+      image.addEventListener('load', showImage, {once:true});
       image.addEventListener('error', showPlaceholder, {once:true});
-      if(image.complete && !image.naturalWidth) showPlaceholder();
+      if(image.complete && image.naturalWidth) showImage();
     });
   }
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
@@ -2307,7 +2315,7 @@
       gallerySection.hidden = false;
       galleryRail.innerHTML = galleryItems.length ? galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
-          <img src="${esc(item.src)}" alt="" aria-label="${esc(item.alt || `Фото ByVit ${index + 1}`)}">
+          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" decoding="async">
           <span class="home-gallery-placeholder" hidden>Фото временно недоступно</span>
         </figure>`).join('') : `
         <figure class="home-gallery-item is-placeholder">
@@ -3199,7 +3207,7 @@
     if(!file || !block) return;
     setUploadBusy(input, true);
     try{
-      const source = await fileToStoredSource(file, {maxEdge:1600, quality:.84, scope:'home-gallery', inline:true, format:'image/jpeg'});
+      const source = await fileToStoredSource(file, {maxEdge:1600, quality:.84, scope:'home-gallery', format:'image/jpeg'});
       if(!source) return;
       const target = $('[data-home-gallery-src]', block);
       const previous = target?.value.trim() || '';
