@@ -2249,12 +2249,6 @@
       heroText.style.fontSize = `${Math.min(24, Math.max(12, Number(site.heroTextSize || 16)))}px`;
     }
     renderHeroMedia(site);
-    const metricRoot = $('.hero-metrics');
-    if(metricRoot){
-      const metrics = (site.heroMetrics || DEFAULT_HERO_METRICS).filter(item => item.enabled !== false);
-      metricRoot.hidden = !metrics.length;
-      metricRoot.innerHTML = metrics.map(item => `<div class="metric"><strong>${esc(item.value)}</strong><span>${esc(item.label)}</span></div>`).join('');
-    }
 	    Object.entries(blocks).forEach(([key, block]) => applyHomeBlock(key, block));
     const service = blocks.service || {};
     const trust = blocks.trust || {};
@@ -3092,20 +3086,6 @@
     const chars = Array.from(String(value || ''));
     return chars.length === ADMIN_PASSWORD_CODES.length && chars.every((char, index) => char.charCodeAt(0) === ADMIN_PASSWORD_CODES[index]);
   }
-  function heroMetricEditor(metric={}, index=0){
-    const id = String(metric.id || `metric-${Date.now()}-${index}`);
-    return `<article class="admin-block-editor" data-hero-metric-key="${esc(id)}">
-      <div class="admin-block-head">
-        <h4>Метрика ${index + 1}</h4>
-        <label class="mini-toggle"><input type="checkbox" data-hero-metric-enabled ${metric.enabled !== false ? 'checked' : ''}> Включена</label>
-      </div>
-      <div class="field-row">
-        <input data-hero-metric-value value="${esc(metric.value || '')}" placeholder="12+">
-        <input data-hero-metric-label value="${esc(metric.label || '')}" placeholder="категорий">
-      </div>
-      <button class="btn btn-danger small" data-hero-metric-delete type="button">Удалить метрику</button>
-    </article>`;
-  }
   function heroSlideEditor(slide={}, index=0){
     const data = normalizeHeroSlide(slide, index);
     const modeLabel = value => ({video:'Видео',image:'Изображение',file:'Файл'}[value] || value);
@@ -3371,14 +3351,6 @@
       <textarea data-content-text placeholder="Текст">${esc(item.text || '')}</textarea>
       <button class="btn btn-danger small" data-content-delete type="button">Удалить</button>
     </article>`;
-  }
-  function collectHeroMetrics(){
-    return $$('[data-hero-metric-key]').map((card, index) => ({
-      id:card.dataset.heroMetricKey || `metric-${index + 1}`,
-      value:$('[data-hero-metric-value]', card)?.value.trim() || '',
-      label:$('[data-hero-metric-label]', card)?.value.trim() || '',
-      enabled:$('[data-hero-metric-enabled]', card)?.checked !== false
-    })).filter(item => item.value || item.label);
   }
   function collectHeroSlides(){
     return $$('[data-hero-slide-key]').slice(0,4).map((card, index) => ({
@@ -4085,10 +4057,6 @@
     if(veilValue) veilValue.textContent = `${Math.round(Number(site.heroVeilOpacity ?? 1) * 100)}%`;
     const overlayValue = $('#heroOverlayValue');
     if(overlayValue) overlayValue.textContent = `${Math.round(Number(site.heroOverlayOpacity ?? .18) * 100)}%`;
-    const metricOpacity = $('#siteHeroMetricOpacity');
-    if(metricOpacity) metricOpacity.value = site.heroMetricOpacity ?? .72;
-    const metricOpacityValue = $('#heroMetricOpacityValue');
-    if(metricOpacityValue) metricOpacityValue.textContent = `${Math.round(Number(site.heroMetricOpacity ?? .72) * 100)}%`;
     updateHeroAdminControls();
     const mobileHero = site.mobileHeroMedia || {};
     const mobileHeroEnabled = $('#siteMobileHeroEnabled');
@@ -4116,10 +4084,6 @@
       heroSlidesRoot.innerHTML = extraSlides.length
         ? extraSlides.map((slide, index) => heroSlideEditor(slide, index + 1)).join('')
         : '<p class="admin-hint admin-empty-note">Дополнительных баннеров пока нет. Основной баннер настраивается выше.</p>';
-    }
-    const metricRoot = $('#adminHeroMetrics');
-    if(metricRoot){
-      metricRoot.innerHTML = (site.heroMetrics || DEFAULT_HERO_METRICS).map(heroMetricEditor).join('');
     }
 	    const homeRoot = $('#adminHomeBlocks');
 	    if(homeRoot){
@@ -4221,7 +4185,6 @@
     if($('#siteHeroOpacity')) site.heroMediaOpacity = Number($('#siteHeroOpacity').value || .78);
     if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
     if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
-    if($('#siteHeroMetricOpacity')) site.heroMetricOpacity = Number($('#siteHeroMetricOpacity').value || .72);
     if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
     if($('#siteMobileHeroMode')){
       const mobileMode = $('#siteMobileHeroMode').value;
@@ -4239,7 +4202,6 @@
     site.heroMediaSrc = primarySlide.desktopSrc;
     site.heroHref = primarySlide.href;
     site.heroSlides = [primarySlide, ...collectHeroSlides()].slice(0,4);
-	    site.heroMetrics = collectHeroMetrics();
 	    site.homeBlocks = site.homeBlocks || {};
 	    $$('[data-home-block-key]').forEach(card => {
 	      const key = card.dataset.homeBlockKey;
@@ -4959,8 +4921,6 @@
       const adminDelete = event.target.closest('[data-admin-delete]'); if(adminDelete){ deleteProduct(adminDelete.dataset.adminDelete); return; }
       const selectAll = event.target.closest('[data-admin-select-all]'); if(selectAll){ $$('[data-admin-product-select]').forEach(input => { input.checked = selectAll.checked; }); return; }
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
-	      const metricAdd = event.target.closest('[data-hero-metric-add]'); if(metricAdd){ const root = $('#adminHeroMetrics'); if(root) root.insertAdjacentHTML('beforeend', heroMetricEditor({id:`metric-${Date.now()}`,value:'',label:'',enabled:true}, $$('[data-hero-metric-key]', root).length)); return; }
-	      const metricDelete = event.target.closest('[data-hero-metric-delete]'); if(metricDelete){ metricDelete.closest('[data-hero-metric-key]')?.remove(); return; }
 	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',mobileEnabled:false,mobileMode:'image',mobileSrc:''}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
 	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ const block = heroSlideDelete.closest('[data-hero-slide-key]'); deleteUploadedSource($('[data-hero-slide-field="desktopSrc"]', block)?.value); deleteUploadedSource($('[data-hero-slide-field="mobileSrc"]', block)?.value); block?.remove(); return; }
 	      const galleryAdd = event.target.closest('[data-home-gallery-add]');
@@ -5070,7 +5030,6 @@
     $('#siteHeroOpacity')?.addEventListener('input', e=>{ const node = $('#heroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroVeil')?.addEventListener('input', e=>{ const node = $('#heroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteHeroOverlay')?.addEventListener('input', e=>{ const node = $('#heroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
-    $('#siteHeroMetricOpacity')?.addEventListener('input', e=>{ const node = $('#heroMetricOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroOpacity')?.addEventListener('input', e=>{ const node = $('#mobileHeroOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroVeil')?.addEventListener('input', e=>{ const node = $('#mobileHeroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroOverlay')?.addEventListener('input', e=>{ const node = $('#mobileHeroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });

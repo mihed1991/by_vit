@@ -7697,3 +7697,55 @@ body[data-page="home"] .home-gallery-head{
     padding:0 15px!important;
   }
 }
+
+/* Borderless storefront sections and lightweight navigation actions. */
+body:not([data-page="admin"]) .site-header,
+body:not([data-page="admin"]) .header-top,
+body:not([data-page="admin"]) main > .section,
+body:not([data-page="admin"]) main > .page-hero,
+body:not([data-page="admin"]) main > .section .section-head,
+body:not([data-page="admin"]) .home-gallery-section,
+body:not([data-page="admin"]) .commerce-assurance,
+body:not([data-page="admin"]) #homeCategories,
+body:not([data-page="admin"]) #homeGoals{
+  border-top:0!important;
+  border-bottom:0!important;
+}
+
+body[data-page="home"] .home-section-link{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--green);
+  font-size:14px;
+  font-weight:500;
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:4px;
+  transition:color .18s ease,transform .18s ease;
+}
+body[data-page="home"] .home-section-link:hover,
+body[data-page="home"] .home-section-link:focus-visible{
+  color:var(--green-dark);
+  transform:translateY(-1px);
+}
+
+@media(max-width:760px){
+  body[data-page="home"] .home-section-link{
+    display:none;
+  }
+}
+
+body[data-page="home"] #homeCategories .category-card:hover,
+body[data-page="home"] #homeCategories .category-card:focus-visible{
+  border-color:transparent!important;
+  background:var(--green)!important;
+  color:#fff!important;
+}
+body[data-page="home"] #homeCategories .category-card:hover h3,
+body[data-page="home"] #homeCategories .category-card:focus-visible h3{
+  color:inherit!important;
+}
