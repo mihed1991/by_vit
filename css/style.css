@@ -7617,6 +7617,10 @@ body[data-page="home"] .home-gallery-section{
 body[data-page="home"] .home-gallery-head{
   margin-bottom:18px;
 }
+body[data-page="home"] #homeGallerySection,
+body[data-page="home"] #homeGallerySection .home-gallery-head{
+  border-top:0!important;
+}
 
 @media(max-width:760px){
   body[data-page="home"] #homeGoals{
