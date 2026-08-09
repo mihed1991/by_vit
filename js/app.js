@@ -2304,8 +2304,7 @@
         </a>`).join(''), '.category-card');
     }
     renderGoals();
-    const featuredProducts = products.filter(p => p.popular && !p.oldPrice);
-    const popularProducts = featuredProducts.length ? featuredProducts : products.filter(p => p.popular);
+    const popularProducts = products.filter(p => p.popular);
     const discountedProducts = products.filter(p => p.oldPrice);
     const featuredGrid = $('#featuredProducts');
     const saleGrid = $('#saleProducts');
