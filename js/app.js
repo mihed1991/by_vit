@@ -2202,16 +2202,20 @@
       }
     };
     const pauseOnInteraction = () => pause();
+    const pauseForTouch = () => pause(60 * 60 * 1000);
+    const resumeAfterTouch = () => pause(5000);
     root.addEventListener('pointerdown', pauseOnInteraction, {passive:true});
-    root.addEventListener('touchstart', pauseOnInteraction, {passive:true});
-    root.addEventListener('touchend', pauseOnInteraction, {passive:true});
+    root.addEventListener('touchstart', pauseForTouch, {passive:true});
+    root.addEventListener('touchend', resumeAfterTouch, {passive:true});
+    root.addEventListener('touchcancel', resumeAfterTouch, {passive:true});
     root.addEventListener('wheel', pauseOnInteraction, {passive:true});
     const timer = window.setInterval(tick, 32);
     root._homeMarqueeCleanup = () => {
       window.clearInterval(timer);
       root.removeEventListener('pointerdown', pauseOnInteraction);
-      root.removeEventListener('touchstart', pauseOnInteraction);
-      root.removeEventListener('touchend', pauseOnInteraction);
+      root.removeEventListener('touchstart', pauseForTouch);
+      root.removeEventListener('touchend', resumeAfterTouch);
+      root.removeEventListener('touchcancel', resumeAfterTouch);
       root.removeEventListener('wheel', pauseOnInteraction);
       root._homeMarqueeCleanup = null;
     };

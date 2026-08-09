@@ -7740,3 +7740,37 @@ body[data-page="home"] #homeCategories .category-card:hover h3,
 body[data-page="home"] #homeCategories .category-card:focus-visible h3{
   color:inherit!important;
 }
+
+/* Native horizontal rails: preserve existing geometry and allow Safari touch panning. */
+body[data-page="home"] #homeBrands,
+body[data-page="home"] .home-gallery-rail,
+body[data-page="catalog"] .catalog-smart-links{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none;
+  touch-action:pan-x pan-y!important;
+  -webkit-overflow-scrolling:touch;
+}
+body[data-page="home"] #homeBrands::-webkit-scrollbar,
+body[data-page="home"] .home-gallery-rail::-webkit-scrollbar,
+body[data-page="catalog"] .catalog-smart-links::-webkit-scrollbar{
+  display:none;
+}
+body[data-page="catalog"] .catalog-smart-links{
+  display:flex;
+  flex-wrap:nowrap!important;
+}
+body[data-page="catalog"] .catalog-smart-links a{
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+
+/* Brand directory: breadcrumb-scale names without changing card dimensions. */
+body[data-page="brands"] #brandsList .brand-letter,
+body[data-page="brands"] #brandsList .brand-card h3{
+  font-size:12px!important;
+  font-weight:400!important;
+  line-height:1.25!important;
+  letter-spacing:0!important;
+}
