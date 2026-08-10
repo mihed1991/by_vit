@@ -2463,12 +2463,57 @@
     const products = getProducts().filter(p => ids.includes(p.id));
     renderGrid($('#wishlistList'), products);
   }
+  let activeBrandDirectoryFilter = 'all';
+  const brandDirectoryLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  function brandInitial(brand){
+    return String(brand || '').trim().charAt(0).toLocaleUpperCase('ru-RU');
+  }
+  function brandInitialGroup(initial){
+    if(/^[A-Z]$/.test(initial)) return 'latin';
+    if(/^[А-ЯЁ]$/u.test(initial)) return 'cyrillic';
+    if(/^[0-9]$/.test(initial)) return 'digits';
+    return 'other';
+  }
+  function brandMatchesDirectoryFilter(brand, filter){
+    if(filter === 'all') return true;
+    const initial = brandInitial(brand);
+    if(/^[A-Z]$/.test(filter)) return initial === filter;
+    return brandInitialGroup(initial) === filter;
+  }
+  function renderBrandDirectoryFilter(allBrands){
+    const filter = $('#brandDirectoryFilter');
+    if(!filter) return;
+    const initials = new Set(allBrands.map(brandInitial));
+    const groupButtons = [
+      ['all', 'Все'],
+      ['latin', 'A-Z'],
+      ['cyrillic', 'А-Я'],
+      ['digits', '0-9']
+    ];
+    const hasGroup = group => group === 'all' || allBrands.some(brand => brandMatchesDirectoryFilter(brand, group));
+    filter.innerHTML = `<div class="brand-filter-groups" role="group" aria-label="Группы брендов">
+      ${groupButtons.map(([value, label]) => `<button type="button" class="${activeBrandDirectoryFilter === value ? 'is-active' : ''}" data-brand-filter="${value}" ${hasGroup(value) ? '' : 'disabled'}>${label}</button>`).join('')}
+    </div><div class="brand-filter-letters" role="group" aria-label="Бренды по первой букве">
+      ${brandDirectoryLetters.map(letter => `<button type="button" class="${activeBrandDirectoryFilter === letter ? 'is-active' : ''}" data-brand-filter="${letter}" ${initials.has(letter) ? '' : 'disabled'}>${letter}</button>`).join('')}
+    </div>`;
+    $$('[data-brand-filter]', filter).forEach(button => {
+      button.addEventListener('click', () => {
+        activeBrandDirectoryFilter = button.dataset.brandFilter || 'all';
+        renderBrands();
+      });
+    });
+  }
   function renderBrands(){
     const wrap = $('#brandsList');
     if(!wrap) return;
-    const products = getProducts();
+    const allBrands = brands();
+    if(!allBrands.some(brand => brandMatchesDirectoryFilter(brand, activeBrandDirectoryFilter))){
+      activeBrandDirectoryFilter = 'all';
+    }
     const site = getSite();
-    wrap.innerHTML = brands().map(brand=>brandCardHtml(brand, site)).join('');
+    renderBrandDirectoryFilter(allBrands);
+    wrap.innerHTML = allBrands.filter(brand => brandMatchesDirectoryFilter(brand, activeBrandDirectoryFilter)).map(brand=>brandCardHtml(brand, site)).join('');
+    bindBrandLogoFallbacks(wrap);
   }
   function renderCompare(){
     const wrap = $('#compareTable');

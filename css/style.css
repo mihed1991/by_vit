@@ -7819,3 +7819,71 @@ body[data-page="brands"] #brandsList .brand-card h3{
   line-height:1.25!important;
   letter-spacing:0!important;
 }
+
+/* Keep the tab pair visually open at its outer edges. */
+body[data-page="home"] .home-product-tabs{
+  border-left-color:transparent;
+  border-right-color:transparent;
+}
+
+/* Brand directory index; existing brand-card dimensions stay untouched. */
+.brand-directory-filter{
+  display:grid;
+  gap:8px;
+  margin-bottom:28px;
+}
+.brand-filter-groups,
+.brand-filter-letters{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.brand-directory-filter button{
+  min-width:36px;
+  height:36px;
+  padding:0 10px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+  font-weight:500;
+  cursor:pointer;
+}
+.brand-directory-filter button:hover,
+.brand-directory-filter button:focus-visible,
+.brand-directory-filter button.is-active{
+  background:var(--green);
+  color:#fff;
+}
+.brand-directory-filter button:disabled{
+  background:transparent;
+  color:var(--muted);
+  opacity:.28;
+  cursor:default;
+}
+
+@media(max-width:760px){
+  .brand-directory-filter{
+    gap:6px;
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .brand-filter-groups,
+  .brand-filter-letters{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .brand-filter-groups::-webkit-scrollbar,
+  .brand-filter-letters::-webkit-scrollbar{
+    display:none;
+  }
+  .brand-directory-filter button{
+    flex:0 0 auto;
+    min-width:34px;
+    height:34px;
+    padding:0 9px;
+  }
+}
