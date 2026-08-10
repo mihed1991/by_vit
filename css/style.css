@@ -7508,6 +7508,11 @@ body[data-page="home"] #homeBrands .brand-card:nth-child(n){
 body[data-page="home"] #homeBrands .brand-card.has-image.is-logo-missing{
   display:none!important;
 }
+
+body[data-page="home"] [data-home-block="brands"]{
+  background:#fff!important;
+}
+
 @media(max-width:760px){
   body[data-page="home"] #homeBrands .brand-card,
   body[data-page="home"] #homeBrands .brand-card:nth-child(n){
