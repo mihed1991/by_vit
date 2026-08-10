@@ -7230,6 +7230,34 @@ body[data-page="product"] .tab-buttons button.active{
   }
 }
 
+/* Keep the visual gap between home sections consistent at every breakpoint. */
+@media(min-width:1101px){
+  body[data-page="home"] [data-home-block],
+  body[data-page="home"] #homeGallerySection{
+    padding-top:12px!important;
+    padding-bottom:14px!important;
+  }
+}
+
+@media(min-width:761px) and (max-width:1100px){
+  body[data-page="home"] [data-home-block]:not([data-home-block="categories"]),
+  body[data-page="home"] #homeGallerySection{
+    padding-top:28px!important;
+    padding-bottom:28px!important;
+  }
+  body[data-page="home"] [data-home-block="categories"]{
+    padding-top:12px!important;
+    padding-bottom:12px!important;
+  }
+}
+
+@media(max-width:760px){
+  body[data-page="home"] #homeGallerySection{
+    padding-top:14px!important;
+    padding-bottom:14px!important;
+  }
+}
+
 /* Final hero and navigation polish. */
 .main-nav a{
   display:inline-flex;
