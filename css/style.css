@@ -7515,6 +7515,7 @@ body[data-page="home"] [data-home-block="brands"]{
 
 body[data-page="home"] #homeGoals .goal-card h3,
 body[data-page="home"] #homeTrust .trust-item h3{
+  font-size:18px;
   font-weight:500;
 }
 
