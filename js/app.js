@@ -846,7 +846,7 @@
       });
       merged.typographyVersion = 2;
     }
-    merged.heroEyebrow = merged.heroEyebrow || 'Premium supplements';
+    merged.heroEyebrow = String(merged.heroEyebrow ?? '').trim();
     merged.heroTitleSize = Number(merged.heroTitleSize || 44);
     merged.heroTextSize = Number(merged.heroTextSize || 16);
     merged.heroAlign = merged.heroAlign || 'right';
@@ -2243,13 +2243,25 @@
     const heroEyebrow = $('#heroEyebrow');
     const heroTitle = $('#heroTitle');
     const heroText = $('#heroText');
-    if(heroEyebrow) heroEyebrow.textContent = site.heroEyebrow || 'Premium supplements';
+    const heroContent = $('.hero-content');
+    const heroCopy = {
+      eyebrow:String(site.heroEyebrow ?? '').trim(),
+      title:String(site.heroTitle ?? '').trim(),
+      text:String(site.heroText ?? '').trim()
+    };
+    if(heroContent) heroContent.classList.toggle('is-empty', !Object.values(heroCopy).some(Boolean));
+    if(heroEyebrow){
+      heroEyebrow.textContent = heroCopy.eyebrow;
+      heroEyebrow.hidden = !heroCopy.eyebrow;
+    }
     if(heroTitle){
-      heroTitle.textContent = site.heroTitle || getDefaults().site.heroTitle;
+      heroTitle.textContent = heroCopy.title;
+      heroTitle.hidden = !heroCopy.title;
       heroTitle.style.fontSize = `${Math.min(86, Math.max(28, Number(site.heroTitleSize || 44)))}px`;
     }
     if(heroText){
-      heroText.textContent = site.heroText || getDefaults().site.heroText;
+      heroText.textContent = heroCopy.text;
+      heroText.hidden = !heroCopy.text;
       heroText.style.fontSize = `${Math.min(24, Math.max(12, Number(site.heroTextSize || 16)))}px`;
     }
     renderHeroMedia(site);

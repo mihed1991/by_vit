@@ -7940,3 +7940,18 @@ body[data-page="home"] .hero-slide video {
   object-fit: cover !important;
   object-position: center !important;
 }
+
+/* Hero copy follows the admin fields without placeholder content. */
+body[data-page="home"] .hero-content.is-empty {
+  display: none !important;
+}
+
+@media(min-width:761px) {
+  body[data-page="home"] .hero {
+    min-height: 572px;
+  }
+
+  body[data-page="home"] .hero-content {
+    min-height: 572px;
+  }
+}
