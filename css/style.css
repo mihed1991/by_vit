@@ -7920,7 +7920,7 @@ body[data-page="brands"] #brandsList .brand-letter{
   text-align:center;
 }
 
-/* Keep every hero image and video fully visible inside the configured banner size. */
+/* Fill the configured hero area with every desktop and mobile media source. */
 body[data-page="home"] .hero-media,
 body[data-page="home"] .hero-slide {
   background-color: var(--paper);
@@ -7937,6 +7937,6 @@ body[data-page="home"] .hero-slide video {
   width: 100%;
   height: 100%;
   max-width: 100%;
-  object-fit: contain !important;
+  object-fit: cover !important;
   object-position: center !important;
 }
