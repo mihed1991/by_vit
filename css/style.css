@@ -7919,3 +7919,24 @@ body[data-page="brands"] #brandsList .brand-letter{
   width:100%;
   text-align:center;
 }
+
+/* Keep every hero image and video fully visible inside the configured banner size. */
+body[data-page="home"] .hero-media,
+body[data-page="home"] .hero-slide {
+  background-color: var(--paper);
+  background-image: none;
+}
+
+body[data-page="home"] .hero-slide .hero-desktop-media,
+body[data-page="home"] .hero-slide .hero-mobile-fallback,
+body[data-page="home"] .hero-slide .hero-mobile-custom,
+body[data-page="home"] .hero-slide .hero-mobile-video,
+body[data-page="home"] .hero-slide img,
+body[data-page="home"] .hero-slide video {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain !important;
+  object-position: center !important;
+}
