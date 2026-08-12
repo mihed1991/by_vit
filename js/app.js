@@ -254,7 +254,13 @@
     revealMutationObserver.observe(document.body, {childList:true, subtree:true});
   }
   function absoluteUrl(value){
-    try{ return new URL(value || '/', location.href).href; }
+    try{
+      const source = value || '/';
+      if(window.BYVIT_STATIC === true && String(source).startsWith('/')){
+        return new URL(String(source).slice(1), new URL('.', location.href)).href;
+      }
+      return new URL(source, location.href).href;
+    }
     catch(error){ return String(value || ''); }
   }
   function ensureMeta(key, value, attribute='name'){
@@ -386,7 +392,12 @@
   const pendingMediaDeletes = new Set();
   let heroSlideTimer = null;
   function canUseServer(){
-    return location.protocol === 'http:' || location.protocol === 'https:';
+    return window.BYVIT_STATIC !== true && (location.protocol === 'http:' || location.protocol === 'https:');
+  }
+
+  function applyStaticMode(){
+    if(window.BYVIT_STATIC !== true) return;
+    $$('a[href="admin.html"]').forEach(link => link.remove());
   }
   async function fetchJson(url, options={}){
     const response = await fetch(url, {
@@ -5115,7 +5126,7 @@
     await loadServerState();
     const page = document.body.dataset.page;
     if(page === 'admin' && isAdminSession()) await loadAdminState();
-    setActiveNav(); applyHeader(); renderFooter(); applyPageHeader(); applyPageSeo(page); updateCounts(); bindGlobal();
+    setActiveNav(); applyHeader(); renderFooter(); applyStaticMode(); applyPageHeader(); applyPageSeo(page); updateCounts(); bindGlobal();
     if(page === 'home') renderHome();
     if(page === 'catalog') renderCatalog();
     if(page === 'product') renderProduct();
