@@ -1197,6 +1197,15 @@
             <button class="header-overlay-close" type="button" data-header-overlay-close aria-label="Закрыть поиск"></button>
           </form>
           <div class="header-overlay-body">
+            <nav class="header-search-shortcuts" data-header-search-shortcuts aria-label="Быстрый переход">
+              <p class="header-overlay-label">Быстрый переход</p>
+              <div class="header-search-shortcut-list">
+                <a href="catalog.html">Каталог</a>
+                <a href="sale.html">Акции</a>
+                <a href="brands.html">Бренды</a>
+                <a href="stores.html">Магазины</a>
+              </div>
+            </nav>
             <div class="header-live-results" data-header-search-results hidden></div>
           </div>
         </div>
@@ -1205,6 +1214,7 @@
     const trigger = $('[data-header-search-toggle]', actions);
     const input = $('[data-overlay-search-input]', overlay);
     const results = $('[data-header-search-results]', overlay);
+    const shortcuts = $('[data-header-search-shortcuts]', overlay);
     const setOverlayTop = () => {
       overlay.style.setProperty('--header-overlay-top', `${Math.max(0, Math.round(headerEl.getBoundingClientRect().bottom))}px`);
     };
@@ -1236,8 +1246,10 @@
       if(!query){
         results.hidden = true;
         results.innerHTML = '';
+        if(shortcuts) shortcuts.hidden = false;
         return;
       }
+      if(shortcuts) shortcuts.hidden = true;
       const matches = getProducts().filter(product => {
         const haystack = [
           product.name,
