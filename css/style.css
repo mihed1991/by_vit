@@ -13281,11 +13281,11 @@ body[data-page="home"] .hero-content.is-empty {
   }
 }
 
-/* Keep the dark contrast treatment exclusive to the compact mobile layout. */
+/* Keep the green contrast treatment exclusive to the compact mobile layout. */
 @media(max-width:760px) {
-/* Home trust block: a dark contrast surface without changing its layout rhythm. */
+/* Home trust block: a green contrast surface without changing its layout rhythm. */
 body[data-page="home"] .trust-section {
-  background: #171a16;
+  background: var(--green);
   color: #f5f6f1;
 }
 
@@ -13319,13 +13319,13 @@ body[data-page="home"] .trust-section .trust-item + .trust-item {
 
 body[data-page="home"] .trust-section .trust-item,
 body[data-page="home"] .trust-section .trust-item + .trust-item {
-  background: #171a16 !important;
+  background: var(--green) !important;
   border-color: rgba(245, 246, 241, .16);
 }
 
-/* Give goals the same dark feature-band treatment as the trust section. */
+/* Give goals the same green feature-band treatment as the trust section. */
 body[data-page="home"] [data-home-block="goals"] {
-  background: #171a16;
+  background: var(--green);
   color: #f5f6f1;
 }
 
@@ -13345,7 +13345,7 @@ body[data-page="home"] [data-home-block="goals"] #homeGoals {
 
 body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card,
 body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card:nth-child(n) {
-  background: #171a16 !important;
+  background: var(--green) !important;
   border-color: rgba(245, 246, 241, .16) !important;
 }
 
