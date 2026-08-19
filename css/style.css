@@ -5211,6 +5211,22 @@ html[data-theme="dark"] .footer {
   }
 }
 
+/* Keep mobile surfaces gently rounded without changing circular icon controls. */
+@media(max-width:760px) {
+  :root {
+    --radius: 5px;
+    --radius-sm: 5px;
+  }
+
+  :is(.btn, .product-card, .category-card, .goal-card, .brand-card, .trust-item,
+      .faq-item, .catalog-smart-card, .cart-item, .checkout-form, .page-hero,
+      .home-gallery-item, .home-product-tabs, .tab-buttons, .chip, .metric,
+      .header-overlay-sheet, .mobile-panel, .delivery-option, .pickup-store-option,
+      input, select, textarea) {
+    border-radius: 5px !important;
+  }
+}
+
 /* Mobile menu and search overlay. */
 @media(max-width:760px) {
   .mobile-panel,
