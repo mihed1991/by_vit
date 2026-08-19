@@ -13314,3 +13314,43 @@ body[data-page="home"] .trust-section .trust-list {
 body[data-page="home"] .trust-section .trust-item + .trust-item {
   border-left-color: rgba(245, 246, 241, .16);
 }
+
+body[data-page="home"] .trust-section .trust-item,
+body[data-page="home"] .trust-section .trust-item + .trust-item {
+  background: #171a16 !important;
+  border-color: rgba(245, 246, 241, .16);
+}
+
+/* Give goals the same dark feature-band treatment as the trust section. */
+body[data-page="home"] [data-home-block="goals"] {
+  background: #171a16;
+  color: #f5f6f1;
+}
+
+body[data-page="home"] [data-home-block="goals"] .section-head {
+  border-top-color: rgba(245, 246, 241, .38);
+}
+
+body[data-page="home"] [data-home-block="goals"] .eyebrow,
+body[data-page="home"] [data-home-block="goals"] .eyebrow a,
+body[data-page="home"] [data-home-block="goals"] .home-section-link {
+  color: #9cce89;
+}
+
+body[data-page="home"] [data-home-block="goals"] #homeGoals {
+  border-color: rgba(245, 246, 241, .16);
+}
+
+body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card,
+body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card:nth-child(n) {
+  background: #171a16 !important;
+  border-color: rgba(245, 246, 241, .16) !important;
+}
+
+body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card h3 {
+  color: #f5f6f1;
+}
+
+body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card p {
+  color: rgba(245, 246, 241, .68);
+}
