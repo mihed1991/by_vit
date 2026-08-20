@@ -1796,6 +1796,18 @@ p {
   margin-bottom: 10px
 }
 
+.compare-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px
+}
+
+.compare-empty-state h3,
+.compare-empty-state p {
+  margin: 0
+}
+
 .promo-row {
   display: flex;
   gap: 8px
@@ -13279,81 +13291,4 @@ body[data-page="home"] .hero-content.is-empty {
   body[data-page="home"] .hero-content {
     min-height: 572px;
   }
-}
-
-/* Keep the green contrast treatment exclusive to the compact mobile layout. */
-@media(max-width:760px) {
-/* Home trust block: a green contrast surface without changing its layout rhythm. */
-body[data-page="home"] .trust-section {
-  background: var(--green);
-  color: #f5f6f1;
-}
-
-body[data-page="home"] .trust-section .section-head {
-  border-top-color: rgba(245, 246, 241, .38);
-}
-
-body[data-page="home"] .trust-section .eyebrow,
-body[data-page="home"] .trust-section .eyebrow a,
-body[data-page="home"] .trust-section .trust-index {
-  color: #9cce89;
-}
-
-body[data-page="home"] .trust-section .section-title,
-body[data-page="home"] .trust-section .trust-item h3 {
-  color: #f5f6f1;
-}
-
-body[data-page="home"] .trust-section .section-head p,
-body[data-page="home"] .trust-section .trust-item p {
-  color: rgba(245, 246, 241, .68);
-}
-
-body[data-page="home"] .trust-section .trust-list {
-  border-color: rgba(245, 246, 241, .16);
-}
-
-body[data-page="home"] .trust-section .trust-item + .trust-item {
-  border-left-color: rgba(245, 246, 241, .16);
-}
-
-body[data-page="home"] .trust-section .trust-item,
-body[data-page="home"] .trust-section .trust-item + .trust-item {
-  background: var(--green) !important;
-  border-color: rgba(245, 246, 241, .16);
-}
-
-/* Give goals the same green feature-band treatment as the trust section. */
-body[data-page="home"] [data-home-block="goals"] {
-  background: var(--green);
-  color: #f5f6f1;
-}
-
-body[data-page="home"] [data-home-block="goals"] .section-head {
-  border-top-color: rgba(245, 246, 241, .38);
-}
-
-body[data-page="home"] [data-home-block="goals"] .eyebrow,
-body[data-page="home"] [data-home-block="goals"] .eyebrow a,
-body[data-page="home"] [data-home-block="goals"] .home-section-link {
-  color: #9cce89;
-}
-
-body[data-page="home"] [data-home-block="goals"] #homeGoals {
-  border-color: rgba(245, 246, 241, .16);
-}
-
-body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card,
-body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card:nth-child(n) {
-  background: var(--green) !important;
-  border-color: rgba(245, 246, 241, .16) !important;
-}
-
-body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card h3 {
-  color: #f5f6f1;
-}
-
-body[data-page="home"] [data-home-block="goals"] #homeGoals .goal-card p {
-  color: rgba(245, 246, 241, .68);
-}
 }

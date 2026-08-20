@@ -2496,7 +2496,11 @@
   function renderWishlist(){
     const ids = getWishlist();
     const products = getProducts().filter(p => ids.includes(p.id));
-    renderGrid($('#wishlistList'), products);
+    const wrap = $('#wishlistList');
+    if(!wrap) return;
+    wrap.innerHTML = products.length
+      ? products.map(productCard).join('')
+      : `<div class="empty-state"><h3>Товаров не найдено</h3><p>Добавьте товары в Избранное</p></div>`;
   }
   let activeBrandDirectoryFilter = 'all';
   const brandDirectoryLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -2554,7 +2558,7 @@
     const wrap = $('#compareTable');
     if(!wrap) return;
     const products = getProducts().filter(p => getCompare().includes(p.id));
-    if(!products.length){ wrap.innerHTML = `<div class="empty-state"><h3>Сравнение пустое</h3><p>Добавь товары в сравнение, чтобы таблица перестала быть пустой, как обещания “потом поправлю CSS”.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`; return; }
+    if(!products.length){ wrap.innerHTML = `<div class="empty-state compare-empty-state"><h3>Сравнение пустое</h3><p>Добавьте товары в сравнение</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`; return; }
     wrap.innerHTML = `<div class="table-wrap"><table class="admin-table"><thead><tr><th>Характеристика</th>${products.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>
       <tr><td>Фото</td>${products.map(p=>`<td><img class="admin-thumb" src="${esc(firstImage(p))}" alt=""></td>`).join('')}</tr>
       <tr><td>Цена</td>${products.map(p=>`<td><strong>${money(p.price)}</strong></td>`).join('')}</tr>
