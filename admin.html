@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,22 +12,40 @@
   <script src="js/data.js?v=66" defer></script>
   <script src="js/app.js?v=96" defer></script>
 </head>
+
 <body data-page="admin">
   <header class="site-header">
-    <div class="header-top"><div class="container"><span data-site-announcement>Оригинальные бренды · самовывоз · доставка</span><span class="mono">BYVIT / STORE / 2026</span></div></div>
+    <div class="header-top">
+      <div class="container"><span data-site-announcement>Оригинальные бренды · самовывоз · доставка</span><span
+          class="mono">BYVIT / STORE / 2026</span></div>
+    </div>
     <div class="container header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark has-image"><img class="brand-mark-img" src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
-      <nav class="main-nav"><a data-nav href="index.html">Главная</a><a data-nav href="catalog.html">Каталог</a><a data-nav href="brands.html">Бренды</a><a data-nav href="sale.html">Акции</a><a data-nav href="delivery.html">Доставка</a><a data-nav href="stores.html">Магазины</a></nav>
-      <form class="header-search" data-header-search-form><input data-header-search placeholder="Поиск товара"><button aria-label="Искать">⌕</button></form>
+      <a class="brand" href="index.html"><span class="brand-mark has-image"><img class="brand-mark-img"
+            src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+      <nav class="main-nav"><a data-nav href="index.html">Главная</a><a data-nav href="catalog.html">Каталог</a><a
+          data-nav href="brands.html">Бренды</a><a data-nav href="sale.html">Акции</a><a data-nav
+          href="delivery.html">Доставка</a><a data-nav href="stores.html">Магазины</a></nav>
+      <form class="header-search" data-header-search-form><input data-header-search placeholder="Поиск товара"><button
+          aria-label="Искать">⌕</button></form>
       <div class="header-actions">
-        <a class="icon-link" href="wishlist.html" title="Избранное">♡<span class="count-pill" data-count="wishlist">0</span></a>
-        <a class="icon-link" href="compare.html" title="Сравнение">⇄<span class="count-pill" data-count="compare">0</span></a>
+        <a class="icon-link" href="wishlist.html" title="Избранное">♡<span class="count-pill"
+            data-count="wishlist">0</span></a>
+        <a class="icon-link" href="compare.html" title="Сравнение">⇄<span class="count-pill"
+            data-count="compare">0</span></a>
         <a class="icon-link" href="cart.html" title="Корзина">🛒<span class="count-pill" data-count="cart">0</span></a>
         <a class="icon-link admin-pill" href="admin.html">Админ</a>
         <button class="burger" data-burger type="button" aria-label="Меню">☰</button>
       </div>
     </div>
-    <div class="mobile-panel" data-mobile-panel><div class="container"><a href="index.html">Главная</a><a href="catalog.html">Каталог</a><a href="brands.html">Бренды</a><a href="sale.html">Акции</a><a href="delivery.html">Доставка</a><a href="stores.html">Магазины</a><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a href="cart.html">Корзина</a><a href="admin.html">Админка</a><form class="header-search" style="display:block;max-width:none" data-header-search-form><input data-header-search placeholder="Поиск товара"><button aria-label="Искать">⌕</button></form></div></div>
+    <div class="mobile-panel" data-mobile-panel>
+      <div class="container"><a href="index.html">Главная</a><a href="catalog.html">Каталог</a><a
+          href="brands.html">Бренды</a><a href="sale.html">Акции</a><a href="delivery.html">Доставка</a><a
+          href="stores.html">Магазины</a><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a
+          href="cart.html">Корзина</a><a href="admin.html">Админка</a>
+        <form class="header-search" style="display:block;max-width:none" data-header-search-form><input
+            data-header-search placeholder="Поиск товара"><button aria-label="Искать">⌕</button></form>
+      </div>
+    </div>
   </header>
 
 
@@ -36,17 +55,22 @@
         <form id="adminLoginForm">
           <span class="eyebrow">Admin</span>
           <h1>Вход</h1>
-          <input class="form-control" id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password">
+          <input class="form-control" id="adminPassword" type="password" placeholder="Пароль"
+            autocomplete="current-password">
           <button class="btn btn-primary full" type="submit">Открыть админку</button>
         </form>
-        <button class="admin-recovery-toggle" id="adminRecoveryToggle" type="button" aria-expanded="false">Забыли пароль?</button>
+        <button class="admin-recovery-toggle" id="adminRecoveryToggle" type="button" aria-expanded="false">Забыли
+          пароль?</button>
         <form class="admin-recovery-form" id="adminRecoveryForm" hidden>
           <p>Код придёт в Telegram владельца и будет действовать 10 минут.</p>
           <button class="btn btn-light full" id="adminRecoveryRequest" type="button">Получить код</button>
           <div class="admin-recovery-fields" id="adminRecoveryFields" hidden>
-            <input class="form-control" id="adminRecoveryCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Код из Telegram" autocomplete="one-time-code">
-            <input class="form-control" id="adminRecoveryPassword" type="password" minlength="8" placeholder="Новый пароль" autocomplete="new-password">
-            <input class="form-control" id="adminRecoveryPasswordRepeat" type="password" minlength="8" placeholder="Повторите пароль" autocomplete="new-password">
+            <input class="form-control" id="adminRecoveryCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+              placeholder="Код из Telegram" autocomplete="one-time-code">
+            <input class="form-control" id="adminRecoveryPassword" type="password" minlength="8"
+              placeholder="Новый пароль" autocomplete="new-password">
+            <input class="form-control" id="adminRecoveryPasswordRepeat" type="password" minlength="8"
+              placeholder="Повторите пароль" autocomplete="new-password">
             <button class="btn btn-primary full" type="submit">Установить новый пароль</button>
           </div>
           <p class="admin-recovery-status" id="adminRecoveryStatus" aria-live="polite"></p>
@@ -66,7 +90,8 @@
 
         <div class="admin-layout">
           <div class="admin-tools">
-            <input id="adminSectionSearch" type="search" placeholder="Быстрый поиск раздела: товары, баннер, доставка...">
+            <input id="adminSectionSearch" type="search"
+              placeholder="Быстрый поиск раздела: товары, баннер, доставка...">
           </div>
           <nav class="admin-nav">
             <button class="active" data-admin-tab="site">Главная</button>
@@ -153,9 +178,11 @@
                       <h4>Цели и похожие товары</h4>
                       <input id="adminRecommendationTags" placeholder="Цели товара: масса, восстановление, сон">
                       <div class="admin-recommendation-options" id="adminRecommendationOptions"></div>
-                      <p class="admin-hint">Отметьте нужные цели или подкатегории. При переходе из каталога будут показаны товары с совпадающими значениями. Свои значения можно вписать выше через запятую.</p>
+                      <p class="admin-hint">Отметьте нужные цели или подкатегории. При переходе из каталога будут
+                        показаны товары с совпадающими значениями. Свои значения можно вписать выше через запятую.</p>
                       <label class="toggle-row">
-                        <span><strong>Автоматический подбор</strong><br><small>Дополнять закреплённые товары совпадениями по категории, тегам, форме и бренду</small></span>
+                        <span><strong>Автоматический подбор</strong><br><small>Дополнять закреплённые товары
+                            совпадениями по категории, тегам, форме и бренду</small></span>
                         <input id="adminRelatedAuto" type="checkbox" checked>
                       </label>
                       <div class="admin-related-products" id="adminRelatedProducts"></div>
@@ -165,10 +192,12 @@
                     <div class="admin-form-section">
                       <h4>Изображение</h4>
                       <label class="toggle-row">
-                        <span><strong>Файл товара</strong><br><small>JPG, PNG, WebP или SVG. На сервере сохранится файл, а в товаре — короткая ссылка.</small></span>
+                        <span><strong>Файл товара</strong><br><small>JPG, PNG, WebP или SVG. На сервере сохранится файл,
+                            а в товаре — короткая ссылка.</small></span>
                         <input id="adminImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
                       </label>
-                      <button class="btn btn-light small" data-admin-image-clear type="button">Убрать изображение</button>
+                      <button class="btn btn-light small" data-admin-image-clear type="button">Убрать
+                        изображение</button>
                     </div>
 
                     <div class="field-row">
@@ -202,7 +231,8 @@
             <section class="admin-section" id="admin-goals">
               <article class="admin-card">
                 <h3>Цели покупателей</h3>
-                <p class="admin-hint">Добавляйте и редактируйте сценарии выбора, которые показываются в блоке «Выбери свою цель» на главной.</p>
+                <p class="admin-hint">Добавляйте и редактируйте сценарии выбора, которые показываются в блоке «Выбери
+                  свою цель» на главной.</p>
                 <form class="admin-form" id="adminGoalsForm">
                   <div class="admin-form-section">
                     <h4>Список целей</h4>
@@ -217,14 +247,16 @@
             <section class="admin-section active" id="admin-site">
               <article class="admin-card">
                 <h3>Главная страница</h3>
-                <p class="admin-hint">Настройки разделены на общие, десктопные и мобильные, чтобы быстрее находить нужное поле.</p>
+                <p class="admin-hint">Настройки разделены на общие, десктопные и мобильные, чтобы быстрее находить
+                  нужное поле.</p>
                 <form class="admin-form admin-home-form" id="adminSiteForm">
                   <div class="admin-form-section admin-home-common admin-home-wide">
                     <h4>Общее hero</h4>
                     <input id="siteHeroEyebrow" placeholder="Надпись над заголовком">
                     <input id="siteHeroTitle" placeholder="Заголовок hero">
                     <textarea id="siteHeroText" placeholder="Текст hero"></textarea>
-                    <input id="siteHeroHref" placeholder="Ссылка основного баннера: catalog.html, sale.html или https://...">
+                    <input id="siteHeroHref"
+                      placeholder="Ссылка основного баннера: catalog.html, sale.html или https://...">
                     <div class="field-row">
                       <input id="siteHeroTitleSize" type="number" min="28" max="86" placeholder="Размер заголовка">
                       <input id="siteHeroTextSize" type="number" min="12" max="24" placeholder="Размер текста">
@@ -294,15 +326,18 @@
                       <input id="siteHeroOverlay" type="range" min="0" max="0.7" step="0.01">
                     </label>
                     <label class="toggle-row">
-                      <span><strong>Файл баннера</strong><br><small data-hero-upload-hint>Загрузить видео или изображение</small></span>
+                      <span><strong>Файл баннера</strong><br><small data-hero-upload-hint>Загрузить видео или
+                          изображение</small></span>
                       <input id="siteHeroMediaUpload" type="file" accept="image/*,video/*">
                     </label>
-                    <button class="btn btn-light" data-hero-video-default type="button">Вернуть видео по умолчанию</button>
+                    <button class="btn btn-light" data-hero-video-default type="button">Вернуть видео по
+                      умолчанию</button>
                   </div>
 
                   <div class="admin-form-section admin-home-wide">
                     <h4>Дополнительные баннеры hero</h4>
-                    <p class="admin-hint">Основной баннер редактируется в блоках «Десктопная версия» и «Мобильная версия». Здесь можно добавить ещё до 3 баннеров.</p>
+                    <p class="admin-hint">Основной баннер редактируется в блоках «Десктопная версия» и «Мобильная
+                      версия». Здесь можно добавить ещё до 3 баннеров.</p>
                     <div class="admin-blocks hero-slide-admin-list" id="adminHeroSlides"></div>
                     <button class="btn btn-light" data-hero-slide-add type="button">Добавить баннер</button>
                   </div>
@@ -320,7 +355,8 @@
                       </label>
                     </div>
                     <label class="toggle-row">
-                      <span><strong>Отдельный баннер для мобильной версии</strong><br><small>Используется только на телефоне. Десктопный баннер не меняется.</small></span>
+                      <span><strong>Отдельный баннер для мобильной версии</strong><br><small>Используется только на
+                          телефоне. Десктопный баннер не меняется.</small></span>
                       <input id="siteMobileHeroEnabled" type="checkbox">
                     </label>
                     <div class="field-row">
@@ -335,10 +371,12 @@
                       <small>JPG, PNG, WebP, SVG, MP4 или WebM.</small>
                     </label>
                     <label class="toggle-row" data-mobile-hero-control="upload">
-                      <span><strong>Загрузить медиа</strong><br><small>Файл загрузится в переносимое хранилище сайта</small></span>
+                      <span><strong>Загрузить медиа</strong><br><small>Файл загрузится в переносимое хранилище
+                          сайта</small></span>
                       <input id="siteMobileHeroMediaUpload" type="file" accept="image/*,video/mp4,video/webm">
                     </label>
-                    <button class="btn btn-light small" data-mobile-hero-clear type="button">Убрать мобильное медиа</button>
+                    <button class="btn btn-light small" data-mobile-hero-clear type="button">Убрать мобильное
+                      медиа</button>
                     <label class="range-field">
                       <span>Яркость мобильного медиа <strong id="mobileHeroOpacityValue">28%</strong></span>
                       <input id="siteMobileHeroOpacity" type="range" min="0.05" max="1" step="0.01">
@@ -353,14 +391,15 @@
                     </label>
                   </div>
 
-	                  <div class="admin-form-section admin-home-wide">
-	                    <h4>Блоки главной</h4>
-	                    <div class="admin-blocks" id="adminHomeBlocks"></div>
-	                  </div>
+                  <div class="admin-form-section admin-home-wide">
+                    <h4>Блоки главной</h4>
+                    <div class="admin-blocks" id="adminHomeBlocks"></div>
+                  </div>
 
                   <div class="admin-form-section admin-home-wide">
                     <h4>Фотоблок после брендов</h4>
-                    <p class="admin-hint">До 6 фотографий. На десктопе одновременно видны две, на телефоне — одна. Остальные пролистываются горизонтально.</p>
+                    <p class="admin-hint">До 6 фотографий. На десктопе одновременно видны две, на телефоне — одна.
+                      Остальные пролистываются горизонтально.</p>
                     <label class="admin-input-field">
                       <span>Название блока</span>
                       <input id="adminHomeGalleryTitle" value="Наш магазин" placeholder="Наш магазин">
@@ -369,7 +408,7 @@
                     <button class="btn btn-light" data-home-gallery-add type="button">Добавить фото</button>
                   </div>
 
-	                  <button class="btn btn-primary" type="submit">Сохранить главную</button>
+                  <button class="btn btn-primary" type="submit">Сохранить главную</button>
                 </form>
               </article>
             </section>
@@ -420,9 +459,11 @@
                 <form class="admin-form" id="adminTelegramForm">
                   <div class="admin-form-section">
                     <h4>Получатели заказов</h4>
-                    <textarea id="tgChat" placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
+                    <textarea id="tgChat"
+                      placeholder="Chat ID получателей: каждый с новой строки, через запятую или ;"></textarea>
                     <input id="tgBot" placeholder="Bot Token">
-                    <p class="admin-hint">Бот отправляет заказ только по Chat ID. Публичная ссылка Telegram настраивается отдельно в разделе «Футер» или «Связь».</p>
+                    <p class="admin-hint">Бот отправляет заказ только по Chat ID. Публичная ссылка Telegram
+                      настраивается отдельно в разделе «Футер» или «Связь».</p>
                   </div>
                   <div class="admin-form-section">
                     <h4>Восстановление доступа</h4>
@@ -434,8 +475,10 @@
                       <button class="btn btn-light" id="tgRecoveryConnect" type="button">Подключить Telegram</button>
                       <button class="btn btn-light" id="tgRecoveryDisconnect" type="button" hidden>Отключить</button>
                     </div>
-                    <a class="telegram-link-open" id="tgRecoveryOpen" href="#" target="_blank" rel="noopener" hidden>Открыть бота в Telegram</a>
-                    <p class="admin-hint" id="tgRecoveryMessage" aria-live="polite">Нажмите кнопку, затем «Запустить» в Telegram. Номер телефона и ручной Chat ID не нужны.</p>
+                    <a class="telegram-link-open" id="tgRecoveryOpen" href="#" target="_blank" rel="noopener"
+                      hidden>Открыть бота в Telegram</a>
+                    <p class="admin-hint" id="tgRecoveryMessage" aria-live="polite">Нажмите кнопку, затем «Запустить» в
+                      Telegram. Номер телефона и ручной Chat ID не нужны.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить Telegram</button>
                 </form>
@@ -449,7 +492,8 @@
                   <div class="admin-form-section">
                     <h4>Кнопка на сайте</h4>
                     <label class="toggle-row">
-                      <span><strong>Показывать кнопку связи</strong><br><small>Плавающая кнопка на всех страницах</small></span>
+                      <span><strong>Показывать кнопку связи</strong><br><small>Плавающая кнопка на всех
+                          страницах</small></span>
                       <input id="quickContactEnabled" type="checkbox">
                     </label>
                     <div class="field-row">
@@ -462,8 +506,10 @@
                   </div>
                   <div class="admin-form-section">
                     <h4>Способы связи</h4>
-                    <textarea id="quickContactItems" placeholder="Позвонить | phone | +375290000000 | 1&#10;Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Почта | email | info@byvit.by | 1"></textarea>
-                    <p class="admin-hint">Типы: phone, viber, whatsapp, telegram, email, link. Последняя цифра: 1 — включено, 0 — скрыто.</p>
+                    <textarea id="quickContactItems"
+                      placeholder="Позвонить | phone | +375290000000 | 1&#10;Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Почта | email | info@byvit.by | 1"></textarea>
+                    <p class="admin-hint">Типы: phone, viber, whatsapp, telegram, email, link. Последняя цифра: 1 —
+                      включено, 0 — скрыто.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить связь</button>
                 </form>
@@ -536,7 +582,8 @@
             <section class="admin-section" id="admin-analytics">
               <article class="admin-card">
                 <h3>Аналитика магазина</h3>
-                <p class="admin-hint">Обезличенные агрегаты: посещения, интерес к товарам, корзина и оформленные заказы. Личные данные покупателей не собираются.</p>
+                <p class="admin-hint">Обезличенные агрегаты: посещения, интерес к товарам, корзина и оформленные заказы.
+                  Личные данные покупателей не собираются.</p>
                 <div id="adminAnalytics"></div>
               </article>
             </section>
@@ -548,28 +595,43 @@
                   <div class="admin-form-section">
                     <h4>Включение блоков</h4>
                     <div class="admin-toggle-grid">
-                      <label class="toggle-row"><span><strong>Блок итого</strong><br><small>Сумма, доставка и итог заказа</small></span><input id="cartBlockSummary" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Промокод</strong><br><small>Поле ввода промокода</small></span><input id="cartBlockPromo" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Оформление</strong><br><small>Форма данных покупателя</small></span><input id="cartBlockCheckout" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Способы доставки</strong><br><small>Карточки Самовывоз, Курьер и другие</small></span><input id="cartBlockDelivery" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Адрес</strong><br><small>Поле адреса или отделения</small></span><input id="cartBlockAddress" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Оплата</strong><br><small>Выбор способа оплаты</small></span><input id="cartBlockPayment" type="checkbox"></label>
-                      <label class="toggle-row"><span><strong>Комментарий</strong><br><small>Поле комментария к заказу</small></span><input id="cartBlockComment" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Блок итого</strong><br><small>Сумма, доставка и итог
+                            заказа</small></span><input id="cartBlockSummary" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Промокод</strong><br><small>Поле ввода
+                            промокода</small></span><input id="cartBlockPromo" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Оформление</strong><br><small>Форма данных
+                            покупателя</small></span><input id="cartBlockCheckout" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Способы доставки</strong><br><small>Карточки Самовывоз,
+                            Курьер и другие</small></span><input id="cartBlockDelivery" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Адрес</strong><br><small>Поле адреса или
+                            отделения</small></span><input id="cartBlockAddress" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Оплата</strong><br><small>Выбор способа
+                            оплаты</small></span><input id="cartBlockPayment" type="checkbox"></label>
+                      <label class="toggle-row"><span><strong>Комментарий</strong><br><small>Поле комментария к
+                            заказу</small></span><input id="cartBlockComment" type="checkbox"></label>
                     </div>
                   </div>
                   <div class="admin-form-section">
                     <h4>Блок итого</h4>
-                    <div class="field-row"><input id="cartSummaryTitle" placeholder="Заголовок итого"><input id="cartItemsLabel" placeholder="Товары"></div>
-                    <div class="field-row"><input id="cartDeliveryLabel" placeholder="Доставка"><input id="cartTotalLabel" placeholder="Итого"></div>
-                    <div class="field-row"><input id="cartPromoPlaceholder" placeholder="Плейсхолдер промокода"><input id="cartPromoButton" placeholder="Кнопка промокода"></div>
-                    <textarea id="cartPromoLines" placeholder="WELCOME | 10 | percent | 1&#10;SALE20 | 20 | percent | 1"></textarea>
+                    <div class="field-row"><input id="cartSummaryTitle" placeholder="Заголовок итого"><input
+                        id="cartItemsLabel" placeholder="Товары"></div>
+                    <div class="field-row"><input id="cartDeliveryLabel" placeholder="Доставка"><input
+                        id="cartTotalLabel" placeholder="Итого"></div>
+                    <div class="field-row"><input id="cartPromoPlaceholder" placeholder="Плейсхолдер промокода"><input
+                        id="cartPromoButton" placeholder="Кнопка промокода"></div>
+                    <textarea id="cartPromoLines"
+                      placeholder="WELCOME | 10 | percent | 1&#10;SALE20 | 20 | percent | 1"></textarea>
                   </div>
                   <div class="admin-form-section">
                     <h4>Оформление</h4>
-                    <div class="field-row"><input id="cartCheckoutTitle" placeholder="Заголовок оформления"><input id="cartSubmitText" placeholder="Кнопка заказа"></div>
-                    <div class="field-row"><input id="cartNamePlaceholder" placeholder="Имя"><input id="cartPhonePlaceholder" placeholder="Телефон"></div>
-                    <div class="field-row"><input id="cartAddressPlaceholder" placeholder="Адрес"><input id="cartCommentPlaceholder" placeholder="Комментарий"></div>
-                    <textarea id="cartPaymentOptions" placeholder="Оплата при получении&#10;Перевод на карту"></textarea>
+                    <div class="field-row"><input id="cartCheckoutTitle" placeholder="Заголовок оформления"><input
+                        id="cartSubmitText" placeholder="Кнопка заказа"></div>
+                    <div class="field-row"><input id="cartNamePlaceholder" placeholder="Имя"><input
+                        id="cartPhonePlaceholder" placeholder="Телефон"></div>
+                    <div class="field-row"><input id="cartAddressPlaceholder" placeholder="Адрес"><input
+                        id="cartCommentPlaceholder" placeholder="Комментарий"></div>
+                    <textarea id="cartPaymentOptions"
+                      placeholder="Оплата при получении&#10;Перевод на карту"></textarea>
                     <input id="cartSuccessTitle" placeholder="Заголовок после заказа">
                     <textarea id="cartSuccessText" placeholder="Текст после заказа"></textarea>
                   </div>
@@ -587,11 +649,21 @@
                     <select id="adminReviewProduct"></select>
                     <div class="field-row">
                       <input id="adminReviewName" placeholder="Имя">
-                      <select id="adminReviewRating"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+                      <select id="adminReviewRating">
+                        <option value="5">5</option>
+                        <option value="4">4</option>
+                        <option value="3">3</option>
+                        <option value="2">2</option>
+                        <option value="1">1</option>
+                      </select>
                     </div>
-                    <select id="adminReviewStatus"><option value="pending">На модерации</option><option value="approved">Одобрен</option></select>
+                    <select id="adminReviewStatus">
+                      <option value="pending">На модерации</option>
+                      <option value="approved">Одобрен</option>
+                    </select>
                     <textarea id="adminReviewText" placeholder="Текст отзыва"></textarea>
-                    <div class="field-row"><button class="btn btn-primary" type="submit">Сохранить отзыв</button><button class="btn btn-light" id="adminReviewReset" type="button">Очистить</button></div>
+                    <div class="field-row"><button class="btn btn-primary" type="submit">Сохранить отзыв</button><button
+                        class="btn btn-light" id="adminReviewReset" type="button">Очистить</button></div>
                   </form>
                 </article>
                 <article class="admin-card">
@@ -635,13 +707,17 @@
                   <div class="admin-form-section">
                     <h4>Текст</h4>
                     <textarea id="footerDescription" placeholder="Описание"></textarea>
-                    <div class="field-row"><input id="footerCopyright" placeholder="Copyright"><input id="footerTechText" placeholder="Технический текст"></div>
+                    <div class="field-row"><input id="footerCopyright" placeholder="Copyright"><input
+                        id="footerTechText" placeholder="Технический текст"></div>
                   </div>
                   <div class="admin-form-section">
                     <h4>Контакты</h4>
-                    <div class="field-row"><input id="footerInstagram" placeholder="Instagram ник или ссылка"><input id="footerTelegram" placeholder="Telegram ник или ссылка"></div>
-                    <div class="field-row"><input id="footerEmail" placeholder="Почта"><textarea id="footerPhones" placeholder="Телефоны, каждый с новой строки"></textarea></div>
-                    <textarea id="footerExtraContacts" placeholder="Доп. контакты: Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Менеджер | link | https://t.me/name | 1"></textarea>
+                    <div class="field-row"><input id="footerInstagram" placeholder="Instagram ник или ссылка"><input
+                        id="footerTelegram" placeholder="Telegram ник или ссылка"></div>
+                    <div class="field-row"><input id="footerEmail" placeholder="Почта"><textarea id="footerPhones"
+                        placeholder="Телефоны, каждый с новой строки"></textarea></div>
+                    <textarea id="footerExtraContacts"
+                      placeholder="Доп. контакты: Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Менеджер | link | https://t.me/name | 1"></textarea>
                   </div>
                   <div class="admin-form-section">
                     <h4>Значки и платежи</h4>
@@ -650,7 +726,8 @@
                   </div>
                   <div class="admin-form-section">
                     <h4>Колонки ссылок</h4>
-                    <textarea id="footerColumns" placeholder="Магазин:&#10;Каталог | catalog.html | 1&#10;&#10;Клиенту:&#10;Доставка | delivery.html | 1"></textarea>
+                    <textarea id="footerColumns"
+                      placeholder="Магазин:&#10;Каталог | catalog.html | 1&#10;&#10;Клиенту:&#10;Доставка | delivery.html | 1"></textarea>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить футер</button>
                 </form>
@@ -663,15 +740,18 @@
                 <form class="admin-form" id="adminHeaderForm">
                   <div class="admin-form-section">
                     <h4>Название и верхняя строка</h4>
-                    <div class="field-row"><input id="headerStoreName" placeholder="Название магазина"><input id="headerLogoText" placeholder="Текст логотипа"></div>
+                    <div class="field-row"><input id="headerStoreName" placeholder="Название магазина"><input
+                        id="headerLogoText" placeholder="Текст логотипа"></div>
                     <label class="admin-input-field">
                       <span>Изображение значка</span>
                       <input id="headerLogoImage" placeholder="Ссылка или загруженный файл для квадрата">
                       <small>Если поле заполнено, картинка заменит текст в зелёном квадрате.</small>
                     </label>
                     <label class="toggle-row">
-                      <span><strong>Файл значка</strong><br><small>JPG, PNG, WebP или SVG. Подстроится под размер хедера.</small></span>
-                      <input id="headerLogoImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                      <span><strong>Файл значка</strong><br><small>JPG, PNG, WebP или SVG. Подстроится под размер
+                          хедера.</small></span>
+                      <input id="headerLogoImageUpload" type="file"
+                        accept="image/jpeg,image/png,image/webp,image/svg+xml">
                     </label>
                     <button class="btn btn-light small" data-header-logo-clear type="button">Убрать файл значка</button>
                     <label class="admin-input-field">
@@ -680,16 +760,21 @@
                       <small>Если поле пустое, показывается текст названия магазина.</small>
                     </label>
                     <label class="toggle-row">
-                      <span><strong>Файл названия</strong><br><small>Можно загрузить горизонтальный логотип для десктопа и мобильной версии.</small></span>
-                      <input id="headerBrandImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                      <span><strong>Файл названия</strong><br><small>Можно загрузить горизонтальный логотип для десктопа
+                          и мобильной версии.</small></span>
+                      <input id="headerBrandImageUpload" type="file"
+                        accept="image/jpeg,image/png,image/webp,image/svg+xml">
                     </label>
-                    <button class="btn btn-light small" data-header-brand-clear type="button">Убрать файл названия</button>
-                    <div class="field-row"><input id="headerTopRight" placeholder="Текст справа сверху"><input id="headerAdminLabel" placeholder="Текст кнопки админки"></div>
+                    <button class="btn btn-light small" data-header-brand-clear type="button">Убрать файл
+                      названия</button>
+                    <div class="field-row"><input id="headerTopRight" placeholder="Текст справа сверху"><input
+                        id="headerAdminLabel" placeholder="Текст кнопки админки"></div>
                     <input id="headerSearchPlaceholder" placeholder="Плейсхолдер поиска">
                   </div>
                   <div class="admin-form-section">
                     <h4>Меню</h4>
-                    <textarea id="headerNavLines" placeholder="Главная | index.html | 1&#10;Каталог | catalog.html | 1"></textarea>
+                    <textarea id="headerNavLines"
+                      placeholder="Главная | index.html | 1&#10;Каталог | catalog.html | 1"></textarea>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить хэдер</button>
                 </form>
@@ -699,7 +784,8 @@
             <section class="admin-section" id="admin-service">
               <article class="admin-card">
                 <h3>Сервис</h3>
-                <p>Резервные копии используют переносимый JSON-формат. Их можно скачать и восстановить на другом хостинге.</p>
+                <p>Резервные копии используют переносимый JSON-формат. Их можно скачать и восстановить на другом
+                  хостинге.</p>
                 <div class="admin-form-section">
                   <h4>Хранилище и резервные копии</h4>
                   <div class="admin-storage-status" id="adminStorageStatus"><span>Проверяем хранилище...</span></div>
@@ -708,14 +794,17 @@
                     <button class="btn btn-light" data-server-backup-download type="button">Скачать с сервера</button>
                   </div>
                   <div class="admin-backup-list" id="adminBackupsList"></div>
-                  <p class="admin-hint">Сервер хранит до заданного количества копий. Для переезда скачайте последнюю копию и импортируйте её на новом хостинге.</p>
+                  <p class="admin-hint">Сервер хранит до заданного количества копий. Для переезда скачайте последнюю
+                    копию и импортируйте её на новом хостинге.</p>
                 </div>
                 <form class="admin-form" id="adminPasswordForm" style="margin-bottom:18px">
                   <div class="admin-form-section">
                     <h4>Пароль админки</h4>
                     <div class="field-row">
-                      <input id="adminNewPassword" type="password" placeholder="Новый пароль" autocomplete="new-password">
-                      <input id="adminNewPasswordRepeat" type="password" placeholder="Повторите пароль" autocomplete="new-password">
+                      <input id="adminNewPassword" type="password" placeholder="Новый пароль"
+                        autocomplete="new-password">
+                      <input id="adminNewPasswordRepeat" type="password" placeholder="Повторите пароль"
+                        autocomplete="new-password">
                     </div>
                     <button class="btn btn-primary" type="submit">Сменить пароль</button>
                   </div>
@@ -739,13 +828,30 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
-        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark has-image"><img class="brand-mark-img" src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a><p style="margin-top:18px;max-width:380px">Спортивное питание и БАДы в строгом минималистичном интерфейсе, потому что товар должен продаваться, а не кричать зелёным маркером.</p></div>
-        <div><h3>Магазин</h3><div class="footer-links"><a href="catalog.html">Каталог</a><a href="brands.html">Бренды</a><a href="sale.html">Акции</a></div></div>
-        <div><h3>Клиенту</h3><div class="footer-links"><a href="delivery.html">Доставка</a><a href="stores.html">Магазины</a></div></div>
-        <div><h3>Сервис</h3><div class="footer-links"><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a href="cart.html">Корзина</a></div></div>
+        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark has-image"><img
+                class="brand-mark-img" src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+          <p style="margin-top:18px;max-width:380px">Спортивное питание и БАДы в строгом минималистичном интерфейсе,
+            потому что товар должен продаваться, а не кричать зелёным маркером.</p>
+        </div>
+        <div>
+          <h3>Магазин</h3>
+          <div class="footer-links"><a href="catalog.html">Каталог</a><a href="brands.html">Бренды</a><a
+              href="sale.html">Акции</a></div>
+        </div>
+        <div>
+          <h3>Клиенту</h3>
+          <div class="footer-links"><a href="delivery.html">Доставка</a><a href="stores.html">Магазины</a></div>
+        </div>
+        <div>
+          <h3>Сервис</h3>
+          <div class="footer-links"><a href="wishlist.html">Избранное</a><a href="compare.html">Сравнение</a><a
+              href="cart.html">Корзина</a></div>
+        </div>
       </div>
-      <div class="footer-bottom"><span>© 2026 ByVit. Demo static e-commerce.</span><span class="mono">HTML / CSS / JS</span></div>
+      <div class="footer-bottom"><span>© 2026 ByVit. Demo static e-commerce.</span><span class="mono">HTML / CSS /
+          JS</span></div>
     </div>
   </footer>
 </body>
+
 </html>

@@ -18,11 +18,11 @@ const pages = [
   'wishlist.html'
 ];
 
-function copyDirectory(name){
-  fs.cpSync(path.join(root, name), path.join(output, name), {recursive:true});
+function copyDirectory(name) {
+  fs.cpSync(path.join(root, name), path.join(output, name), { recursive: true });
 }
 
-function prepareHtml(file){
+function prepareHtml(file) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
   const staticFlag = '<script>window.BYVIT_STATIC = true;</script>';
   const publicSource = source.replace(
@@ -33,12 +33,12 @@ function prepareHtml(file){
     /(\s*<script\s+src=["']js\/data\.js[^>]*><\/script>)/i,
     `\n  ${staticFlag}$1`
   );
-  if(html === publicSource) throw new Error(`Static mode was not injected into ${file}`);
+  if (html === publicSource) throw new Error(`Static mode was not injected into ${file}`);
   fs.writeFileSync(path.join(output, file), html);
 }
 
-fs.rmSync(output, {recursive:true, force:true});
-fs.mkdirSync(output, {recursive:true});
+fs.rmSync(output, { recursive: true, force: true });
+fs.mkdirSync(output, { recursive: true });
 
 ['assets', 'css', 'js'].forEach(copyDirectory);
 pages.forEach(prepareHtml);
