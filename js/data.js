@@ -59,7 +59,7 @@
       heroAlign:'right',
       heroHref:'',
       heroMediaMode:'video',
-      heroMediaSrc:'assets/hero-video.mp4',
+      heroMediaSrc:'assets/hero-default.mp4',
       heroAnimation:'waves',
       heroEyebrowColor:'#2d5a27',
       heroTitleColor:'#191a17',
@@ -74,7 +74,7 @@
       heroActionsMobile:true,
       mobileHeroMedia:{enabled:false,mode:'image',src:'',animation:'waves',opacity:0.28,veil:0.9},
       heroSlides:[
-        {id:'hero-1',enabled:true,desktopMode:'video',desktopSrc:'assets/hero-video.mp4',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}
+        {id:'hero-1',enabled:true,desktopMode:'video',desktopSrc:'assets/hero-default.mp4',desktopAnimation:'waves',mobileEnabled:false,mobileMode:'image',mobileSrc:'',mobileAnimation:'waves'}
       ],
       heroMetrics:[
         {id:'categories',value:'12+',label:'категорий',enabled:true},

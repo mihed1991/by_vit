@@ -816,7 +816,7 @@
       enabled:true,
       href:site?.heroHref || defaults.heroHref || '',
       desktopMode:site?.heroMediaMode || defaults.heroMediaMode || 'video',
-      desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-video.mp4',
+      desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-default.mp4',
       mobileEnabled:mobileHero.enabled === true,
       mobileMode:mobileHero.mode || 'image',
       mobileSrc:mobileHero.src || ''
@@ -863,7 +863,7 @@
     merged.heroAlign = merged.heroAlign || 'right';
     merged.heroHref = String(merged.heroHref || '').trim();
     merged.heroMediaMode = merged.heroMediaMode || 'video';
-    merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-video.mp4';
+    merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-default.mp4';
     delete merged.heroAnimation;
     merged.heroEyebrowColor = colorValue(merged.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow);
     merged.heroTitleColor = colorValue(merged.heroTitleColor, DEFAULT_HERO_COLORS.title);
@@ -1874,7 +1874,7 @@
     const activeSlides = slides.length ? slides : [normalizeHeroSlide({
       href:site.heroHref || '',
       desktopMode:site.heroMediaMode || 'video',
-      desktopSrc:site.heroMediaSrc || 'assets/hero-video.mp4',
+      desktopSrc:site.heroMediaSrc || 'assets/hero-default.mp4',
       mobileEnabled:mobileMedia.enabled === true,
       mobileMode:mobileMedia.mode || 'image',
       mobileSrc:mobileMedia.src || ''
@@ -1905,7 +1905,7 @@
     const mediaHtml = (mode, src, mobile=false) => {
       const mediaClass = mobile ? 'hero-mobile-fallback' : 'hero-desktop-media';
       if(mode === 'image' || (mode === 'file' && !isVideoSource(src))) return `<img class="${mediaClass} ${mobile ? 'hero-mobile-custom' : ''}" src="${esc(src || imageFallback)}" alt="">`;
-      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="auto"><source src="${esc(src || 'assets/hero-video.mp4')}" type="${videoMime(src)}"></video>`;
+      return `<video class="${mediaClass} ${mobile ? 'hero-mobile-video' : ''}" autoplay muted loop playsinline preload="auto"><source src="${esc(src || 'assets/hero-default.mp4')}" type="${videoMime(src)}"></video>`;
     };
     root.dataset.slideCount = String(activeSlides.length);
     root.innerHTML = activeSlides.map((slide, index) => {
@@ -3461,7 +3461,7 @@
       enabled:true,
       href:$('#siteHeroHref')?.value.trim() || '',
       desktopMode,
-      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-video.mp4',
+      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-default.mp4',
       mobileEnabled:$('#siteMobileHeroEnabled')?.checked === true,
       mobileMode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
       mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || ''
@@ -4055,7 +4055,7 @@
     if(brightnessWrap) brightnessWrap.style.gridColumn = '1 / -1';
     if(mediaInput){
       const placeholders = {
-        video:'assets/hero-video.mp4 или ссылка на .mp4/.webm',
+        video:'assets/hero-default.mp4 или ссылка на .mp4/.webm',
         image:'assets/photo.jpg или ссылка на .jpg/.png/.webp/.svg',
         file:'Загруженный файл или ссылка на медиа'
       };
@@ -4479,7 +4479,7 @@
     const previous = $('#siteHeroMediaSrc')?.value.trim() || '';
     const values = {
       siteHeroMediaMode:defaults.heroMediaMode || 'video',
-      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-video.mp4'
+      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-default.mp4'
     };
     Object.entries(values).forEach(([id, value]) => {
       const field = $('#'+id);
