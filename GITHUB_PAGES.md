@@ -20,3 +20,6 @@ GitHub Pages cannot run Node.js. Catalog pages, product pages, favorites,
 comparison, and the browser-local cart work. Shared administration, server-side
 orders, uploaded files, Telegram recovery, and persistent server data require a
 separate backend service.
+
+Checkout on the Pages preview intentionally refuses to show a successful order:
+without the API there is nowhere reliable to save or deliver that order.

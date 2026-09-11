@@ -1,0 +1,9 @@
+.git
+.github
+.env
+data/store.json
+data/backups
+data/uploads
+dist
+node_modules
+.DS_Store

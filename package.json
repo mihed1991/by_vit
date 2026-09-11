@@ -6,9 +6,21 @@
   "scripts": {
     "start": "node server.js",
     "build:static": "node scripts/build-static.js",
-    "check": "node --check server.js && node --check js/app.js && node --check js/data.js && node scripts/check-storage.js && node scripts/check-media.js"
+    "check": "node --check server.js && node --check js/app.js && node --check js/data.js && node scripts/check-storage.js && node scripts/check-media.js && node scripts/check-backup.js && node scripts/check-api.js",
+    "check:api": "node scripts/check-api.js",
+    "check:e2e": "node scripts/check-e2e.js",
+    "check:production": "NODE_ENV=production node scripts/check-production.js",
+    "backup:data": "node scripts/backup-data.js",
+    "restore:data": "node scripts/restore-data.js",
+    "migrate:postgres": "node scripts/migrate-file-to-postgres.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }

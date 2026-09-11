@@ -1,0 +1,61 @@
+name: Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: npm run check
+
+      - name: Validate production environment
+        env:
+          BYVIT_PUBLIC_URL: https://shop.byvit.test
+          BYVIT_ALLOWED_ORIGINS: https://shop.byvit.test
+          BYVIT_ADMIN_PASSWORD: ByVitCiAdminPassword42
+          BYVIT_DATA_DIR: /app/runtime/data
+          BYVIT_BACKUP_DIR: /app/runtime/data/backups
+          BYVIT_UPLOAD_DIR: /app/runtime/data/uploads
+          BYVIT_BACKUP_TOKEN: byvit-ci-backup-token-1234567890
+          POSTGRES_PASSWORD: byvit-ci-database-password-42
+          DATABASE_URL: postgresql://byvit:byvit-ci-database-password-42@postgres:5432/byvit
+          BYVIT_STORAGE_DRIVER: postgres
+          BYVIT_MEDIA_PERSISTENT: "true"
+        run: npm run check:production
+
+      - name: Run desktop and mobile journeys
+        run: npm run check:e2e
+
+      - name: Build public storefront
+        env:
+          BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/
+        run: npm run build:static
+
+      - name: Verify public artifact
+        run: |
+          test -f dist/index.html
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          test ! -f dist/admin.html
+          test ! -f dist/server.js
+          ! grep -R "href=\"admin.html\"" dist --include='*.html'

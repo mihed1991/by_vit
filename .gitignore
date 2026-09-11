@@ -1,7 +1,11 @@
 data/store.json
+.env
+.env.*
+!.env.example
 dist/
 data/*.tmp
 data/backups/
 data/uploads/
+backups/
 node_modules/
 .DS_Store

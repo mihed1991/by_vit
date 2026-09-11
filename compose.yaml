@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-byvit}
+      POSTGRES_USER: ${POSTGRES_USER:-byvit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - byvit-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-byvit} -d $${POSTGRES_DB:-byvit}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  byvit:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BYVIT_PUBLIC_URL: ${BYVIT_PUBLIC_URL:-http://localhost:3000}
+      BYVIT_ALLOWED_ORIGINS: ${BYVIT_ALLOWED_ORIGINS:-http://localhost:3000}
+      BYVIT_TRUST_PROXY: ${BYVIT_TRUST_PROXY:-false}
+      BYVIT_ADMIN_PASSWORD: ${BYVIT_ADMIN_PASSWORD:?Set BYVIT_ADMIN_PASSWORD in .env}
+      BYVIT_BACKUP_TOKEN: ${BYVIT_BACKUP_TOKEN:?Set BYVIT_BACKUP_TOKEN in .env}
+      BYVIT_STORAGE_DRIVER: postgres
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      BYVIT_DATABASE_POOL_SIZE: ${BYVIT_DATABASE_POOL_SIZE:-10}
+      BYVIT_DATABASE_SSL: ${BYVIT_DATABASE_SSL:-false}
+      BYVIT_MEDIA_DRIVER: file
+      BYVIT_MEDIA_PERSISTENT: "true"
+      BYVIT_BACKUP_EXPORT_DIR: /app/offsite-backups
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - byvit-data:/app/runtime/data
+      - byvit-backups:/app/offsite-backups
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  byvit-db:
+  byvit-data:
+  byvit-backups:

@@ -1,27 +1,82 @@
-# ByVit storage
+# ByVit production deployment
 
-The application keeps catalog data and uploaded media behind two small adapters:
+The repository can be prepared and tested locally before a server or domain is purchased. The production runtime is one Node.js container with a persistent data volume. A reverse proxy such as Caddy, Traefik, or nginx terminates HTTPS and forwards traffic to `127.0.0.1:3000`.
 
-- `BYVIT_STORAGE_DRIVER=file` stores JSON data.
-- `BYVIT_MEDIA_DRIVER=file` stores uploaded images and videos.
+## Local preparation
 
-By default both use `BYVIT_DATA_DIR` (or `RAILWAY_VOLUME_MOUNT_PATH` on Railway):
+1. Copy `.env.example` to `.env`.
+2. Replace every `replace-with-...` value and set `BYVIT_PUBLIC_URL` and `BYVIT_ALLOWED_ORIGINS` to the future HTTPS domain.
+3. Run `npm ci`, `npm run check`, and `npm run check:e2e`.
+4. Start Docker Desktop and run `docker compose build`.
+5. Start the application with `docker compose up -d`.
+6. Check `http://127.0.0.1:3000/api/health` and place a test order.
+
+The application refuses to start with `NODE_ENV=production` unless the admin password and persistent storage are configured.
+
+## Persistent data
+
+Production Compose uses three independent persistent volumes:
 
 ```text
-data/store.json
-data/backups/
-data/uploads/
+byvit-db       PostgreSQL database
+byvit-data     uploaded media and runtime snapshots
+byvit-backups  database dumps, uploaded media, and SHA-256 manifests
 ```
 
-Recommended production variables:
+Back up both the database and uploaded product/banner files. Keep at least one encrypted copy on another machine or object-storage provider; a backup left only on the same server is not sufficient.
 
-```text
-BYVIT_DATA_DIR=/data
-BYVIT_STORAGE_PERSISTENT=true
-BYVIT_MEDIA_PERSISTENT=true
-BYVIT_UPLOAD_MAX_BYTES=26214400
+For a mounted external backup directory, run `docker compose exec byvit npm run backup:data`. PostgreSQL mode exports `database.dump`; file mode exports `store.json`. Both modes include uploaded media and a SHA-256 manifest. Schedule this command from the host and copy exports off the server.
+
+Test restoration only on a separate instance. Stop the application, set `BYVIT_RESTORE_FROM` to an extracted backup directory and `BYVIT_RESTORE_CONFIRM=RESTORE`, then run `npm run restore:data`. PostgreSQL restoration replaces the current ByVit tables.
+
+## Migrate the current file store
+
+Do this before the first full production start if the existing `data/store.json` must be preserved:
+
+1. Create a complete file backup and keep a copy outside the server.
+2. Start only PostgreSQL: `docker compose up -d postgres`.
+3. Import the JSON through the application container:
+
+```bash
+docker compose run --rm \
+  -v "$PWD/data/store.json:/import/store.json:ro" \
+  -e BYVIT_IMPORT_FILE=/import/store.json \
+  byvit npm run migrate:postgres
 ```
 
-Mount a persistent volume at `/data`. When moving to another host, copy `store.json`, `backups/`, and `uploads/`. Existing data URLs and external image links remain supported, so migration can be gradual.
+4. If `data/uploads` exists, copy it into the persistent media volume:
 
-The frontend only stores `/uploads/...` URLs. A future S3-compatible adapter can replace the file media driver without changing product, banner, brand, header, or footer forms.
+```bash
+docker compose run --rm \
+  -v "$PWD/data/uploads:/import/uploads:ro" \
+  byvit sh -c 'cp -R /import/uploads/. /app/runtime/data/uploads/'
+```
+
+5. Start the complete stack and verify product count, orders, uploaded images, and `/api/health`.
+
+The importer refuses to overwrite a non-empty PostgreSQL store. `BYVIT_IMPORT_FORCE=true` is available only for an intentional replacement after a verified backup.
+
+## First server launch
+
+1. Install Docker Engine and the Compose plugin.
+2. Clone the repository and create `.env` from `.env.example`.
+3. Set the real domain in `BYVIT_PUBLIC_URL` and `BYVIT_ALLOWED_ORIGINS`.
+4. Generate unique admin and backup secrets.
+5. Run `docker compose up -d --build`.
+6. Configure the reverse proxy, TLS certificate, firewall, and automatic volume backups.
+7. Open `/admin.html`, log in, and configure contacts and Telegram. `BYVIT_ADMIN_PASSWORD` is the bootstrap password; a password later changed through the admin/recovery API is stored as a scrypt hash and takes precedence.
+8. Verify an order from a phone and desktop before opening the store to customers.
+
+`Caddyfile.example` is ready for the future domain. Replace `shop.example.com`, install Caddy on the server, copy the file to the Caddy configuration, and reload Caddy. The application itself remains bound to `127.0.0.1:3000`; only Caddy should be exposed publicly.
+
+## Required production checks
+
+- `/api/health` reports persistent storage and media.
+- `/server.js`, `/.git/config`, `/data/store.json`, and `/.env` return 404.
+- A forged browser price does not change the server-calculated order total.
+- An order above the available stock is rejected.
+- Telegram receives the same server-calculated order saved in the store.
+- The data volume survives a container rebuild.
+- A backup is restored on a separate test instance.
+
+GitHub Pages remains a public preview only. It cannot receive real orders or run the admin API.

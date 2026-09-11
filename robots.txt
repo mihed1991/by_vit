@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /by_vit/admin.html
+Disallow: /by_vit/cart.html
+Disallow: /by_vit/wishlist.html
+Disallow: /by_vit/compare.html
+Sitemap: https://mihed1991.github.io/by_vit/sitemap.xml

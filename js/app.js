@@ -18,8 +18,6 @@
     admin:'byvit_v60_admin_session'
   };
   const REMOVED_PAGE_HREFS = new Set(['healthy-sleep.html', 'profile.html']);
-  const ADMIN_PASSWORD_HASH = '8e9b669109df89620b94f2387dc53206a82ddc71d658f8f7a2b3a9b417370d3e';
-  const ADMIN_PASSWORD_CODES = [49,57,57,49];
   const DEFAULT_BADGE_COLOR = '#2d5a27';
   const FORM_TYPES = {
     powder:'Порошок',
@@ -850,7 +848,6 @@
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
     merged.pickupStores = normalizePickupStores(site, defaults);
     merged.map = normalizeMap(site, defaults);
-    merged.adminPasswordHash = site?.adminPasswordHash || defaults.adminPasswordHash || ADMIN_PASSWORD_HASH;
     if(storedTypographyVersion < 2){
       Object.values(merged.homeBlocks).forEach(block => {
         block.titleSize = Math.min(36, Number(block.titleSize || 36));
@@ -1572,9 +1569,6 @@
       <div class="footer-grid">
         <div class="footer-brand-block">
           ${brandLinkHtml(header, 'style="color:#fff"')}
-          <div class="footer-brand-tools">
-            <a class="footer-admin-link" href="admin.html" aria-label="Админка">admin</a>
-          </div>
         </div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
@@ -1609,7 +1603,7 @@
     return `
       <article class="product-card" data-product-id="${esc(product.id)}">
         <div class="product-media">
-          <a href="product.html?id=${esc(product.id)}"><img src="${esc(firstImage(product))}" alt="${esc(product.name)}" loading="lazy" onerror="this.alt='';this.hidden=true;this.closest('.product-media').classList.add('is-image-missing')"></a>
+          <a href="product.html?id=${esc(product.id)}"><img src="${esc(firstImage(product))}" alt="${esc(product.name)}" loading="lazy" data-product-image></a>
           <div class="product-badges">
             <div class="product-badges-main">
               ${product.badge ? `<span class="badge" style="--badge-bg:${badgeColor(product)}">${esc(product.badge)}</span>` : ''}
@@ -1644,6 +1638,11 @@
   function renderGrid(container, products){
     if(!container) return;
     container.innerHTML = products.length ? products.map(productCard).join('') : `<div class="empty-state"><h3>Товаров не найдено</h3><p>Фильтр слишком строгий. Даже у магазина иногда заканчивается терпение.</p></div>`;
+    $$('[data-product-image]', container).forEach(image => image.addEventListener('error', () => {
+      image.alt = '';
+      image.hidden = true;
+      image.closest('.product-media')?.classList.add('is-image-missing');
+    }, {once:true}));
   }
 
   function addToCart(productId, optionId, flavor, qty=1){
@@ -2885,30 +2884,14 @@
     lines.push('');
     return lines.join('\n');
   }
-  async function sendTelegram(text){
-    const settings = getSite().telegram || {};
-    const recipients = telegramRecipients(settings);
-    if(!settings.botToken || !recipients.length) return {skipped:true};
-    const url = `https://api.telegram.org/bot${settings.botToken}/sendMessage`;
-    await Promise.allSettled(recipients.map(chatId => {
-      const body = new URLSearchParams();
-      body.set('chat_id', chatId);
-      body.set('text', text);
-      return fetch(url,{method:'POST',mode:'no-cors',body});
-    }));
-    return {ok:true,count:recipients.length};
-  }
-  function telegramRecipients(settings){
-    return String(settings?.chatId || '')
-      .split(/[\n,;]+/)
-      .map(item => item.trim())
-      .filter(Boolean)
-      .filter((item, index, list) => list.indexOf(item) === index);
-  }
   async function submitOrder(event){
     event.preventDefault();
     const cart = getCart();
     if(!cart.length){ toast('Корзина пустая'); return; }
+    if(!serverAvailable){
+      toast('Оформление временно недоступно. Магазин ещё не подключён к серверу.');
+      return;
+    }
     const name = $('#orderName')?.value.trim();
     const phone = $('#orderPhone')?.value.trim();
     const addressEl = $('#orderAddress');
@@ -2919,22 +2902,24 @@
     const pickupStore = deliveryKey === 'pickup' ? selectedPickupStore() : null;
     const address = pickupStore ? [pickupStore.title, pickupStore.address].filter(Boolean).join(': ') : (addressEl && !addressEl.hidden ? addressEl.value.trim() : '');
     const totals = cartTotals();
-    const items = cart.map(item => { const p = productById(item.productId) || {}; return {...item,name:p.name || 'Товар',lineTotal:Number(item.price)*Number(item.qty)}; });
-    const order = {id:Date.now(),date:new Date().toLocaleString('ru-RU'),status:'new',items,subtotal:totals.subtotal,discount:totals.discount,total:totals.total,promo:totals.promo,deliveryKey,deliveryTitle:delivery.title,pickupStore:pickupStore ? {...pickupStore} : null,payment:$('#paymentMethod')?.value || 'при получении',comment:$('#orderComment')?.value.trim() || '',customer:{name,phone,address}};
-    if(serverAvailable){
-      try{
-        const result = await fetchJson('/api/orders', {method:'POST', body:JSON.stringify({order})});
-        if(serverState && Array.isArray(serverState.orders)) serverState.orders.unshift(result.order || order);
-      }catch(error){
-        console.warn(error);
-        const orders = getOrders(); orders.unshift(order); saveOrders(orders);
-        try{ await sendTelegram(buildOrderText(order)); }
-        catch(e){ console.warn(e); }
-      }
-    }else{
-      const orders = getOrders(); orders.unshift(order); saveOrders(orders);
-      try{ await sendTelegram(buildOrderText(order)); }
-      catch(e){ console.warn(e); }
+    const orderRequest = {
+      items:cart.map(item => ({productId:item.productId,optionId:item.optionId,flavor:item.flavor || '',qty:Number(item.qty || 1)})),
+      promo:totals.promo,
+      deliveryKey,
+      pickupStoreId:pickupStore?.id || '',
+      payment:$('#paymentMethod')?.value || 'Оплата при получении',
+      comment:$('#orderComment')?.value.trim() || '',
+      customer:{name,phone,address}
+    };
+    let order;
+    try{
+      const result = await fetchJson('/api/orders', {method:'POST', body:JSON.stringify({order:orderRequest})});
+      order = result.order;
+      if(serverState && Array.isArray(serverState.orders)) serverState.orders.unshift(order);
+    }catch(error){
+      console.warn(error);
+      toast(error.message || 'Не удалось оформить заказ. Попробуйте ещё раз.');
+      return;
     }
     saveCart([]); sessionStorage.removeItem('byvit_v60_promo');
     renderCart();
@@ -3162,16 +3147,6 @@
       setUploadBusy(input, false);
       input.value = '';
     }
-  }
-  async function sha256(value){
-    if(!window.crypto?.subtle) return '';
-    const bytes = new TextEncoder().encode(value);
-    const hash = await crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, '0')).join('');
-  }
-  function passwordCodeMatch(value){
-    const chars = Array.from(String(value || ''));
-    return chars.length === ADMIN_PASSWORD_CODES.length && chars.every((char, index) => char.charCodeAt(0) === ADMIN_PASSWORD_CODES[index]);
   }
   function heroSlideEditor(slide={}, index=0){
     const data = normalizeHeroSlide(slide, index);
@@ -3575,23 +3550,20 @@
   async function adminLogin(event){
     event.preventDefault();
     const password = $('#adminPassword')?.value || '';
-    if(serverAvailable){
-      try{
-        await fetchJson('/api/admin/login', {method:'POST', body:JSON.stringify({password})});
-        sessionStorage.setItem(KEYS.admin,'1');
-        await loadAdminState();
-        renderAdmin();
-        toast('Админка открыта');
-      }catch(error){
-        console.warn(error);
-        toast('Пароль неверный');
-      }
+    if(!serverAvailable){
+      toast('Админка доступна только при запущенном сервере');
       return;
     }
-    const hash = await sha256(password);
-    const passwordHash = getSite().adminPasswordHash || ADMIN_PASSWORD_HASH;
-    if(hash === passwordHash || (!hash && passwordHash === ADMIN_PASSWORD_HASH && passwordCodeMatch(password))){ sessionStorage.setItem(KEYS.admin,'1'); renderAdmin(); toast('Админка открыта'); }
-    else toast('Пароль неверный');
+    try{
+      await fetchJson('/api/admin/login', {method:'POST', body:JSON.stringify({password})});
+      sessionStorage.setItem(KEYS.admin,'1');
+      await loadAdminState();
+      renderAdmin();
+      toast('Админка открыта');
+    }catch(error){
+      console.warn(error);
+      toast(error.message || 'Пароль неверный');
+    }
   }
   function setAdminRecoveryStatus(message='', isError=false){
     const status = $('#adminRecoveryStatus');
@@ -3639,7 +3611,7 @@
     const repeat = $('#adminRecoveryPasswordRepeat')?.value || '';
     if(!adminRecoveryChallengeId){ setAdminRecoveryStatus('Сначала запросите код.', true); return; }
     if(!/^\d{6}$/.test(code)){ setAdminRecoveryStatus('Введите шестизначный код из Telegram.', true); return; }
-    if(password.length < 8){ setAdminRecoveryStatus('Пароль должен содержать не менее 8 символов.', true); return; }
+    if(password.length < 12){ setAdminRecoveryStatus('Пароль должен содержать не менее 12 символов.', true); return; }
     if(password !== repeat){ setAdminRecoveryStatus('Пароли не совпадают.', true); return; }
     const submit = event.submitter;
     if(submit) submit.disabled = true;
@@ -4517,7 +4489,7 @@
     event.preventDefault();
     const password = $('#adminNewPassword')?.value || '';
     const repeat = $('#adminNewPasswordRepeat')?.value || '';
-    if(password.length < 8){ toast('Пароль должен быть не короче 8 символов'); return; }
+    if(password.length < 12){ toast('Пароль должен быть не короче 12 символов'); return; }
     if(password !== repeat){ toast('Пароли не совпадают'); return; }
     if(serverAvailable){
       try{
@@ -4533,14 +4505,7 @@
       }
       return;
     }
-    const hash = await sha256(password);
-    if(!hash){ toast('Браузер не смог сохранить новый пароль'); return; }
-    const site = getSite();
-    site.adminPasswordHash = hash;
-    saveSite(site);
-    $('#adminNewPassword').value = '';
-    $('#adminNewPasswordRepeat').value = '';
-    toast('Пароль админки изменён');
+    toast('Смена пароля доступна только при запущенном сервере');
   }
   function renderAdminHeader(){
     const header = getSite().header || {};

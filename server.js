@@ -13,11 +13,17 @@ const VOLUME_DATA_DIR = String(process.env.BYVIT_DATA_DIR || process.env.RAILWAY
 const DATA_DIR = path.resolve(VOLUME_DATA_DIR || DEFAULT_DATA_DIR);
 const BACKUP_DIR = path.resolve(String(process.env.BYVIT_BACKUP_DIR || '').trim() || path.join(DATA_DIR, 'backups'));
 const PORT = Number(process.env.PORT || 3000);
-const ADMIN_PASSWORD_HASH = '8e9b669109df89620b94f2387dc53206a82ddc71d658f8f7a2b3a9b417370d3e';
+const NODE_ENV = String(process.env.NODE_ENV || 'development').trim().toLowerCase();
+const IS_PRODUCTION = NODE_ENV === 'production';
+const TRUST_PROXY = /^(1|true|yes)$/i.test(String(process.env.BYVIT_TRUST_PROXY || ''));
+const ADMIN_PASSWORD = String(process.env.BYVIT_ADMIN_PASSWORD || '');
+const ADMIN_PASSWORD_HASH = String(process.env.BYVIT_ADMIN_PASSWORD_HASH || '').trim() || (ADMIN_PASSWORD ? createPasswordHash(ADMIN_PASSWORD) : '');
 const SESSION_COOKIE = 'byvit_admin_session';
+const SESSION_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.BYVIT_SESSION_TTL_MS || 12 * 60 * 60 * 1000));
 const MAX_BODY = 35 * 1024 * 1024;
 const MAX_BACKUPS = Number(process.env.BYVIT_MAX_BACKUPS || 12);
 const BACKUP_TOKEN = String(process.env.BYVIT_BACKUP_TOKEN || '').trim();
+const PUBLIC_URL = String(process.env.BYVIT_PUBLIC_URL || '').trim();
 const ADMIN_RECOVERY_BOT_TOKEN = String(process.env.BYVIT_ADMIN_RECOVERY_BOT_TOKEN || '').trim();
 const ADMIN_RECOVERY_CHAT_IDS = String(process.env.BYVIT_ADMIN_RECOVERY_CHAT_IDS || '').trim();
 const ADMIN_RECOVERY_TTL_MS = Math.max(60 * 1000, Number(process.env.BYVIT_ADMIN_RECOVERY_TTL_MS || 10 * 60 * 1000));
@@ -25,12 +31,25 @@ const ADMIN_RECOVERY_REQUEST_WINDOW_MS = 15 * 60 * 1000;
 const ADMIN_RECOVERY_REQUEST_LIMIT = 3;
 const ADMIN_RECOVERY_ATTEMPT_LIMIT = 5;
 const STORAGE_DRIVER = String(process.env.BYVIT_STORAGE_DRIVER || 'file').trim().toLowerCase();
-const STORAGE_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_STORAGE_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
-const storage = createStorage({ driver: STORAGE_DRIVER, dataDir: DATA_DIR, backupDir: BACKUP_DIR, maxBackups: MAX_BACKUPS, persistent: STORAGE_PERSISTENT });
+const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
+const DATABASE_SSL = /^(1|true|yes)$/i.test(String(process.env.BYVIT_DATABASE_SSL || ''));
+const DATABASE_SSL_REJECT_UNAUTHORIZED = !/^(0|false|no)$/i.test(String(process.env.BYVIT_DATABASE_SSL_REJECT_UNAUTHORIZED || ''));
+const STORAGE_PERSISTENT = ['postgres', 'postgresql'].includes(STORAGE_DRIVER) || /^(1|true|yes)$/i.test(String(process.env.BYVIT_STORAGE_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
+const storage = createStorage({
+  driver: STORAGE_DRIVER,
+  dataDir: DATA_DIR,
+  backupDir: BACKUP_DIR,
+  maxBackups: MAX_BACKUPS,
+  persistent: STORAGE_PERSISTENT,
+  databaseUrl: DATABASE_URL,
+  poolSize: Number(process.env.BYVIT_DATABASE_POOL_SIZE || 10),
+  ssl: DATABASE_SSL,
+  sslRejectUnauthorized: DATABASE_SSL_REJECT_UNAUTHORIZED
+});
 const MEDIA_DRIVER = String(process.env.BYVIT_MEDIA_DRIVER || 'file').trim().toLowerCase();
 const UPLOAD_DIR = path.resolve(String(process.env.BYVIT_UPLOAD_DIR || '').trim() || path.join(DATA_DIR, 'uploads'));
 const MAX_UPLOAD_BYTES = Math.max(1024, Number(process.env.BYVIT_UPLOAD_MAX_BYTES || 25 * 1024 * 1024));
-const MEDIA_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_MEDIA_PERSISTENT || '')) || STORAGE_PERSISTENT;
+const MEDIA_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_MEDIA_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
 const media = createMedia({ driver: MEDIA_DRIVER, uploadDir: UPLOAD_DIR, publicPath: '/uploads', maxBytes: MAX_UPLOAD_BYTES, persistent: MEDIA_PERSISTENT });
 
 const sessions = new Map();
@@ -39,6 +58,21 @@ const recoveryRequestLog = new Map();
 const telegramLinkChallenges = new Map();
 const telegramUpdateOffsets = new Map();
 const telegramUpdatePolls = new Map();
+const rateLimitBuckets = new Map();
+const ALLOWED_ORIGINS = new Set(String(process.env.BYVIT_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
+const PUBLIC_HTML_FILES = new Set([
+  '/index.html', '/about.html', '/admin.html', '/brands.html', '/cart.html', '/catalog.html',
+  '/compare.html', '/delivery.html', '/faq.html', '/product.html', '/sale.html', '/stores.html',
+  '/wishlist.html'
+]);
+const PUBLIC_ASSET_PREFIXES = ['/assets/', '/css/', '/js/'];
+
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
 
 function loadDefaults() {
   const code = fs.readFileSync(path.join(ROOT, 'js', 'data.js'), 'utf8');
@@ -137,21 +171,21 @@ function recordOrderAnalytics(store, order) {
   });
 }
 
-function loadStore() {
+async function loadStore() {
   const defaults = loadDefaults();
-  storage.ensure();
-  if (!storage.exists()) {
+  await storage.ensure();
+  if (!await storage.exists()) {
     const initial = initialStore(defaults);
-    saveStore(initial, { backup: false });
+    await saveStore(initial, { backup: false });
     return initial;
   }
   let stored;
   try {
-    stored = storage.read();
+    stored = await storage.read();
   } catch (error) {
     console.error('Store is corrupted, restoring defaults:', error.message);
     const initial = initialStore(defaults);
-    saveStore(initial);
+    await saveStore(initial);
     return initial;
   }
   const normalized = {
@@ -167,13 +201,13 @@ function loadStore() {
     normalized.products = clone(defaults.products);
     normalized.meta.recoveredCatalogAt = new Date().toISOString();
     console.warn(`Empty catalog recovered with ${normalized.products.length} default products.`);
-    saveStore(normalized);
+    await saveStore(normalized);
   }
   return normalized;
 }
 
-function saveStore(store, options = {}) {
-  storage.write(store, options);
+async function saveStore(store, options = {}) {
+  return storage.write(store, options);
 }
 
 function publicSite(site) {
@@ -198,6 +232,10 @@ function send(res, status, body, headers = {}) {
   res.writeHead(status, {
     'Content-Type': typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     ...headers
   });
   res.end(payload);
@@ -224,17 +262,110 @@ function backupFileName() {
 }
 
 function requestOrigin(req) {
-  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const forwardedProto = TRUST_PROXY ? String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() : '';
   const protocol = forwardedProto || (req.socket.encrypted ? 'https' : 'http');
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
+  const forwardedHost = TRUST_PROXY ? String(req.headers['x-forwarded-host'] || '').split(',')[0].trim() : '';
+  const host = forwardedHost || String(req.headers.host || 'localhost').split(',')[0].trim();
   return `${protocol}://${host}`;
+}
+
+function mutationOriginAllowed(req) {
+  const origin = String(req.headers.origin || '').trim();
+  if (!origin) return true;
+  return origin === requestOrigin(req) || ALLOWED_ORIGINS.has(origin);
 }
 
 function xmlEscape(value) {
   return String(value || '').replace(/[<>&'\"]/g, char => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[char]));
 }
 
-function handleSeoFile(req, res) {
+function seoBaseUrl(req) {
+  try {
+    if (PUBLIC_URL) return new URL(PUBLIC_URL.replace(/\/?$/, '/'));
+  } catch (error) { }
+  return new URL(`${requestOrigin(req)}/`);
+}
+
+function htmlMetadataTag(attributes) {
+  return `<meta ${Object.entries(attributes).map(([name, value]) => `${name}="${xmlEscape(value)}"`).join(' ')}>`;
+}
+
+async function injectServerMetadata(source, pathname, searchParams, req) {
+  const base = seoBaseUrl(req);
+  const canonicalPath = pathname === '/index.html' ? './' : pathname.replace(/^\//, '');
+  let canonical = new URL(canonicalPath, base);
+  let title = source.match(/<title>([\s\S]*?)<\/title>/i)?.[1]?.trim() || 'ByVit';
+  let description = source.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)?.[1]?.trim() || '';
+  let image = new URL('assets/hero-fallback.svg', base).href;
+  let type = 'website';
+  let robots = 'index, follow, max-image-preview:large';
+  let structuredData = null;
+
+  if (pathname === '/product.html') {
+    const id = String(searchParams.get('id') || '');
+    const store = await loadStore();
+    const product = store.products.find(item => String(item.id) === id);
+    if (product) {
+      canonical.searchParams.set('id', id);
+      title = `${product.name} — ${product.brand || 'ByVit'} | ByVit`;
+      description = product.shortDescription || product.description || `${product.name} в магазине ByVit.`;
+      image = new URL((product.images || [])[0] || 'assets/hero-fallback.svg', base).href;
+      type = 'product';
+      const reviews = store.reviews.filter(review => String(review.productId) === id && review.status === 'approved');
+      structuredData = {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.name,
+        image: (product.images?.length ? product.images : ['assets/hero-fallback.svg']).map(value => new URL(value, base).href),
+        description,
+        sku: id,
+        brand: { '@type': 'Brand', name: product.brand || 'ByVit' },
+        offers: {
+          '@type': 'Offer',
+          url: canonical.href,
+          priceCurrency: 'BYN',
+          price: Number(product.packageOptions?.[0]?.price || product.price || 0),
+          availability: Number(product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          itemCondition: 'https://schema.org/NewCondition'
+        }
+      };
+      if (reviews.length) {
+        const rating = reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length;
+        structuredData.aggregateRating = { '@type': 'AggregateRating', ratingValue: Number(rating.toFixed(2)), reviewCount: reviews.length };
+      }
+    } else {
+      robots = 'noindex, nofollow';
+    }
+  } else if (pathname === '/index.html') {
+    structuredData = {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'ByVit',
+      url: canonical.href,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${new URL('catalog.html', base).href}?q={search_term_string}`,
+        'query-input': 'required name=search_term_string'
+      }
+    };
+  }
+
+  const tags = [
+    `<link rel="canonical" href="${xmlEscape(canonical.href)}">`,
+    htmlMetadataTag({ name: 'robots', content: robots }),
+    htmlMetadataTag({ property: 'og:site_name', content: 'ByVit' }),
+    htmlMetadataTag({ property: 'og:type', content: type }),
+    htmlMetadataTag({ property: 'og:title', content: title }),
+    htmlMetadataTag({ property: 'og:description', content: description }),
+    htmlMetadataTag({ property: 'og:url', content: canonical.href }),
+    htmlMetadataTag({ property: 'og:image', content: image }),
+    htmlMetadataTag({ name: 'twitter:card', content: 'summary_large_image' })
+  ];
+  if (structuredData) tags.push(`<script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>`);
+  return source.replace(/\s*<\/head>/i, `\n  ${tags.join('\n  ')}\n</head>`);
+}
+
+async function handleSeoFile(req, res) {
   const url = new URL(req.url, requestOrigin(req));
   const origin = requestOrigin(req);
   if (url.pathname === '/robots.txt') {
@@ -252,7 +383,7 @@ function handleSeoFile(req, res) {
     return true;
   }
   if (url.pathname === '/sitemap.xml') {
-    const store = loadStore();
+    const store = await loadStore();
     const staticPages = [
       '/', '/catalog.html', '/brands.html', '/sale.html', '/delivery.html',
       '/stores.html', '/about.html', '/faq.html'
@@ -277,7 +408,14 @@ function parseCookies(req) {
 
 function isAdmin(req) {
   const token = parseCookies(req)[SESSION_COOKIE];
-  return Boolean(token && sessions.has(token));
+  const session = token ? sessions.get(token) : null;
+  if (!session) return false;
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(token);
+    return false;
+  }
+  session.lastSeenAt = Date.now();
+  return true;
 }
 
 function requireAdmin(req, res) {
@@ -311,7 +449,7 @@ function readJson(req) {
     req.on('data', chunk => {
       size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new Error('Request body is too large'));
+        reject(new HttpError(413, 'Тело запроса слишком большое.'));
         req.destroy();
         return;
       }
@@ -320,7 +458,7 @@ function readJson(req) {
     req.on('end', () => {
       if (!chunks.length) { resolve({}); return; }
       try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-      catch (error) { reject(error); }
+      catch (error) { reject(new HttpError(400, 'Некорректный JSON.')); }
     });
     req.on('error', reject);
   });
@@ -368,11 +506,11 @@ function verifyPassword(password, storedHash) {
 }
 
 function strongEnoughPassword(password) {
-  return String(password || '').length >= 8;
+  return String(password || '').length >= 12;
 }
 
 function sessionCookie(req, token = '', maxAge) {
-  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const forwardedProto = TRUST_PROXY ? String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() : '';
   const secure = forwardedProto === 'https' || Boolean(req.socket.encrypted);
   const parts = [`${SESSION_COOKIE}=${encodeURIComponent(token)}`, 'HttpOnly', 'SameSite=Lax', 'Path=/'];
   if (Number.isFinite(maxAge)) parts.push(`Max-Age=${maxAge}`);
@@ -401,7 +539,145 @@ function telegramBotToken(site, override = '') {
 }
 
 function requestIp(req) {
-  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  const forwarded = TRUST_PROXY ? req.headers['x-forwarded-for'] : '';
+  return String(forwarded || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+}
+
+function allowRateLimitedRequest(req, res, scope, limit, windowMs) {
+  const now = Date.now();
+  const key = `${scope}:${requestIp(req)}`;
+  const active = (rateLimitBuckets.get(key) || []).filter(timestamp => now - timestamp < windowMs);
+  if (active.length >= limit) {
+    const retryAfter = Math.max(1, Math.ceil((windowMs - (now - active[0])) / 1000));
+    send(res, 429, { error: 'Слишком много запросов. Попробуйте позже.' }, { 'Retry-After': String(retryAfter) });
+    return false;
+  }
+  active.push(now);
+  rateLimitBuckets.set(key, active);
+  if (rateLimitBuckets.size > 5000) {
+    for (const [bucketKey, timestamps] of rateLimitBuckets) {
+      if (!timestamps.some(timestamp => now - timestamp < windowMs)) rateLimitBuckets.delete(bucketKey);
+    }
+  }
+  return true;
+}
+
+function textField(value, name, maxLength, options = {}) {
+  const valueText = String(value || '').trim();
+  if (options.required && !valueText) throw new HttpError(400, `Поле «${name}» обязательно.`);
+  if (valueText.length > maxLength) throw new HttpError(400, `Поле «${name}» слишком длинное.`);
+  return valueText;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function normalizeOrder(store, payload) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const rawItems = Array.isArray(source.items) ? source.items : [];
+  if (!rawItems.length || rawItems.length > 50) throw new HttpError(400, 'В заказе должно быть от 1 до 50 позиций.');
+
+  const requestedByProduct = new Map();
+  const items = rawItems.map(rawItem => {
+    const productId = Number(rawItem.productId || rawItem.id || 0);
+    const product = store.products.find(item => Number(item.id) === productId);
+    if (!product) throw new HttpError(400, 'Один из товаров больше не существует. Обновите корзину.');
+    const qty = Number(rawItem.qty);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 99) throw new HttpError(400, `Некорректное количество товара «${product.name}».`);
+
+    const options = Array.isArray(product.packageOptions) && product.packageOptions.length
+      ? product.packageOptions
+      : [{ id: 'base', label: '1 шт.', price: product.price }];
+    const optionId = textField(rawItem.optionId || options[0].id, 'Фасовка', 64, { required: true });
+    const option = options.find(item => String(item.id) === optionId);
+    if (!option) throw new HttpError(400, `Фасовка товара «${product.name}» больше недоступна.`);
+
+    const flavors = Array.isArray(product.flavors) ? product.flavors.map(String) : [];
+    const flavor = textField(rawItem.flavor, 'Вкус', 100);
+    if (flavors.length && !flavors.includes(flavor)) throw new HttpError(400, `Выберите доступный вкус товара «${product.name}».`);
+    if (!flavors.length && flavor) throw new HttpError(400, `У товара «${product.name}» нет выбора вкуса.`);
+
+    requestedByProduct.set(productId, (requestedByProduct.get(productId) || 0) + qty);
+    const unitPrice = roundMoney(option.price ?? product.price);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new HttpError(500, `Для товара «${product.name}» не настроена цена.`);
+    return {
+      key: `${productId}::${optionId}::${flavor}`,
+      productId,
+      name: String(product.name || 'Товар'),
+      optionId,
+      optionLabel: String(option.label || '1 шт.'),
+      flavor,
+      price: unitPrice,
+      qty,
+      lineTotal: roundMoney(unitPrice * qty)
+    };
+  });
+
+  for (const [productId, qty] of requestedByProduct) {
+    const product = store.products.find(item => Number(item.id) === productId);
+    const stock = Math.max(0, Math.floor(Number(product.stock || 0)));
+    if (qty > stock) throw new HttpError(409, `Недостаточно товара «${product.name}». Доступно: ${stock}.`);
+  }
+
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
+  const promoCode = textField(source.promo, 'Промокод', 64).toUpperCase();
+  const promo = (store.site?.promos || []).find(item => item.enabled !== false && String(item.code || '').trim().toUpperCase() === promoCode);
+  const promoValue = Math.max(0, Number(promo?.value || 0));
+  const rawDiscount = promo ? (promo.type === 'fixed' ? promoValue : subtotal * Math.min(100, promoValue) / 100) : 0;
+  const discount = roundMoney(Math.min(subtotal, rawDiscount));
+
+  const deliveryMethods = store.site?.deliveryMethods || {};
+  const deliveryKey = textField(source.deliveryKey || 'pickup', 'Способ доставки', 64, { required: true });
+  const delivery = deliveryMethods[deliveryKey];
+  if (!delivery || delivery.enabled === false) throw new HttpError(400, 'Выбранный способ доставки недоступен.');
+  const deliveryPrice = roundMoney(Math.max(0, Number(delivery.price || 0)));
+
+  const pickupStores = Array.isArray(store.site?.pickupStores) ? store.site.pickupStores.filter(item => item.enabled !== false) : [];
+  let pickupStore = null;
+  let address = textField(source.customer?.address, 'Адрес', 300);
+  if (deliveryKey === 'pickup') {
+    const pickupStoreId = textField(source.pickupStoreId || source.pickupStore?.id || pickupStores[0]?.id, 'Пункт самовывоза', 64);
+    pickupStore = pickupStores.find(item => String(item.id) === pickupStoreId) || null;
+    if (pickupStores.length && !pickupStore) throw new HttpError(400, 'Выберите доступный пункт самовывоза.');
+    address = pickupStore ? [pickupStore.title, pickupStore.address].filter(Boolean).join(': ') : '';
+  } else if (store.site?.checkout?.blocks?.address !== false && !address) {
+    throw new HttpError(400, 'Укажите адрес или отделение доставки.');
+  }
+
+  const name = textField(source.customer?.name, 'Имя', 100, { required: true });
+  const phone = textField(source.customer?.phone, 'Телефон', 32, { required: true });
+  if (!/^[+\d][\d\s()+-]{5,31}$/.test(phone)) throw new HttpError(400, 'Укажите корректный номер телефона.');
+  const paymentOptions = Array.isArray(store.site?.checkout?.paymentOptions) ? store.site.checkout.paymentOptions.map(String) : [];
+  const payment = textField(source.payment || paymentOptions[0] || 'Оплата при получении', 'Способ оплаты', 120, { required: true });
+  if (paymentOptions.length && !paymentOptions.includes(payment)) throw new HttpError(400, 'Выбранный способ оплаты недоступен.');
+
+  return {
+    id: Date.now(),
+    date: new Date().toLocaleString('ru-RU'),
+    status: 'new',
+    items,
+    subtotal,
+    discount,
+    deliveryPrice,
+    total: roundMoney(subtotal - discount + deliveryPrice),
+    promo: promo ? String(promo.code).trim().toUpperCase() : '',
+    deliveryKey,
+    deliveryTitle: String(delivery.title || deliveryKey),
+    pickupStore: pickupStore ? clone(pickupStore) : null,
+    payment,
+    comment: textField(source.comment, 'Комментарий', 1000),
+    customer: { name, phone, address }
+  };
+}
+
+function deductOrderStock(store, order) {
+  const quantities = new Map();
+  order.items.forEach(item => quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.qty));
+  for (const [productId, qty] of quantities) {
+    const product = store.products.find(item => Number(item.id) === Number(productId));
+    product.stock = Math.max(0, Math.floor(Number(product.stock || 0)) - qty);
+  }
 }
 
 function pruneRecoveryState() {
@@ -551,12 +827,12 @@ async function connectTelegramOwner(challenge, message) {
   const chat = message?.chat || {};
   const from = message?.from || {};
   if (!chat.id || (chat.type && chat.type !== 'private')) return false;
-  const adminStore = loadStore();
+  const adminStore = await loadStore();
   adminStore.site.telegram = adminStore.site.telegram || {};
   adminStore.site.telegram.recoveryChatId = String(chat.id);
   adminStore.site.telegram.recoveryName = telegramOwnerLabel(chat, from);
   adminStore.site.telegram.recoveryUsername = String(from.username || '');
-  saveStore(adminStore);
+  await saveStore(adminStore);
   challenge.connected = {
     chatId: String(chat.id),
     name: adminStore.site.telegram.recoveryName,
@@ -666,27 +942,59 @@ function serveUpload(req, res) {
   return true;
 }
 
-function serveStatic(req, res) {
+async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+  const allowed = PUBLIC_HTML_FILES.has(pathname) || PUBLIC_ASSET_PREFIXES.some(prefix => pathname.startsWith(prefix));
+  if (!allowed || pathname.includes('..') || pathname.includes('\\')) {
+    send(res, 404, 'Not found');
+    return;
+  }
   const resolved = path.normalize(path.join(ROOT, pathname));
-  if (!resolved.startsWith(ROOT) || resolved.includes(`${path.sep}data${path.sep}`)) {
+  if (!resolved.startsWith(`${ROOT}${path.sep}`)) {
     send(res, 403, 'Forbidden');
     return;
   }
-  fs.readFile(resolved, (error, data) => {
-    if (error) { send(res, 404, 'Not found'); return; }
-    res.writeHead(200, { 'Content-Type': contentType(resolved) });
-    res.end(data);
+  let data;
+  try { data = await fs.promises.readFile(resolved); }
+  catch (error) { send(res, 404, 'Not found'); return; }
+  const isHtml = path.extname(resolved).toLowerCase() === '.html';
+  if (isHtml && pathname !== '/admin.html') data = Buffer.from(await injectServerMetadata(data.toString('utf8'), pathname, url.searchParams, req));
+  const contentSecurityPolicy = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "connect-src 'self'",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' data: https:",
+    "media-src 'self' blob: https:",
+    "object-src 'none'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
+  ].join('; ');
+  res.writeHead(200, {
+    'Content-Type': contentType(resolved),
+    'Content-Length': data.length,
+    'Cache-Control': isHtml ? 'no-cache' : 'public, max-age=3600',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': contentSecurityPolicy
   });
+  res.end(data);
 }
 
 async function handleApi(req, res) {
-  const store = loadStore();
+  const store = await loadStore();
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !mutationOriginAllowed(req)) {
+      throw new HttpError(403, 'Запрос с этого адреса запрещён.');
+    }
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      const storageInfo = storage.info();
+      const storageInfo = await storage.info();
       const mediaInfo = media.info();
       send(res, 200, {
         ok: true,
@@ -745,7 +1053,7 @@ async function handleApi(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/admin/backups') {
       if (!requireAdmin(req, res)) return;
-      send(res, 200, { storage: storage.info(), media: media.info(), backups: storage.listBackups(), externalExport: Boolean(BACKUP_TOKEN) });
+      send(res, 200, { storage: await storage.info(), media: media.info(), backups: await storage.listBackups(), externalExport: Boolean(BACKUP_TOKEN) });
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/admin/backup/download') {
@@ -755,40 +1063,46 @@ async function handleApi(req, res) {
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/backups') {
       if (!requireAdmin(req, res)) return;
-      const backup = storage.createBackup('manual');
-      send(res, 201, { ok: true, backup, storage: storage.info(), media: media.info(), backups: storage.listBackups() });
+      const backup = await storage.createBackup('manual');
+      send(res, 201, { ok: true, backup, storage: await storage.info(), media: media.info(), backups: await storage.listBackups() });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/backups/restore') {
       if (!requireAdmin(req, res)) return;
       const body = await readJson(req);
-      storage.restoreBackup(body.name);
-      const restoredStore = loadStore();
-      send(res, 200, { ok: true, store: restoredStore, storage: storage.info(), media: media.info(), backups: storage.listBackups() });
+      await storage.restoreBackup(body.name);
+      const restoredStore = await loadStore();
+      send(res, 200, { ok: true, store: restoredStore, storage: await storage.info(), media: media.info(), backups: await storage.listBackups() });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/analytics') {
+      if (!allowRateLimitedRequest(req, res, 'analytics', 120, 60 * 1000)) return;
       const body = await readJson(req);
       const type = String(body.type || '');
-      const analyticsStore = loadStore();
+      const analyticsStore = await loadStore();
       if (!recordAnalyticsEvent(analyticsStore, type, { productId: body.productId, page: body.page })) {
         send(res, 400, { error: 'Unsupported analytics event' });
         return;
       }
-      saveStore(analyticsStore, { backup: false });
+      await saveStore(analyticsStore, { backup: false });
       send(res, 201, { ok: true });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/login') {
+      if (!allowRateLimitedRequest(req, res, 'admin-login', 5, 15 * 60 * 1000)) return;
       const body = await readJson(req);
       const expected = store.site?.adminPasswordHash || ADMIN_PASSWORD_HASH;
+      if (!expected) {
+        send(res, 503, { error: 'Пароль администратора не настроен на сервере.' });
+        return;
+      }
       if (!verifyPassword(body.password, expected)) {
         send(res, 403, { error: 'Wrong password' });
         return;
       }
       if (!String(expected).startsWith('scrypt$')) {
         store.site.adminPasswordHash = createPasswordHash(body.password);
-        saveStore(store);
+        await saveStore(store);
       }
       const token = crypto.randomBytes(24).toString('hex');
       sessions.set(token, { createdAt: Date.now() });
@@ -823,7 +1137,7 @@ async function handleApi(req, res) {
       if (!ADMIN_RECOVERY_BOT_TOKEN && String(body.botToken || '').trim()) {
         store.site.telegram = store.site.telegram || {};
         store.site.telegram.botToken = String(body.botToken).trim();
-        saveStore(store);
+        await saveStore(store);
       }
       pruneRecoveryState();
       const challengeId = crypto.randomBytes(24).toString('hex');
@@ -874,12 +1188,12 @@ async function handleApi(req, res) {
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/telegram/recovery-link/disconnect') {
       if (!requireAdmin(req, res)) return;
-      const adminStore = loadStore();
+      const adminStore = await loadStore();
       adminStore.site.telegram = adminStore.site.telegram || {};
       adminStore.site.telegram.recoveryChatId = '';
       adminStore.site.telegram.recoveryName = '';
       adminStore.site.telegram.recoveryUsername = '';
-      saveStore(adminStore);
+      await saveStore(adminStore);
       telegramLinkChallenges.clear();
       send(res, 200, { ok: true });
       return;
@@ -932,12 +1246,12 @@ async function handleApi(req, res) {
         return;
       }
       if (!strongEnoughPassword(body.password)) {
-        send(res, 400, { error: 'Пароль должен содержать не менее 8 символов.' });
+        send(res, 400, { error: 'Пароль должен содержать не менее 12 символов.' });
         return;
       }
-      const adminStore = loadStore();
+      const adminStore = await loadStore();
       adminStore.site.adminPasswordHash = createPasswordHash(body.password);
-      saveStore(adminStore);
+      await saveStore(adminStore);
       recoveryChallenges.delete(challengeId);
       sessions.clear();
       send(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(req, '', 0) });
@@ -947,12 +1261,12 @@ async function handleApi(req, res) {
       if (!requireAdmin(req, res)) return;
       const body = await readJson(req);
       if (!strongEnoughPassword(body.password)) {
-        send(res, 400, { error: 'Пароль должен содержать не менее 8 символов.' });
+        send(res, 400, { error: 'Пароль должен содержать не менее 12 символов.' });
         return;
       }
-      const adminStore = loadStore();
+      const adminStore = await loadStore();
       adminStore.site.adminPasswordHash = createPasswordHash(body.password);
-      saveStore(adminStore);
+      await saveStore(adminStore);
       sessions.clear();
       send(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(req, '', 0) });
       return;
@@ -960,7 +1274,7 @@ async function handleApi(req, res) {
     if (req.method === 'PUT' && url.pathname === '/api/admin/state') {
       if (!requireAdmin(req, res)) return;
       const body = await readJson(req);
-      const adminStore = loadStore();
+      const adminStore = await loadStore();
       if (Array.isArray(body.products)) {
         const allowEmptyCatalog = body.allowEmptyCatalog === true || body.site?.allowEmptyCatalog === true;
         if (!body.products.length && !allowEmptyCatalog) {
@@ -977,65 +1291,126 @@ async function handleApi(req, res) {
       if (Array.isArray(body.reviews)) adminStore.reviews = body.reviews;
       if (Array.isArray(body.orders)) adminStore.orders = body.orders;
       if (body.restoreAnalytics === true && body.analytics && typeof body.analytics === 'object') adminStore.analytics = normalizeAnalytics(body.analytics);
-      saveStore(adminStore);
+      await saveStore(adminStore);
       send(res, 200, { ok: true });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/orders') {
+      if (!allowRateLimitedRequest(req, res, 'orders', 10, 10 * 60 * 1000)) return;
       const body = await readJson(req);
-      const order = body.order || body;
-      if (!order.customer?.name || !order.customer?.phone || !Array.isArray(order.items) || !order.items.length) {
-        send(res, 400, { error: 'Invalid order' });
-        return;
-      }
-      order.id = order.id || Date.now();
-      order.date = order.date || new Date().toLocaleString('ru-RU');
-      order.status = order.status || 'new';
-      const orderStore = loadStore();
+      const orderStore = await loadStore();
+      const order = normalizeOrder(orderStore, body.order || body);
+      deductOrderStock(orderStore, order);
       orderStore.orders.unshift(order);
       recordOrderAnalytics(orderStore, order);
-      saveStore(orderStore);
+      await saveStore(orderStore);
       sendTelegram(orderStore.site, order).catch(error => console.error('Telegram error:', error.message));
       send(res, 201, { ok: true, order });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/reviews') {
+      if (!allowRateLimitedRequest(req, res, 'reviews', 5, 60 * 60 * 1000)) return;
       const body = await readJson(req);
-      if (!body.productId || !body.name || !body.text) {
-        send(res, 400, { error: 'Invalid review' });
-        return;
-      }
+      const reviewStore = await loadStore();
+      const productId = Number(body.productId || 0);
+      if (!reviewStore.products.some(product => Number(product.id) === productId)) throw new HttpError(400, 'Товар для отзыва не найден.');
+      const name = textField(body.name, 'Имя', 100, { required: true });
+      const text = textField(body.text, 'Отзыв', 2000, { required: true });
+      const rating = Number(body.rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new HttpError(400, 'Оценка должна быть от 1 до 5.');
       const review = {
         id: Date.now(),
-        productId: Number(body.productId),
-        name: String(body.name).trim(),
-        rating: Number(body.rating || 5),
-        text: String(body.text).trim(),
+        productId,
+        name,
+        rating,
+        text,
         status: 'pending',
         date: new Date().toLocaleDateString('ru-RU')
       };
-      const reviewStore = loadStore();
       reviewStore.reviews.unshift(review);
-      saveStore(reviewStore);
+      await saveStore(reviewStore);
       send(res, 201, { ok: true, review });
       return;
     }
     send(res, 404, { error: 'Not found' });
   } catch (error) {
-    send(res, 500, { error: error.message || 'Server error' });
+    const status = Number(error.status || 0);
+    if (status >= 400 && status < 600) {
+      send(res, status, { error: error.message || 'Ошибка запроса' });
+      return;
+    }
+    console.error('API error:', error);
+    send(res, 500, { error: 'Внутренняя ошибка сервера.' });
   }
 }
 
-const server = http.createServer((req, res) => {
-  if (handleSeoFile(req, res)) return;
+async function validateProductionConfig() {
+  if (!IS_PRODUCTION) return;
+  const store = await loadStore();
+  const errors = [];
+  if (!(store.site?.adminPasswordHash || ADMIN_PASSWORD_HASH)) errors.push('задайте BYVIT_ADMIN_PASSWORD или сохраните пароль через админку');
+  if (ADMIN_PASSWORD && !strongEnoughPassword(ADMIN_PASSWORD)) errors.push('BYVIT_ADMIN_PASSWORD должен содержать не менее 12 символов');
+  if (!BACKUP_TOKEN || BACKUP_TOKEN.length < 24 || /replace-with|change-me/i.test(BACKUP_TOKEN)) errors.push('задайте уникальный BYVIT_BACKUP_TOKEN длиной не менее 24 символов');
+  if (!PUBLIC_URL) errors.push('задайте BYVIT_PUBLIC_URL');
+  else {
+    try {
+      const configuredUrl = new URL(PUBLIC_URL);
+      const local = ['localhost', '127.0.0.1', '::1'].includes(configuredUrl.hostname);
+      if (!local && configuredUrl.protocol !== 'https:') errors.push('BYVIT_PUBLIC_URL должен использовать HTTPS');
+    } catch (error) {
+      errors.push('BYVIT_PUBLIC_URL должен быть абсолютным URL');
+    }
+  }
+  if (!ALLOWED_ORIGINS.size) errors.push('задайте BYVIT_ALLOWED_ORIGINS');
+  if (!STORAGE_PERSISTENT) errors.push('задайте BYVIT_DATA_DIR и BYVIT_STORAGE_PERSISTENT=true');
+  if (!MEDIA_PERSISTENT) errors.push('задайте BYVIT_UPLOAD_DIR и BYVIT_MEDIA_PERSISTENT=true');
+  if (['postgres', 'postgresql'].includes(STORAGE_DRIVER) && !DATABASE_URL) errors.push('задайте DATABASE_URL');
+  if (errors.length) throw new Error(`Production configuration error: ${errors.join('; ')}`);
+}
+
+async function routeRequest(req, res) {
+  if (await handleSeoFile(req, res)) return;
   if (serveUpload(req, res)) return;
   if (req.url.startsWith('/api/')) {
-    handleApi(req, res);
+    const writesState = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(req.method || '').toUpperCase());
+    if (writesState && typeof storage.withWriteLock === 'function') await storage.withWriteLock(() => handleApi(req, res));
+    else await handleApi(req, res);
     return;
   }
-  serveStatic(req, res);
+  await serveStatic(req, res);
+}
+
+const server = http.createServer((req, res) => {
+  routeRequest(req, res).catch(error => {
+    console.error('Request error:', error);
+    if (!res.headersSent) send(res, 500, { error: 'Внутренняя ошибка сервера.' });
+    else res.end();
+  });
 });
 
-server.listen(PORT, () => {
-  console.log(`ByVit MVP server: http://localhost:${PORT}`);
+async function start() {
+  await validateProductionConfig();
+  server.listen(PORT, () => {
+    console.log(`ByVit MVP server: http://localhost:${PORT}`);
+  });
+}
+
+function shutdown(signal) {
+  console.log(`${signal}: stopping ByVit server`);
+  server.close(async error => {
+    if (error) {
+      console.error('Shutdown error:', error);
+      process.exitCode = 1;
+    }
+    if (typeof storage.close === 'function') await storage.close().catch(closeError => console.error('Storage close error:', closeError));
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+start().catch(error => {
+  console.error(error.message || error);
+  process.exitCode = 1;
 });

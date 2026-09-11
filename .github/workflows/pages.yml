@@ -29,9 +29,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build static storefront
+        env:
+          BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/
         run: npm run build:static
+
+      - name: Verify application
+        run: npm run check
+
+      - name: Verify desktop and mobile journeys
+        run: npm run check:e2e
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
