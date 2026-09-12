@@ -52,8 +52,8 @@
         ]
       },
       heroEyebrow:'Premium supplements',
-      heroTitle:'Премиальное питание для тела, которое работает',
-      heroText:'ByVit собирает спортпит, витамины и добавки без визуального шума: только оригинальные бренды, понятная карточка товара и быстрый заказ.',
+      heroTitle:'Спортивное питание и витамины',
+      heroText:'Оригинальные бренды. Доставка по Беларуси.',
       heroTitleSize:44,
       heroTextSize:16,
       heroAlign:'right',
@@ -127,9 +127,9 @@
         ]
       },
 	      footer:{
-        description:'Спортивное питание и БАДы в строгом минималистичном интерфейсе.',
-        copyright:'© 2026 ByVit. Demo static e-commerce.',
-        techText:'HTML / CSS / JS',
+        description:'Спортивное питание, витамины и добавки с доставкой по Беларуси.',
+        copyright:'© 2026 ByVit.',
+        techText:'',
         contacts:{
           instagram:'',
           telegram:'',

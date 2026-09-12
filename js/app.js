@@ -1294,14 +1294,14 @@
     const current = currentPageHref();
     const activeHref = current === 'product.html' ? 'catalog.html' : current;
     const items = [
-      {label:'Главная',href:'index.html',icon:'⌂'},
-      {label:'Каталог',href:'catalog.html',icon:'▦'},
-      {label:'Корзина',href:'cart.html',iconType:'cart',count:'cart'},
-      {label:'Магазины',href:'stores.html',iconType:'pin'}
+      {label:'Главная',href:'index.html',icon:'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>'},
+      {label:'Каталог',href:'catalog.html',icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'},
+      {label:'Корзина',href:'cart.html',icon:'<path d="M5 7h14l1 14H4L5 7Zm3 0V6a4 4 0 0 1 8 0v1"/>',count:'cart'},
+      {label:'Магазины',href:'stores.html',icon:'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'}
     ];
     nav.innerHTML = items.map(item => `
       <a class="${item.href === activeHref ? 'active' : ''}" href="${esc(item.href)}">
-        ${item.iconType === 'pin' ? '<span class="bottom-nav-icon bottom-nav-pin" aria-hidden="true"></span>' : item.iconType === 'cart' ? `<span class="bottom-nav-icon">${headerActionIcon('cart', 'bottom-nav-glyph')}</span>` : `<span class="bottom-nav-icon">${item.icon}</span>`}
+        <span class="bottom-nav-icon" aria-hidden="true"><svg class="bottom-nav-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${item.icon}</svg></span>
         <span>${esc(item.label)}</span>
         ${item.count ? `<span class="bottom-nav-count" data-count="${esc(item.count)}" hidden></span>` : ''}
       </a>`).join('');
@@ -1326,11 +1326,14 @@
     root.style.right = '';
     root.style.bottom = '';
     root.style.setProperty('--quick-contact-opacity', String(config.opacity ?? 1));
-    const links = items.slice(0,5).map(item => {
+    const links = contactLinksHtml(items);
+    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
+  }
+  function contactLinksHtml(items){
+    return items.slice(0,5).map(item => {
       const href = item.href || contactHref(item.type, item.value);
       return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
     }).join('');
-    root.innerHTML = `<button class="quick-contact-button" type="button" data-contact-toggle aria-expanded="false">${esc(config.buttonText || 'Связаться')}</button><div class="quick-contact-panel">${links}</div>`;
   }
   function brandMarkContent(header){
     const src = String(header.logoImage || '').trim();
@@ -1465,7 +1468,9 @@
 	      const mobileNav = `${navHtml.replaceAll(' data-nav','')}
 	        <a href="wishlist.html">Избранное</a>
 	        <a href="compare.html">Сравнение</a>`;
-	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>`;
+	      const contacts = contactLinksHtml(contactItems(site));
+	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>
+          ${contacts ? `<section class="mobile-menu-contact" aria-label="Связаться с ByVit"><h2>Связаться с нами</h2><div>${contacts}</div></section>` : ''}`;
 	    });
 	    renderHeaderActionIcons();
 	    renderHeaderSearch(header);
@@ -1564,7 +1569,9 @@
         : `<span class="footer-badge">${esc(badge.text)}</span>`;
       return badge.href ? `<a class="footer-badge-link" href="${esc(badge.href)}" target="_blank" rel="noopener">${body}</a>` : body;
     }).join('');
-    const legalText = String(config.description || '').trim();
+    const legalText = String(config.description || '').trim().replace('Спортивное питание и БАДы в строгом минималистичном интерфейсе.', 'Спортивное питание, витамины и добавки с доставкой по Беларуси.');
+    const copyright = String(config.copyright || '').replace(/\s*Demo static e-commerce\.?/gi, '').trim();
+    const techText = /^HTML\s*\/\s*CSS\s*\/\s*JS$/i.test(String(config.techText || '').trim()) ? '' : config.techText;
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
         <div class="footer-brand-block">
@@ -1575,7 +1582,7 @@
 	      </div>
         ${legalText ? `<div class="footer-legal-text"><p>${linkifyPhoneNumbers(legalText)}</p></div>` : ''}
 	      ${badges ? `<div class="footer-badges">${badges}</div>` : ''}
-	      <div class="footer-bottom"><span>${esc(config.copyright || '')}</span><span class="mono">${esc(config.techText || '')}</span></div>
+	      <div class="footer-bottom"><span>${esc(copyright)}</span>${techText ? `<span class="mono">${esc(techText)}</span>` : ''}</div>
 	    </div>`;
 	  }
   function applyPageHeader(){
@@ -1880,6 +1887,7 @@
     })];
     const mobileEnabled = activeSlides.some(slide => slide.mobileEnabled === true);
     if(hero){
+      hero.classList.toggle('hero-default-mobile', activeSlides.every(slide => !slide.mobileEnabled && slide.desktopSrc === 'assets/hero-default.mp4'));
       hero.dataset.align = site.heroAlign || 'right';
       hero.classList.toggle('hero-mobile-media-enabled', mobileEnabled);
       hero.classList.toggle('hide-desktop-copy', site.heroCopyDesktop === false);
@@ -1912,7 +1920,7 @@
       const needsMobileFallback = !slide.mobileEnabled && (slide.desktopMode === 'video' || (slide.desktopMode === 'file' && isVideoSource(slide.desktopSrc)));
       const mobile = slide.mobileEnabled
         ? mediaHtml(slide.mobileMode, slide.mobileSrc, true)
-        : needsMobileFallback ? `<img class="hero-mobile-fallback" src="${esc(imageFallback)}" alt="">` : '';
+        : needsMobileFallback ? `<img class="hero-mobile-fallback" src="${slide.desktopSrc === 'assets/hero-default.mp4' ? 'assets/hero-mobile-poster.jpg' : esc(imageFallback)}" alt="">` : '';
       const link = slide.href ? `<a class="hero-slide-link" href="${esc(slide.href)}" aria-label="Открыть баннер ${index + 1}"></a>` : '';
       return `<div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-slide="${index}">${desktop}${mobile}${link}</div>`;
     }).join('');
@@ -2105,8 +2113,31 @@
 	            </div>
 	          </article>`;
 	        }).join('')}
-	      </div>`;
+	      </div><div class="catalog-mobile-navigation"></div>`;
 	  }
+  function renderMobileCatalogNavigation(){
+    const root = $('.catalog-mobile-navigation');
+    if(!root) return;
+    const params = new URLSearchParams(location.search);
+    const categories = getCategories().filter(Boolean);
+    const selected = categories.find(category => params.getAll('category').includes(String(category.id)));
+    const activeTag = params.get('tag') || '';
+    const activeQuery = params.get('q') || activeTag;
+    const subcategories = (selected?.subcategories || []).filter(item => item.enabled !== false);
+    root.innerHTML = `<nav class="catalog-category-rail" aria-label="Категории товаров">
+      <a href="catalog.html" ${!selected && !activeTag ? 'aria-current="page"' : ''}>Все товары</a>
+      ${categories.map(category => `<a href="catalog.html?category=${encodeURIComponent(category.id)}" ${selected === category ? 'aria-current="page"' : ''}>${esc(category.name)}</a>`).join('')}
+    </nav>${subcategories.length ? `<nav class="catalog-subcategory-rail" aria-label="Подкатегории: ${esc(selected.name)}">
+      ${subcategories.map(sub => {
+        const tag = sub.query || sub.title || '';
+        const href = sub.href || `catalog.html?category=${encodeURIComponent(selected.id)}&q=${encodeURIComponent(tag)}`;
+        return `<a href="${esc(href)}" ${slugText(activeQuery) === slugText(tag) ? 'aria-current="page"' : ''}>${esc(sub.title)}</a>`;
+      }).join('')}
+    </nav>` : ''}`;
+    const rail = $('.catalog-category-rail', root);
+    const active = $('[aria-current]', rail);
+    if(active) rail.scrollLeft = Math.max(0, active.offsetLeft - rail.offsetLeft - 12);
+  }
   function catalogSuggestionValues(){
     const values = new Set();
     getProducts().forEach(product => {
@@ -2271,6 +2302,8 @@
       title:String(site.heroTitle ?? '').trim(),
       text:String(site.heroText ?? '').trim()
     };
+    if(heroCopy.title === 'Премиальное питание для тела, которое работает') heroCopy.title = 'Спортивное питание и витамины';
+    if(heroCopy.text === 'ByVit собирает спортпит, витамины и добавки без визуального шума: только оригинальные бренды, понятная карточка товара и быстрый заказ.') heroCopy.text = 'Оригинальные бренды. Доставка по Беларуси.';
     if(heroContent) heroContent.classList.toggle('is-empty', !Object.values(heroCopy).some(Boolean));
     if(heroEyebrow){
       heroEyebrow.textContent = heroCopy.eyebrow;
@@ -2362,7 +2395,7 @@
     const galleryTitle = $('#homeGalleryTitle');
     const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
     if(gallerySection && galleryRail){
-      gallerySection.hidden = false;
+      gallerySection.hidden = !galleryItems.length;
       if(galleryTitle) galleryTitle.textContent = site.homeGalleryTitle || 'Наш магазин';
       galleryRail.innerHTML = galleryItems.length ? galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
@@ -2485,6 +2518,7 @@
     renderCatalogProducts();
   }
   function renderCatalogProducts(){
+    renderMobileCatalogNavigation();
     const list = filterProducts();
     const note = $('#catalogResultNote');
     if(note) note.textContent = `${list.length} товар(ов)`;
@@ -2644,20 +2678,23 @@
       <div class="product-detail">
         <div class="product-gallery">
           <div class="gallery-main"><img id="mainProductImage" src="${esc(images[0])}" alt="${esc(product.name)}"></div>
-          <div class="gallery-thumbs">${images.map((img,i)=>`<button class="${i===0?'active':''}" data-gallery="${esc(img)}"><img src="${esc(img)}" alt=""></button>`).join('')}</div>
+          <div class="gallery-thumbs ${images.length === 1 ? 'is-single' : ''}">${images.map((img,i)=>`<button class="${i===0?'active':''}" data-gallery="${esc(img)}" aria-label="Фото ${i + 1}"><img src="${esc(img)}" alt=""></button>`).join('')}</div>
         </div>
         <aside class="product-panel">
           <div class="product-brand">${esc(product.brand)}</div>
           <h1 class="product-detail-title">${esc(product.name)}</h1>
-          <p>${esc(product.shortDescription || '')}</p>
+          <p class="product-short-description">${esc(product.shortDescription || '')}</p>
           <div class="product-facts">
             <div class="fact"><span>Страна</span><strong>${esc(product.country || '—')}</strong></div>
-            <div class="fact"><span>Наличие</span><strong>${esc(product.stock || 0)} шт.</strong></div>
+            <div class="fact product-stock-fact"><span>Наличие</span><strong>${esc(product.stock || 0)} шт.</strong></div>
             <div class="fact"><span>Категория</span><strong>${esc(categoryName(product.category))}</strong></div>
             <div class="fact"><span>Форма</span><strong>${esc(formTypeLabel(product.formType))}</strong></div>
           </div>
-          <div class="price" id="productPrice">${money(firstOption.price)}</div>
-          ${product.oldPrice ? `<div class="old-price" style="font-size:16px;margin:4px 0 18px;display:inline-block">${money(product.oldPrice)}</div>` : ''}
+          <div class="product-price-block">
+            <div class="price" id="productPrice" aria-live="polite">${money(firstOption.price)}</div>
+            ${product.oldPrice ? `<div class="old-price product-detail-old-price" ${Number(product.oldPrice) > Number(firstOption.price) ? '' : 'hidden'}>${money(product.oldPrice)}</div>` : ''}
+            <span class="product-stock-label ${Number(product.stock || 0) > 0 ? 'is-available' : ''}">${Number(product.stock || 0) > 0 ? 'В наличии' : 'Нет в наличии'}</span>
+          </div>
           <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${(product.packageOptions || [firstOption]).map((o,i)=>`<button class="chip ${i===0?'active':''}" data-package-id="${esc(o.id)}" data-price="${esc(o.price)}">${esc(o.label)}</button>`).join('')}</div></div>
           ${product.flavors?.length ? `<div class="option-block"><strong>Вкус</strong><div class="option-list" id="flavorOptions">${product.flavors.map((f,i)=>`<button class="chip ${i===0?'active':''}" data-flavor="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>` : ''}
           <div class="product-fulfillment"><span>Получение</span><strong>Ориентировочно: самовывоз сегодня · доставка 1–3 дня</strong></div>
@@ -2685,7 +2722,15 @@
     setTab('desc');
     $('.tab-buttons')?.addEventListener('click', e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
     $$('.gallery-thumbs button').forEach(btn=>btn.addEventListener('click',()=>{ $$('.gallery-thumbs button').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); $('#mainProductImage').src = btn.dataset.gallery; }));
-    $('#packageOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-package-id]'); if(!b)return; $$('#packageOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $('#productPrice').textContent=money(b.dataset.price); });
+    $('#packageOptions')?.addEventListener('click', e=>{
+      const b=e.target.closest('[data-package-id]');
+      if(!b)return;
+      $$('#packageOptions .chip').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      $('#productPrice').textContent=money(b.dataset.price);
+      const oldPrice = $('.product-detail-old-price');
+      if(oldPrice) oldPrice.hidden = Number(product.oldPrice) <= Number(b.dataset.price);
+    });
     $('#flavorOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-flavor]'); if(!b)return; $$('#flavorOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); });
     $('[data-qty-minus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Math.max(1,Number(i.value||1)-1); });
     $('[data-qty-plus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Number(i.value||1)+1; });
