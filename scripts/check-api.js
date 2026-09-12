@@ -153,6 +153,21 @@ async function main() {
     const adminState = await request(baseUrl, '/api/admin/state', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(adminState.status, 200);
     assert.equal(adminState.data.orders.length, 3);
+    const moyskladStatus = await request(baseUrl, '/api/admin/moysklad/status', { headers: { Cookie: sessionCookie.split(';')[0] } });
+    assert.equal(moyskladStatus.status, 200);
+    assert.equal(moyskladStatus.data.configured, false);
+    assert.equal(Object.prototype.hasOwnProperty.call(moyskladStatus.data, 'token'), false);
+    const moyskladWebhook = await request(baseUrl, '/api/integrations/moysklad/webhook', { method: 'POST' });
+    assert.equal(moyskladWebhook.status, 503);
+    adminState.data.products[0].moyskladId = 'private-mapping-id';
+    const mappedAdminState = await request(baseUrl, '/api/admin/state', {
+      method: 'PUT',
+      headers: { Cookie: sessionCookie.split(';')[0] },
+      body: { products: adminState.data.products }
+    });
+    assert.equal(mappedAdminState.status, 200);
+    const sanitizedPublicState = await request(baseUrl, '/api/state');
+    assert.equal(Object.prototype.hasOwnProperty.call(sanitizedPublicState.data.products[0], 'moyskladId'), false);
 
     const loginStatuses = [];
     for (let attempt = 0; attempt < 6; attempt += 1) {

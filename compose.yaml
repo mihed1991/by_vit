@@ -43,6 +43,12 @@ services:
       BYVIT_MEDIA_DRIVER: file
       BYVIT_MEDIA_PERSISTENT: "true"
       BYVIT_BACKUP_EXPORT_DIR: /app/offsite-backups
+      MOYSKLAD_ENABLED: ${MOYSKLAD_ENABLED:-false}
+      MOYSKLAD_TOKEN: ${MOYSKLAD_TOKEN:-}
+      MOYSKLAD_API_BASE: ${MOYSKLAD_API_BASE:-https://api.moysklad.ru/api/remap/1.2}
+      MOYSKLAD_STOCK_ENDPOINT: ${MOYSKLAD_STOCK_ENDPOINT:-/report/stock/all}
+      MOYSKLAD_SYNC_INTERVAL_MS: ${MOYSKLAD_SYNC_INTERVAL_MS:-300000}
+      MOYSKLAD_WEBHOOK_SECRET: ${MOYSKLAD_WEBHOOK_SECRET:-}
     ports:
       - "127.0.0.1:3000:3000"
     volumes:

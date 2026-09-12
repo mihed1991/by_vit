@@ -80,3 +80,19 @@ The importer refuses to overwrite a non-empty PostgreSQL store. `BYVIT_IMPORT_FO
 - A backup is restored on a separate test instance.
 
 GitHub Pages remains a public preview only. It cannot receive real orders or run the admin API.
+
+## MoySklad stock synchronization
+
+MoySklad is treated as the source of truth for product-level stock. ByVit matches products by MoySklad ID or full `meta.href`, with article as a fallback, then writes the available stock into its own catalog. Access credentials never enter the public storefront state.
+
+Before deployment, you can complete the code and product mapping locally:
+
+1. Obtain a MoySklad access token and place it in `MOYSKLAD_TOKEN` inside `.env`.
+2. Keep `MOYSKLAD_ENABLED=false` while mapping and testing manually.
+3. In the admin product editor, add an ID, `meta.href`, or article for every synchronized product.
+4. Use the `МойСклад` admin section to test access and run a manual stock synchronization.
+5. After verification, set `MOYSKLAD_ENABLED=true` to enable periodic reconciliation.
+
+After the domain and TLS are active, generate a long random `MOYSKLAD_WEBHOOK_SECRET` and configure the callback URL as `https://your-domain.example/api/integrations/moysklad/webhook?secret=YOUR_SECRET`. Keep periodic reconciliation enabled as a fallback for missed webhook events.
+
+This stage synchronizes product-level stock only. Creating customer orders and reserves inside MoySklad is intentionally deferred until the production organization, warehouse, sales channel, and counterparty rules are known.

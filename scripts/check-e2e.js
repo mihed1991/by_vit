@@ -93,6 +93,9 @@ async function main() {
     await page.locator('.hero').waitFor();
     assert.equal(await page.locator('.hero video source').getAttribute('src'), 'assets/hero-default.mp4');
     assert.equal(await page.locator('a[href="admin.html"]').count(), 0, 'Public homepage must not expose an admin link');
+    const homeBlockOrder = await page.locator('main > [data-home-block]').evaluateAll(nodes => nodes.map(node => node.dataset.homeBlock));
+    assert.deepEqual(homeBlockOrder, ['categories', 'sale', 'goals', 'brands', 'trust']);
+    assert.equal(await page.locator('[data-home-block="trust"]').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 255, 255)');
 
     await page.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.product-card').first().waitFor();
@@ -124,6 +127,14 @@ async function main() {
     assert.equal(adminStateResponse.status(), 200);
     const adminState = await adminStateResponse.json();
     assert.equal(adminState.orders.length, 1);
+    await page.locator('[data-admin-tab="moysklad"]').click();
+    await page.locator('#admin-moysklad.active').waitFor();
+    await page.locator('#adminMoySkladStatus').getByText('Не настроен', { exact: true }).first().waitFor();
+    assert.equal(await page.locator('#adminMoySkladMappings tbody tr').count(), 12);
+    assert.equal(await page.locator('[data-moysklad-sync]').isDisabled(), true);
+    await page.locator('#adminMoySkladMappings [data-moysklad-edit]').first().click();
+    await page.locator('#admin-products.active').waitFor();
+    assert.equal(await page.locator('#adminProductId').inputValue(), '1');
     assert.deepEqual(pageErrors, [], `Browser page errors: ${pageErrors.join('; ')}`);
     await desktop.close();
 

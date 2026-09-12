@@ -2059,11 +2059,14 @@
       return {section, key, index, order};
     }).sort((a, b) => a.order - b.order || a.index - b.index);
     sections.forEach(item => main.appendChild(item.section));
-    sections.filter(item => !item.section.hidden).forEach((item, visibleIndex) => {
-      if(item.section.classList.contains('dark')) return;
+    const goalsSection = $('[data-home-block="goals"]', main);
+    const brandsSection = $('[data-home-block="brands"]', main);
+    if(goalsSection && brandsSection) goalsSection.insertAdjacentElement('afterend', brandsSection);
+    $$('[data-home-block]', main).filter(section => !section.hidden).forEach((section, visibleIndex) => {
+      if(section.classList.contains('dark')) return;
       const paper = visibleIndex % 2 === 1;
-      item.section.classList.toggle('paper', paper);
-      item.section.dataset.tone = paper ? 'paper' : 'white';
+      section.classList.toggle('paper', paper);
+      section.dataset.tone = paper ? 'paper' : 'white';
     });
   }
 	  function goalCard(goal){
@@ -3545,7 +3548,7 @@
     login.style.display = isLogged ? 'none' : 'grid';
     panel.style.display = isLogged ? 'block' : 'none';
     if(!isLogged) return;
-    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews(); renderAdminStorage();
+    renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews(); renderAdminStorage(); renderAdminMoySklad();
   }
   async function adminLogin(event){
     event.preventDefault();
@@ -3644,6 +3647,7 @@
   function adminSwitch(tab){
     $$('.admin-nav button').forEach(b=>b.classList.toggle('active', b.dataset.adminTab === tab));
     $$('.admin-section').forEach(s=>s.classList.toggle('active', s.id === `admin-${tab}`));
+    if(tab === 'moysklad') renderAdminMoySklad();
   }
   function filterAdminSections(value){
     const q = slugText(value);
@@ -3742,6 +3746,8 @@
     $('#adminPrice').value = '';
     $('#adminOldPrice').value = '';
     $('#adminStock').value = '';
+    $('#adminMoySkladId').value = '';
+    $('#adminMoySkladArticle').value = '';
     $('#adminBadge').value = '';
     $('#adminBadgeColor').value = DEFAULT_BADGE_COLOR;
     $('#adminCountry').value = '';
@@ -3773,6 +3779,8 @@
     $('#adminPrice').value = product.price || '';
     $('#adminOldPrice').value = product.oldPrice || '';
     $('#adminStock').value = product.stock || '';
+    $('#adminMoySkladId').value = product.moyskladHref || product.moyskladId || '';
+    $('#adminMoySkladArticle').value = product.moyskladArticle || '';
     $('#adminBadge').value = product.badge || '';
     $('#adminBadgeColor').value = badgeColor(product);
     $('#adminCountry').value = product.country || '';
@@ -3810,6 +3818,9 @@
     const price = Number(packageOptions[0]?.price || rawPrice || 0);
     const formTypeValue = $('#adminFormType').value;
     const formType = formTypeValue === 'custom' ? ($('#adminCustomFormType').value.trim() || 'Своя форма') : formTypeValue;
+    const moyskladReference = $('#adminMoySkladId').value.trim();
+    const moyskladHref = /^https?:\/\//i.test(moyskladReference) ? moyskladReference : '';
+    const moyskladId = moyskladHref ? '' : moyskladReference;
     const item = {
       ...existing,
       id,
@@ -3819,6 +3830,9 @@
       price,
       oldPrice:Number($('#adminOldPrice').value || 0) || undefined,
       stock:Number($('#adminStock').value || 0),
+      moyskladId:moyskladId || undefined,
+      moyskladHref:moyskladHref || undefined,
+      moyskladArticle:$('#adminMoySkladArticle').value.trim() || undefined,
       badge:$('#adminBadge').value.trim(),
       badgeColor:badgeColor({badgeColor:$('#adminBadgeColor').value}),
       country:$('#adminCountry').value.trim() || '—',
@@ -4776,6 +4790,66 @@
       backupsRoot.innerHTML = '';
     }
   }
+  async function renderAdminMoySklad(){
+    const statusRoot = $('#adminMoySkladStatus');
+    const mappingsRoot = $('#adminMoySkladMappings');
+    if(!statusRoot || !mappingsRoot) return;
+    const products = getProducts();
+    const linkedProducts = products.filter(product => product.moyskladHref || product.moyskladId || product.moyskladArticle).length;
+    mappingsRoot.innerHTML = products.length ? `<table class="admin-table"><thead><tr><th>Товар</th><th>ID / ссылка</th><th>Артикул</th><th>Остаток</th><th></th></tr></thead><tbody>${products.map(product => {
+      const reference = product.moyskladHref || product.moyskladId || '';
+      return `<tr><td><strong>${esc(product.name)}</strong><br><small>${esc(product.brand || '')}</small></td><td>${reference ? `<small>${esc(reference)}</small>` : '—'}</td><td>${esc(product.moyskladArticle || '—')}</td><td>${esc(product.stock)}</td><td><button class="btn btn-light small" data-admin-edit="${esc(product.id)}" data-moysklad-edit type="button">Настроить</button></td></tr>`;
+    }).join('')}</tbody></table>` : '<p class="admin-hint">В каталоге нет товаров.</p>';
+    if(!serverAvailable || !isAdminSession()){
+      statusRoot.innerHTML = '<strong>Локальный режим</strong><span>Интеграция доступна при запущенном сервере.</span>';
+      return;
+    }
+    try{
+      const data = await fetchJson('/api/admin/moysklad/status');
+      statusRoot.innerHTML = `
+        <span><small>Токен</small><strong>${data.configured ? 'Настроен' : 'Не настроен'}</strong></span>
+        <span><small>Автосинхронизация</small><strong>${data.enabled ? 'Включена' : 'Выключена'}</strong></span>
+        <span><small>Сопоставлено</small><strong>${esc(linkedProducts)} / ${esc(products.length)}</strong></span>
+        <span><small>Webhook</small><strong>${data.webhookConfigured ? 'Готов' : 'Не настроен'}</strong></span>
+        <span><small>Последняя сверка</small><strong>${esc(storageDate(data.lastSync?.lastSyncAt))}</strong></span>
+        <span><small>Изменено</small><strong>${esc(data.lastSync?.changed || 0)}</strong></span>`;
+      $$('[data-moysklad-test], [data-moysklad-sync]').forEach(button => { button.disabled = !data.configured; });
+    }catch(error){
+      console.warn(error);
+      statusRoot.innerHTML = '<strong>Не удалось получить статус</strong><span>Проверьте сервер и обновите страницу.</span>';
+    }
+  }
+  async function testMoySkladConnection(){
+    const button = $('[data-moysklad-test]');
+    if(button) button.disabled = true;
+    try{
+      const data = await fetchJson('/api/admin/moysklad/test', {method:'POST'});
+      toast(`МойСклад подключён${data.connection?.name ? `: ${data.connection.name}` : ''}`);
+      await renderAdminMoySklad();
+    }catch(error){
+      console.warn(error);
+      toast(error.message || 'Не удалось подключиться к МойСклад');
+    }finally{
+      if(button) button.disabled = false;
+    }
+  }
+  async function syncMoySkladStock(){
+    const button = $('[data-moysklad-sync]');
+    if(button) button.disabled = true;
+    try{
+      const data = await fetchJson('/api/admin/moysklad/sync', {method:'POST'});
+      applyServerState(data.store || {});
+      renderAdminProducts();
+      await renderAdminMoySklad();
+      const result = data.result || {};
+      toast(`Остатки обновлены: ${result.matched || 0}, изменено: ${result.changed || 0}`);
+    }catch(error){
+      console.warn(error);
+      toast(error.message || 'Не удалось синхронизировать остатки');
+    }finally{
+      if(button) button.disabled = false;
+    }
+  }
   async function createServerBackup(){
     try{
       await fetchJson('/api/admin/backups', {method:'POST'});
@@ -4969,7 +5043,7 @@
       const plus = event.target.closest('[data-cart-plus]'); if(plus){ changeCart(plus.dataset.cartPlus,1); return; }
       const minus = event.target.closest('[data-cart-minus]'); if(minus){ changeCart(minus.dataset.cartMinus,-1); return; }
       const remove = event.target.closest('[data-cart-remove]'); if(remove){ removeCart(remove.dataset.cartRemove); return; }
-      const adminEdit = event.target.closest('[data-admin-edit]'); if(adminEdit){ editProduct(adminEdit.dataset.adminEdit); return; }
+      const adminEdit = event.target.closest('[data-admin-edit]'); if(adminEdit){ if(adminEdit.hasAttribute('data-moysklad-edit')) adminSwitch('products'); editProduct(adminEdit.dataset.adminEdit); return; }
       const adminDelete = event.target.closest('[data-admin-delete]'); if(adminDelete){ deleteProduct(adminDelete.dataset.adminDelete); return; }
       const selectAll = event.target.closest('[data-admin-select-all]'); if(selectAll){ $$('[data-admin-product-select]').forEach(input => { input.checked = selectAll.checked; }); return; }
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
@@ -5025,6 +5099,8 @@
       const reviewEdit = event.target.closest('[data-review-edit]'); if(reviewEdit){ editReview(reviewEdit.dataset.reviewEdit); return; }
       const reviewApprove = event.target.closest('[data-review-approve]'); if(reviewApprove){ approveReview(reviewApprove.dataset.reviewApprove); return; }
       const reviewDelete = event.target.closest('[data-review-delete]'); if(reviewDelete){ deleteReview(reviewDelete.dataset.reviewDelete); return; }
+      const moyskladTest = event.target.closest('[data-moysklad-test]'); if(moyskladTest){ testMoySkladConnection(); return; }
+      const moyskladSync = event.target.closest('[data-moysklad-sync]'); if(moyskladSync){ syncMoySkladStock(); return; }
       const tab = event.target.closest('[data-admin-tab]'); if(tab){ adminSwitch(tab.dataset.adminTab); return; }
       const reset = event.target.closest('[data-reset-all]'); if(reset){ resetAll(); return; }
       const serverBackup = event.target.closest('[data-server-backup]'); if(serverBackup){ createServerBackup(); return; }

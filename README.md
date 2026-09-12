@@ -38,3 +38,15 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for PostgreSQL backup/restore, migration, Cad
 - Sitemap: `/sitemap.xml`
 
 Do not commit `.env`, `data/store.json`, uploads, database volumes, or exported backups.
+
+## MoySklad inventory
+
+The server can import available product stock from MoySklad. The access token remains in `.env`; the browser receives only connection status and synchronization results.
+
+1. Set `MOYSKLAD_TOKEN` in `.env`.
+2. Start the server and open `/admin.html`.
+3. In `Товары`, map each ByVit product by MoySklad product ID, full `meta.href`, or article.
+4. Open `МойСклад`, test the connection, and run the first manual synchronization.
+5. Set `MOYSKLAD_ENABLED=true` for periodic reconciliation. The default interval is five minutes.
+
+The prepared webhook endpoint is `POST /api/integrations/moysklad/webhook`. Protect it with `MOYSKLAD_WEBHOOK_SECRET`; configure the final callback only after the production HTTPS domain exists.

@@ -45,6 +45,8 @@ if (isPlaceholder(value('POSTGRES_PASSWORD')) || value('POSTGRES_PASSWORD').leng
 if (isPlaceholder(value('DATABASE_URL'))) errors.push('DATABASE_URL must not contain a placeholder');
 if (!['postgres', 'postgresql'].includes(value('BYVIT_STORAGE_DRIVER').toLowerCase())) errors.push('BYVIT_STORAGE_DRIVER must be postgres');
 if (!/^(1|true|yes)$/i.test(value('BYVIT_MEDIA_PERSISTENT'))) errors.push('BYVIT_MEDIA_PERSISTENT must be true');
+if (/^(1|true|yes)$/i.test(value('MOYSKLAD_ENABLED')) && !value('MOYSKLAD_TOKEN')) errors.push('MOYSKLAD_TOKEN is required when MOYSKLAD_ENABLED is true');
+if (value('MOYSKLAD_WEBHOOK_SECRET') && value('MOYSKLAD_WEBHOOK_SECRET').length < 24) errors.push('MOYSKLAD_WEBHOOK_SECRET must contain at least 24 characters when configured');
 
 const publicUrl = parsedUrl('BYVIT_PUBLIC_URL');
 if (publicUrl) {

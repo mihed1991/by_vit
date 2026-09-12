@@ -13284,6 +13284,11 @@ body[data-page="home"] .hero-content.is-empty {
   display: none !important;
 }
 
+body[data-page="home"] [data-home-block="trust"],
+body[data-page="home"] [data-home-block="trust"].paper {
+  background: #fff !important;
+}
+
 @media(min-width:761px) {
   body[data-page="home"] .hero {
     min-height: 572px;

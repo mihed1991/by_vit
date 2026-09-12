@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const vm = require('vm');
 const { createStorage } = require('./lib/storage');
 const { createMedia } = require('./lib/media');
+const { createMoySkladClient, mappingFor } = require('./lib/moysklad');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -51,6 +52,17 @@ const UPLOAD_DIR = path.resolve(String(process.env.BYVIT_UPLOAD_DIR || '').trim(
 const MAX_UPLOAD_BYTES = Math.max(1024, Number(process.env.BYVIT_UPLOAD_MAX_BYTES || 25 * 1024 * 1024));
 const MEDIA_PERSISTENT = /^(1|true|yes)$/i.test(String(process.env.BYVIT_MEDIA_PERSISTENT || '')) || Boolean(VOLUME_DATA_DIR);
 const media = createMedia({ driver: MEDIA_DRIVER, uploadDir: UPLOAD_DIR, publicPath: '/uploads', maxBytes: MAX_UPLOAD_BYTES, persistent: MEDIA_PERSISTENT });
+const MOYSKLAD_ENABLED = /^(1|true|yes)$/i.test(String(process.env.MOYSKLAD_ENABLED || ''));
+const MOYSKLAD_TOKEN = String(process.env.MOYSKLAD_TOKEN || '').trim();
+const MOYSKLAD_API_BASE = String(process.env.MOYSKLAD_API_BASE || 'https://api.moysklad.ru/api/remap/1.2').trim();
+const MOYSKLAD_STOCK_ENDPOINT = String(process.env.MOYSKLAD_STOCK_ENDPOINT || '/report/stock/all').trim();
+const MOYSKLAD_SYNC_INTERVAL_MS = Math.max(60_000, Number(process.env.MOYSKLAD_SYNC_INTERVAL_MS || 300_000));
+const MOYSKLAD_WEBHOOK_SECRET = String(process.env.MOYSKLAD_WEBHOOK_SECRET || '').trim();
+const moysklad = createMoySkladClient({
+  token: MOYSKLAD_TOKEN,
+  baseUrl: MOYSKLAD_API_BASE,
+  stockEndpoint: MOYSKLAD_STOCK_ENDPOINT
+});
 
 const sessions = new Map();
 const recoveryChallenges = new Map();
@@ -66,6 +78,8 @@ const PUBLIC_HTML_FILES = new Set([
   '/wishlist.html'
 ]);
 const PUBLIC_ASSET_PREFIXES = ['/assets/', '/css/', '/js/'];
+let moyskladSyncTimer = null;
+let moyskladSyncInterval = null;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -217,14 +231,66 @@ function publicSite(site) {
   return safe;
 }
 
+function publicProduct(product) {
+  const safe = clone(product || {});
+  delete safe.moyskladId;
+  delete safe.moyskladHref;
+  delete safe.moyskladArticle;
+  return safe;
+}
+
 function publicState(store) {
   return {
-    products: store.products,
+    products: store.products.map(publicProduct),
     site: publicSite(store.site),
     reviews: store.reviews.filter(review => review.status === 'approved'),
     orders: [],
     catalogEmptyAllowed: store.site?.allowEmptyCatalog === true
   };
+}
+
+function moyskladStatus(store) {
+  const linkedProducts = (store.products || []).filter(product => {
+    const mapping = mappingFor(product, moysklad.baseUrl);
+    return Boolean(mapping.href || mapping.id || mapping.article);
+  }).length;
+  const lastSync = store.meta?.moysklad || null;
+  return {
+    enabled: MOYSKLAD_ENABLED,
+    configured: moysklad.configured(),
+    webhookConfigured: Boolean(MOYSKLAD_WEBHOOK_SECRET),
+    syncIntervalMs: MOYSKLAD_SYNC_INTERVAL_MS,
+    linkedProducts,
+    totalProducts: (store.products || []).length,
+    lastSync
+  };
+}
+
+async function syncMoySkladStock(store) {
+  if (!moysklad.configured()) throw new HttpError(503, 'MOYSKLAD_TOKEN не настроен на сервере.');
+  const result = await moysklad.syncStock(store);
+  await saveStore(store);
+  return result;
+}
+
+function scheduleMoySkladSync(reason = 'scheduled', delayMs = 1000) {
+  if (!moysklad.configured()) return false;
+  clearTimeout(moyskladSyncTimer);
+  moyskladSyncTimer = setTimeout(async () => {
+    try {
+      const operation = async () => {
+        const store = await loadStore();
+        const result = await syncMoySkladStock(store);
+        console.log(`MoySklad ${reason} sync: ${result.matched} matched, ${result.changed} changed`);
+      };
+      if (typeof storage.withWriteLock === 'function') await storage.withWriteLock(operation);
+      else await operation();
+    } catch (error) {
+      console.error(`MoySklad ${reason} sync error:`, error.message);
+    }
+  }, Math.max(0, delayMs));
+  moyskladSyncTimer.unref();
+  return true;
 }
 
 function send(res, status, body, headers = {}) {
@@ -1007,7 +1073,12 @@ async function handleApi(req, res) {
         mediaStorage: mediaInfo.persistent ? 'persistent' : 'ephemeral',
         mediaFiles: mediaInfo.files,
         mediaSize: mediaInfo.size,
-        recoveredCatalogAt: store.meta?.recoveredCatalogAt || ''
+        recoveredCatalogAt: store.meta?.recoveredCatalogAt || '',
+        moysklad: {
+          enabled: MOYSKLAD_ENABLED,
+          configured: moysklad.configured(),
+          lastSyncAt: store.meta?.moysklad?.lastSyncAt || ''
+        }
       });
       return;
     }
@@ -1023,6 +1094,32 @@ async function handleApi(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/admin/state') {
       if (!requireAdmin(req, res)) return;
       send(res, 200, store);
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/moysklad/status') {
+      if (!requireAdmin(req, res)) return;
+      send(res, 200, moyskladStatus(store));
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/moysklad/test') {
+      if (!requireAdmin(req, res)) return;
+      if (!moysklad.configured()) throw new HttpError(503, 'MOYSKLAD_TOKEN не настроен на сервере.');
+      const connection = await moysklad.testConnection();
+      send(res, 200, { ok: true, connection, status: moyskladStatus(store) });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/moysklad/sync') {
+      if (!requireAdmin(req, res)) return;
+      const result = await syncMoySkladStock(store);
+      send(res, 200, { ok: true, result, status: moyskladStatus(store), store });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/integrations/moysklad/webhook') {
+      if (!MOYSKLAD_WEBHOOK_SECRET) throw new HttpError(503, 'Webhook МойСклад ещё не настроен.');
+      const suppliedSecret = String(req.headers['x-byvit-webhook-secret'] || url.searchParams.get('secret') || '').trim();
+      if (!tokenMatches(MOYSKLAD_WEBHOOK_SECRET, suppliedSecret)) throw new HttpError(401, 'Unauthorized');
+      scheduleMoySkladSync('webhook');
+      send(res, 202, { ok: true, queued: true });
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/admin/uploads') {
@@ -1365,6 +1462,7 @@ async function validateProductionConfig() {
   if (!STORAGE_PERSISTENT) errors.push('задайте BYVIT_DATA_DIR и BYVIT_STORAGE_PERSISTENT=true');
   if (!MEDIA_PERSISTENT) errors.push('задайте BYVIT_UPLOAD_DIR и BYVIT_MEDIA_PERSISTENT=true');
   if (['postgres', 'postgresql'].includes(STORAGE_DRIVER) && !DATABASE_URL) errors.push('задайте DATABASE_URL');
+  if (MOYSKLAD_ENABLED && !MOYSKLAD_TOKEN) errors.push('MOYSKLAD_ENABLED требует MOYSKLAD_TOKEN');
   if (errors.length) throw new Error(`Production configuration error: ${errors.join('; ')}`);
 }
 
@@ -1392,11 +1490,18 @@ async function start() {
   await validateProductionConfig();
   server.listen(PORT, () => {
     console.log(`ByVit MVP server: http://localhost:${PORT}`);
+    if (MOYSKLAD_ENABLED && moysklad.configured()) {
+      scheduleMoySkladSync('startup', 5000);
+      moyskladSyncInterval = setInterval(() => scheduleMoySkladSync('interval'), MOYSKLAD_SYNC_INTERVAL_MS);
+      moyskladSyncInterval.unref();
+    }
   });
 }
 
 function shutdown(signal) {
   console.log(`${signal}: stopping ByVit server`);
+  clearTimeout(moyskladSyncTimer);
+  clearInterval(moyskladSyncInterval);
   server.close(async error => {
     if (error) {
       console.error('Shutdown error:', error);

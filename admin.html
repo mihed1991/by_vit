@@ -101,6 +101,7 @@
             <button data-admin-tab="quick-contact">Связь</button>
             <button data-admin-tab="stores">Магазины</button>
             <button data-admin-tab="orders">Заказы</button>
+            <button data-admin-tab="moysklad">МойСклад</button>
             <button data-admin-tab="analytics">Аналитика</button>
             <button data-admin-tab="cart">Корзина</button>
             <button data-admin-tab="reviews">Отзывы</button>
@@ -158,6 +159,13 @@
                         <span><strong>Популярный товар</strong><br><small>Показывать на главной</small></span>
                         <input id="adminPopular" type="checkbox">
                       </label>
+                    </div>
+
+                    <div class="admin-form-section">
+                      <h4>Связь с МойСклад</h4>
+                      <input id="adminMoySkladId" placeholder="ID товара или полный meta.href из МойСклад">
+                      <input id="adminMoySkladArticle" placeholder="Артикул в МойСклад (резервное сопоставление)">
+                      <p class="admin-hint">Достаточно заполнить одно поле. При синхронизации сервер обновит остаток этого товара.</p>
                     </div>
 
                     <div class="admin-form-section">
@@ -815,6 +823,26 @@
                   <input id="adminImportFile" type="file" accept="application/json,.json" hidden>
                   <button class="btn btn-danger" data-reset-all type="button">Сбросить демо</button>
                   <button class="btn btn-light" data-admin-logout type="button">Выйти</button>
+                </div>
+              </article>
+            </section>
+
+            <section class="admin-section" id="admin-moysklad">
+              <article class="admin-card">
+                <h3>МойСклад — остатки</h3>
+                <p>МойСклад используется как источник остатков. Токен хранится только в серверном <code>.env</code> и не показывается в браузере.</p>
+                <div class="admin-form-section">
+                  <h4>Состояние подключения</h4>
+                  <div class="admin-storage-status" id="adminMoySkladStatus"><span>Проверяем подключение...</span></div>
+                  <div class="admin-actions">
+                    <button class="btn btn-light" data-moysklad-test type="button">Проверить подключение</button>
+                    <button class="btn btn-primary" data-moysklad-sync type="button">Синхронизировать остатки</button>
+                  </div>
+                  <p class="admin-hint">Сначала добавьте <code>MOYSKLAD_TOKEN</code> в <code>.env</code>, затем сопоставьте товары по ID или артикулу в разделе «Товары».</p>
+                </div>
+                <div class="admin-form-section">
+                  <h4>Сопоставление товаров</h4>
+                  <div class="table-wrap" id="adminMoySkladMappings"></div>
                 </div>
               </article>
             </section>
