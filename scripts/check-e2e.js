@@ -103,6 +103,10 @@ async function main() {
     await page.locator('[data-action="cart"][data-id="1"]').click();
     await page.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.cart-item').waitFor();
+    await page.locator('#promoCode').fill('WELCOME');
+    await page.locator('#promoApply').click();
+    assert.equal(await page.locator('#cartSummary').getByText(/Промокод WELCOME/).count(), 0, 'Promo must not apply to sale products');
+    assert.match(await page.locator('.toast').textContent(), /не действует на акционные товары/i);
     await page.locator('#orderName').fill('E2E Покупатель');
     await page.locator('#orderPhone').fill('+375 29 123-45-67');
     await page.locator('#checkoutForm button[type="submit"]').click();

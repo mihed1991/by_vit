@@ -95,12 +95,28 @@ async function main() {
     const created = await request(baseUrl, '/api/orders', { method: 'POST', body: { order: forgedOrder } });
     assert.equal(created.status, 201, JSON.stringify(created.data));
     assert.equal(created.data.order.subtotal, 258);
-    assert.equal(created.data.order.discount, 25.8);
-    assert.equal(created.data.order.total, 232.2);
+    assert.equal(created.data.order.discount, 0, 'Promo codes must not discount sale products');
+    assert.equal(created.data.order.total, 258);
+    assert.equal(created.data.order.promo, '');
     assert.equal(created.data.order.items[0].price, 129);
 
     const state = await request(baseUrl, '/api/state');
     assert.equal(state.data.products.find(product => Number(product.id) === 1).stock, 13);
+
+    const regularProductOrder = {
+      items: [{ productId: 4, optionId: '90caps', flavor: '', qty: 1 }],
+      promo: 'WELCOME',
+      deliveryKey: 'pickup',
+      pickupStoreId: 'main',
+      payment: 'Оплата при получении',
+      customer: { name: 'Promo Test', phone: '+375 29 123-45-67', address: '' }
+    };
+    const regularProductCreated = await request(baseUrl, '/api/orders', { method: 'POST', body: { order: regularProductOrder } });
+    assert.equal(regularProductCreated.status, 201, JSON.stringify(regularProductCreated.data));
+    assert.equal(regularProductCreated.data.order.subtotal, 79);
+    assert.equal(regularProductCreated.data.order.discount, 7.9, 'Promo codes must still discount regular products');
+    assert.equal(regularProductCreated.data.order.total, 71.1);
+    assert.equal(regularProductCreated.data.order.promo, 'WELCOME');
 
     const concurrentOrder = {
       items: [{ productId: 2, optionId: '300g', flavor: 'Без вкуса', qty: 14 }],
@@ -152,7 +168,7 @@ async function main() {
     assert.match(sessionCookie, /SameSite=Lax/i);
     const adminState = await request(baseUrl, '/api/admin/state', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(adminState.status, 200);
-    assert.equal(adminState.data.orders.length, 3);
+    assert.equal(adminState.data.orders.length, 4);
     const moyskladStatus = await request(baseUrl, '/api/admin/moysklad/status', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(moyskladStatus.status, 200);
     assert.equal(moyskladStatus.data.configured, false);

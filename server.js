@@ -687,11 +687,16 @@ function normalizeOrder(store, payload) {
   }
 
   const subtotal = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0));
+  const promoSubtotal = roundMoney(items.reduce((sum, item) => {
+    const product = store.products.find(productItem => Number(productItem.id) === Number(item.productId));
+    return sum + (Number(product?.oldPrice || 0) > 0 ? 0 : item.lineTotal);
+  }, 0));
   const promoCode = textField(source.promo, 'Промокод', 64).toUpperCase();
   const promo = (store.site?.promos || []).find(item => item.enabled !== false && String(item.code || '').trim().toUpperCase() === promoCode);
   const promoValue = Math.max(0, Number(promo?.value || 0));
-  const rawDiscount = promo ? (promo.type === 'fixed' ? promoValue : subtotal * Math.min(100, promoValue) / 100) : 0;
-  const discount = roundMoney(Math.min(subtotal, rawDiscount));
+  const appliedPromo = promo && promoSubtotal > 0 ? promo : null;
+  const rawDiscount = appliedPromo ? (appliedPromo.type === 'fixed' ? promoValue : promoSubtotal * Math.min(100, promoValue) / 100) : 0;
+  const discount = roundMoney(Math.min(promoSubtotal, rawDiscount));
 
   const deliveryMethods = store.site?.deliveryMethods || {};
   const deliveryKey = textField(source.deliveryKey || 'pickup', 'Способ доставки', 64, { required: true });
@@ -727,7 +732,7 @@ function normalizeOrder(store, payload) {
     discount,
     deliveryPrice,
     total: roundMoney(subtotal - discount + deliveryPrice),
-    promo: promo ? String(promo.code).trim().toUpperCase() : '',
+    promo: appliedPromo ? String(appliedPromo.code).trim().toUpperCase() : '',
     deliveryKey,
     deliveryTitle: String(delivery.title || deliveryKey),
     pickupStore: pickupStore ? clone(pickupStore) : null,

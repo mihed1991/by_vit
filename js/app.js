@@ -2704,10 +2704,15 @@
   function cartTotals(){
     const items = getCart();
     const subtotal = items.reduce((sum,item)=>sum + Number(item.price || 0) * Number(item.qty || 0),0);
+    const promoSubtotal = items.reduce((sum,item)=>{
+      const product = productById(item.productId);
+      return sum + (Number(product?.oldPrice || 0) > 0 ? 0 : Number(item.price || 0) * Number(item.qty || 0));
+    },0);
     const promo = String(sessionStorage.getItem('byvit_v60_promo') || '').toUpperCase();
     const activePromo = (getSite().promos || []).find(item => item.enabled !== false && item.code === promo);
-    const discount = activePromo ? (activePromo.type === 'fixed' ? Number(activePromo.value || 0) : subtotal * Number(activePromo.value || 0) / 100) : 0;
-    return {subtotal,discount,total:Math.max(0,subtotal-discount),promo};
+    const rawDiscount = activePromo ? (activePromo.type === 'fixed' ? Number(activePromo.value || 0) : promoSubtotal * Number(activePromo.value || 0) / 100) : 0;
+    const discount = Math.min(promoSubtotal, rawDiscount);
+    return {subtotal,promoSubtotal,discount,total:Math.max(0,subtotal-discount),promo:activePromo && promoSubtotal > 0 ? promo : ''};
   }
   function selectedDelivery(){
     const key = $('input[name="delivery"]:checked')?.value || 'pickup';
@@ -2850,7 +2855,11 @@
   function applyPromo(){
     const code = String($('#promoCode')?.value || '').trim().toUpperCase();
     const promo = (getSite().promos || []).find(item => item.enabled !== false && item.code === code);
-    if(promo){ sessionStorage.setItem('byvit_v60_promo', code); toast('Промокод применён'); }
+    const cart = getCart();
+    const eligibleItems = cart.filter(item => Number(productById(item.productId)?.oldPrice || 0) <= 0);
+    const hasSaleItems = cart.length > eligibleItems.length;
+    if(promo && !eligibleItems.length){ sessionStorage.removeItem('byvit_v60_promo'); toast('Промокод не действует на акционные товары'); }
+    else if(promo){ sessionStorage.setItem('byvit_v60_promo', code); toast(hasSaleItems ? 'Промокод применён только к товарам без акции' : 'Промокод применён'); }
     else { sessionStorage.removeItem('byvit_v60_promo'); toast('Промокод не найден'); }
     renderSummary();
   }
