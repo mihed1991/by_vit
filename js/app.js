@@ -2192,6 +2192,7 @@
     if(!q){ panel.hidden = true; panel.innerHTML = ''; return; }
     const matches = values.filter(value => slugText(value).includes(q)).slice(0,7);
     panel.hidden = !matches.length;
+    if(matches.length) $$('[data-filter-menu][open]').forEach(menu => { menu.open = false; });
     panel.innerHTML = `<p class="header-overlay-label">Подсказки</p>${matches.map(value => `
       <button class="header-result-link" type="button" data-catalog-suggestion="${esc(value)}">
         <span>${esc(value)}</span>

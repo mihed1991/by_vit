@@ -12743,16 +12743,22 @@ body[data-page="catalog"] #catalogSort {
   font-size: 14px;
 }
 
+body[data-page="catalog"] .toolbar {
+  z-index: 45;
+}
+
 body[data-page="catalog"] .catalog-suggest-panel {
+  left: -12px;
   top: calc(100% + 8px);
+  z-index: 80;
   display: block;
   max-height: 280px;
   padding: 14px 16px;
   border-radius: 0;
-  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  background: var(--white);
   box-shadow: 0 18px 38px rgba(17, 19, 16, .1);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 body[data-page="catalog"] .catalog-suggest-panel .header-overlay-label {
@@ -13615,10 +13621,17 @@ body[data-page="brands"] #brandsList .brand-card.has-image {
 }
 
 body[data-page="brands"] #brandsList .brand-card:hover {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+  border-color: var(--line);
+  background: var(--white);
+  box-shadow: 0 18px 38px rgba(17, 19, 16, .1);
   transform: none;
+}
+
+@media(max-width:760px) {
+  body[data-page="catalog"] .catalog-suggest-panel {
+    right: -8px;
+    left: -8px;
+  }
 }
 
 body[data-page="brands"] #brandsList .brand-media,

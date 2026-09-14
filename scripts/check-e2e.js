@@ -126,6 +126,24 @@ async function main() {
     assert.equal(await page.locator('[data-filter-menu]').first().getAttribute('open'), '');
     await page.locator('.page-hero h1').click();
     assert.equal(await page.locator('[data-filter-menu][open]').count(), 0, 'An open catalog filter must close after an outside click');
+    await page.locator('#catalogFilters summary').filter({ hasText: 'Все фильтры' }).click();
+    await page.locator('#catalogSearch').fill('про');
+    await page.locator('#catalogSearchPanel').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('[data-filter-menu][open]').count(), 0, 'Search suggestions must close an open catalog filter');
+    const desktopSearchOverlay = await page.evaluate(() => {
+      const panel = document.querySelector('#catalogSearchPanel');
+      const coversFilters = [...document.querySelectorAll('#catalogFilters summary')].every(summary => {
+        const box = summary.getBoundingClientRect();
+        return Boolean(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('#catalogSearchPanel'));
+      });
+      return {
+        background: getComputedStyle(panel).backgroundColor,
+        coversFilters
+      };
+    });
+    assert.equal(desktopSearchOverlay.background, 'rgb(255, 255, 255)');
+    assert.equal(desktopSearchOverlay.coversFilters, true, 'Desktop search suggestions must cover the filter row');
+    await page.locator('#catalogSearch').fill('');
     await page.locator('#catalogFilters summary').filter({ hasText: 'Производитель' }).click();
     await page.locator('#catalogFilters input[name="brand"][value="Optimum Nutrition"]').check();
     await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 2);
@@ -259,6 +277,21 @@ async function main() {
       await mobilePage.locator('.page-hero h1').click();
       assert.equal(await mobilePage.locator('[data-filter-menu][open]').count(), 0);
     }
+    await mobilePage.locator('#catalogSearch').fill('про');
+    await mobilePage.locator('#catalogSearchPanel').waitFor({ state: 'visible' });
+    const mobileSearchOverlay = await mobilePage.evaluate(() => {
+      const panel = document.querySelector('#catalogSearchPanel');
+      const coversFilters = [...document.querySelectorAll('#catalogFilters summary')].every(summary => {
+        const box = summary.getBoundingClientRect();
+        return Boolean(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('#catalogSearchPanel'));
+      });
+      return {
+        background: getComputedStyle(panel).backgroundColor,
+        coversFilters
+      };
+    });
+    assert.equal(mobileSearchOverlay.background, 'rgb(255, 255, 255)');
+    assert.equal(mobileSearchOverlay.coversFilters, true, 'Mobile search suggestions must cover the filter row');
     const mobileCatalogDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
     assert.ok(mobileCatalogDimensions.scrollWidth <= mobileCatalogDimensions.width + 1, 'Open mobile filters must not create horizontal overflow');
     assert.deepEqual(mobileErrors, [], `Mobile page errors: ${mobileErrors.join('; ')}`);
