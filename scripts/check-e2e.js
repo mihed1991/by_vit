@@ -228,6 +228,7 @@ async function main() {
     for (const pathname of ['/catalog.html', '/product.html?id=1', '/cart.html', '/delivery.html']) {
       await assertNoHorizontalOverflow(mobilePage, pathname);
     }
+    await mobilePage.setViewportSize({ width: 319, height: 730 });
     await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('#catalogFilters summary').first().waitFor();
     assert.equal(await mobilePage.locator('#catalogSort').isVisible(), false, 'Catalog sorting must be hidden on mobile');
@@ -241,9 +242,25 @@ async function main() {
       assert.ok(item.height >= 42, 'Mobile filter controls must keep a usable touch target');
       assert.ok(item.width >= 30, 'Mobile filter controls must remain readable');
     });
-    await mobilePage.locator('#catalogFilters summary').filter({ hasText: 'Вкус' }).click();
+    const filterBarBox = await mobilePage.locator('#catalogFilters').boundingBox();
+    const triggerBoxes = await mobilePage.locator('#catalogFilters summary').evaluateAll(nodes => nodes.map(node => ({
+      x: Math.round(node.getBoundingClientRect().x),
+      width: Math.round(node.getBoundingClientRect().width)
+    })));
+    for(let index = 0; index < 3; index += 1){
+      await mobilePage.locator('#catalogFilters summary').nth(index).click();
+      const openMenu = mobilePage.locator('[data-filter-menu][open]');
+      assert.equal(await openMenu.count(), 1);
+      const popoverBox = await openMenu.locator('.catalog-filter-popover').boundingBox();
+      const openTriggerBox = await mobilePage.locator('#catalogFilters summary').nth(index).boundingBox();
+      assert.ok(popoverBox.x >= filterBarBox.x - 1, `Mobile filter ${index + 1} must not move beyond the left catalog edge`);
+      assert.ok(popoverBox.x + popoverBox.width <= filterBarBox.x + filterBarBox.width + 1, `Mobile filter ${index + 1} must not move beyond the right catalog edge`);
+      assert.ok(Math.abs(Math.round(openTriggerBox.x) - triggerBoxes[index].x) <= 1, `Mobile filter trigger ${index + 1} must not visibly shift when opened`);
+      await mobilePage.locator('.page-hero h1').click();
+      assert.equal(await mobilePage.locator('[data-filter-menu][open]').count(), 0);
+    }
     const mobileCatalogDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
-    assert.ok(mobileCatalogDimensions.scrollWidth <= mobileCatalogDimensions.width + 1, 'Open mobile filter must not create horizontal overflow');
+    assert.ok(mobileCatalogDimensions.scrollWidth <= mobileCatalogDimensions.width + 1, 'Open mobile filters must not create horizontal overflow');
     assert.deepEqual(mobileErrors, [], `Mobile page errors: ${mobileErrors.join('; ')}`);
     await mobile.close();
 

@@ -6615,6 +6615,10 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
     gap: 8px;
   }
 
+  body[data-page="catalog"] .catalog-filter-menu {
+    position: static;
+  }
+
   body[data-page="catalog"] .catalog-filter-menu summary {
     min-height: 42px;
     gap: 4px;
@@ -6646,9 +6650,13 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
 
   body[data-page="catalog"] .catalog-filter-popover,
   body[data-page="catalog"] .catalog-filter-popover-wide {
-    width: min(340px, calc(100vw - 40px));
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    width: 100%;
     max-height: 58vh;
     padding: 10px;
+    transform: none;
   }
 
   body[data-page="catalog"] .catalog-filter-popover-wide {
@@ -6657,13 +6665,15 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
   }
 
   body[data-page="catalog"] .catalog-filter-menu:nth-child(2) .catalog-filter-popover {
-    left: 50%;
-    transform: translateX(-50%);
+    right: 0;
+    left: 0;
+    transform: none;
   }
 
   body[data-page="catalog"] .catalog-filter-menu:nth-child(3) .catalog-filter-popover {
     right: 0;
-    left: auto;
+    left: 0;
+    transform: none;
   }
 
   body[data-page="catalog"] .catalog-filter-option {
