@@ -100,6 +100,46 @@ async function main() {
     await page.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.product-card').first().waitFor();
     assert.equal(await page.locator('.product-card').count(), 13);
+    const catalogSectionOrder = await page.locator('.catalog-main').evaluate(node => {
+      const smart = node.querySelector('#catalogSmart');
+      const filters = node.querySelector('#catalogFilters');
+      const toolbar = node.querySelector('.toolbar');
+      return toolbar.compareDocumentPosition(filters) === Node.DOCUMENT_POSITION_FOLLOWING
+        && filters.compareDocumentPosition(smart) === Node.DOCUMENT_POSITION_FOLLOWING;
+    });
+    assert.equal(catalogSectionOrder, true, 'Catalog order must be search, filters, then categories');
+    const catalogFilterLabels = (await page.locator('#catalogFilters summary').allTextContents()).map(label => label.replace(/\s+0$/, '').trim());
+    assert.deepEqual(catalogFilterLabels, ['Все фильтры', 'Производитель', 'Вкус']);
+    const catalogFilterVisualStyle = await page.locator('#catalogFilters summary').first().evaluate((summary, allProductsLink) => ({
+      color: getComputedStyle(summary).color,
+      fontSize: getComputedStyle(summary).fontSize,
+      borderStyle: getComputedStyle(summary).borderTopStyle,
+      referenceColor: getComputedStyle(allProductsLink).color,
+      referenceFontSize: getComputedStyle(allProductsLink).fontSize
+    }), await page.locator('.catalog-filter-all-link').elementHandle());
+    assert.equal(catalogFilterVisualStyle.color, catalogFilterVisualStyle.referenceColor);
+    assert.equal(catalogFilterVisualStyle.fontSize, catalogFilterVisualStyle.referenceFontSize);
+    assert.equal(catalogFilterVisualStyle.borderStyle, 'none', 'Catalog filter triggers must stay visually light');
+    const desktopFilterRowTops = await page.locator('#catalogFilters summary, #catalogFilters .catalog-filter-all-link').evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
+    assert.equal(new Set(desktopFilterRowTops).size, 1, 'Filters and the all-products link must share one desktop row');
+    await page.locator('#catalogFilters summary').filter({ hasText: 'Производитель' }).click();
+    await page.locator('#catalogFilters input[name="brand"][value="Optimum Nutrition"]').check();
+    await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 2);
+    assert.match(page.url(), /brand=Optimum\+Nutrition/);
+    assert.equal(await page.locator('.catalog-filter-chip').filter({ hasText: 'Optimum Nutrition' }).count(), 1);
+    await page.locator('.catalog-filter-chip').filter({ hasText: 'Optimum Nutrition' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 13);
+    await page.locator('#catalogFilters summary').filter({ hasText: 'Вкус' }).click();
+    await page.locator('#catalogFilters input[name="flavor"][value="Клубника"]').check();
+    await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 2);
+    assert.match(page.url(), /flavor=%D0%9A%D0%BB%D1%83%D0%B1%D0%BD%D0%B8%D0%BA%D0%B0/);
+    await page.locator('#catalogFilters summary').filter({ hasText: 'Все фильтры' }).click();
+    await page.locator('#catalogPriceMin').fill('200');
+    await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 1);
+    assert.match(page.url(), /priceMin=200/);
+    await page.locator('.catalog-filter-reset').click();
+    await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 13);
+    assert.equal(new URL(page.url()).search, '', 'Clear filters must restore the unfiltered catalog URL');
     await page.locator('[data-action="cart"][data-id="1"]').click();
     await page.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.cart-item').waitFor();
@@ -184,6 +224,21 @@ async function main() {
     for (const pathname of ['/catalog.html', '/product.html?id=1', '/cart.html', '/delivery.html']) {
       await assertNoHorizontalOverflow(mobilePage, pathname);
     }
+    await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
+    await mobilePage.locator('#catalogFilters summary').first().waitFor();
+    const mobileFilterLayout = await mobilePage.locator('#catalogFilters summary, #catalogFilters .catalog-filter-all-link').evaluateAll(nodes => nodes.map(node => ({
+      top: Math.round(node.getBoundingClientRect().top),
+      height: Math.round(node.getBoundingClientRect().height),
+      width: Math.round(node.getBoundingClientRect().width)
+    })));
+    assert.equal(new Set(mobileFilterLayout.map(item => item.top)).size, 1, 'Mobile filter controls must stay on one row');
+    mobileFilterLayout.forEach(item => {
+      assert.ok(item.height >= 42, 'Mobile filter controls must keep a usable touch target');
+      assert.ok(item.width >= 30, 'Mobile filter controls must remain readable');
+    });
+    await mobilePage.locator('#catalogFilters summary').filter({ hasText: 'Вкус' }).click();
+    const mobileCatalogDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+    assert.ok(mobileCatalogDimensions.scrollWidth <= mobileCatalogDimensions.width + 1, 'Open mobile filter must not create horizontal overflow');
     assert.deepEqual(mobileErrors, [], `Mobile page errors: ${mobileErrors.join('; ')}`);
     await mobile.close();
 

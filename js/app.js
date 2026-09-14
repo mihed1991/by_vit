@@ -2150,8 +2150,7 @@
 	    if(!root) return;
 	    root.classList.add('catalog-smart');
 	    const cats = getCategories().filter(Boolean);
-	    root.innerHTML = `<div class="catalog-smart-head"><a href="catalog.html">Все товары</a></div>
-	      <div class="catalog-smart-grid">
+	    root.innerHTML = `<div class="catalog-smart-grid">
 	        ${cats.map(category => {
 	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
 	          return `<article class="catalog-smart-card">
@@ -2439,18 +2438,27 @@
   function filterProducts(){
     let list = getProducts();
     const params = new URLSearchParams(location.search);
+    const filters = $('#catalogFilters');
     const searchInput = $('#catalogSearch');
     const sortInput = $('#catalogSort');
     const q = slugText(searchInput?.value || params.get('q') || '');
     const recommendationTag = slugText(params.get('tag') || '');
-    const categoryValues = $$('input[name="category"]:checked').map(i=>i.value);
-    const brandValues = $$('input[name="brand"]:checked').map(i=>i.value);
+    const categoryValues = $$('input[name="category"]:checked', filters || document).map(i=>i.value);
+    const brandValues = $$('input[name="brand"]:checked', filters || document).map(i=>i.value);
+    const flavorValues = $$('input[name="flavor"]:checked', filters || document).map(i=>i.value);
     const stockOnly = $('#stockOnly')?.checked;
+    const saleOnly = $('#saleOnly')?.checked;
+    const priceMin = Number($('#catalogPriceMin')?.value || 0);
+    const priceMax = Number($('#catalogPriceMax')?.value || 0);
     if(q) list = list.filter(p => slugText([p.name,p.brand,p.shortDescription,p.description,p.ingredients,p.usage,p.category,formTypeLabel(p.formType),...productGoalLabels(p)].join(' ')).includes(q));
     if(recommendationTag) list = list.filter(p => productRecommendationTags(p).includes(recommendationTag));
     if(categoryValues.length) list = list.filter(p => categoryValues.includes(p.category));
     if(brandValues.length) list = list.filter(p => brandValues.includes(p.brand));
+    if(flavorValues.length) list = list.filter(p => (p.flavors || []).some(flavor => flavorValues.includes(flavor)));
     if(stockOnly) list = list.filter(p => Number(p.stock || 0) > 0);
+    if(saleOnly) list = list.filter(p => Number(p.oldPrice || 0) > Number(p.price || 0));
+    if(priceMin > 0) list = list.filter(p => Number(p.price || 0) >= priceMin);
+    if(priceMax > 0) list = list.filter(p => Number(p.price || 0) <= priceMax);
     const sort = sortInput?.value || 'default';
     if(sort === 'price-asc') list.sort((a,b)=>Number(a.price)-Number(b.price));
     if(sort === 'price-desc') list.sort((a,b)=>Number(b.price)-Number(a.price));
@@ -2472,35 +2480,138 @@
     if(sort && sort !== 'default') params.set('sort', sort);
     $$('input[name="category"]:checked').forEach(input => params.append('category', input.value));
     $$('input[name="brand"]:checked').forEach(input => params.append('brand', input.value));
+    $$('input[name="flavor"]:checked').forEach(input => params.append('flavor', input.value));
     if($('#stockOnly')?.checked) params.set('stock', '1');
+    if($('#saleOnly')?.checked) params.set('sale', '1');
+    const priceMin = $('#catalogPriceMin')?.value.trim();
+    const priceMax = $('#catalogPriceMax')?.value.trim();
+    if(priceMin) params.set('priceMin', priceMin);
+    if(priceMax) params.set('priceMax', priceMax);
     const query = params.toString();
     history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`);
   }
+
+	function catalogFlavors(){
+	  return [...new Set(getProducts().flatMap(product => product.flavors || []).filter(Boolean))]
+	    .sort((a,b)=>a.localeCompare(b,'ru'));
+	}
+	function catalogFilterOption(name, value, label, activeValues){
+	  return `<label class="catalog-filter-option">
+	    <input type="checkbox" name="${esc(name)}" value="${esc(value)}" ${activeValues.includes(value) ? 'checked' : ''}>
+	    <span>${esc(label)}</span>
+	  </label>`;
+	}
+	function renderCatalogFilterMenus(params){
+	  const root = $('#catalogFilters');
+	  if(!root) return;
+	  const activeCategories = params.getAll('category');
+	  const activeBrands = params.getAll('brand');
+	  const activeFlavors = params.getAll('flavor');
+	  root.innerHTML = `
+	    <div class="catalog-filter-row">
+	      <details class="catalog-filter-menu catalog-filter-menu-all" data-filter-menu>
+	        <summary>Все фильтры <span class="catalog-filter-count" data-filter-count="all" hidden></span></summary>
+	        <div class="catalog-filter-popover catalog-filter-popover-wide">
+	          <fieldset class="catalog-filter-group">
+	            <legend>Категории</legend>
+	            <div class="catalog-filter-options catalog-filter-options-categories">
+	              ${getCategories().map(category => catalogFilterOption('category', category.id, category.name, activeCategories)).join('')}
+	            </div>
+	          </fieldset>
+	          <fieldset class="catalog-filter-group">
+	            <legend>Цена, BYN</legend>
+	            <div class="catalog-price-range">
+	              <label><span>От</span><input id="catalogPriceMin" type="number" min="0" step="1" inputmode="numeric" value="${esc(params.get('priceMin') || '')}" placeholder="0"></label>
+	              <label><span>До</span><input id="catalogPriceMax" type="number" min="0" step="1" inputmode="numeric" value="${esc(params.get('priceMax') || '')}" placeholder="Любая"></label>
+	            </div>
+	            <div class="catalog-filter-switches">
+	              <label class="catalog-filter-option"><input type="checkbox" id="stockOnly" ${params.get('stock') === '1' ? 'checked' : ''}><span>Только в наличии</span></label>
+	              <label class="catalog-filter-option"><input type="checkbox" id="saleOnly" ${params.get('sale') === '1' ? 'checked' : ''}><span>Товары со скидкой</span></label>
+	            </div>
+	          </fieldset>
+	          <button class="catalog-filter-reset" type="button" data-clear-filters>Сбросить фильтры</button>
+	        </div>
+	      </details>
+	      <details class="catalog-filter-menu" data-filter-menu>
+	        <summary>Производитель <span class="catalog-filter-count" data-filter-count="brand" hidden></span></summary>
+	        <div class="catalog-filter-popover">
+	          <div class="catalog-filter-options">
+	            ${brands().map(brand => catalogFilterOption('brand', brand, brand, activeBrands)).join('')}
+	          </div>
+	        </div>
+	      </details>
+	      <details class="catalog-filter-menu" data-filter-menu>
+	        <summary>Вкус <span class="catalog-filter-count" data-filter-count="flavor" hidden></span></summary>
+	        <div class="catalog-filter-popover">
+	          <div class="catalog-filter-options">
+	            ${catalogFlavors().map(flavor => catalogFilterOption('flavor', flavor, flavor, activeFlavors)).join('')}
+	          </div>
+	        </div>
+	      </details>
+	      <a class="catalog-filter-all-link" href="catalog.html">Все товары</a>
+	    </div>
+	    <div class="catalog-active-filters" data-active-filters hidden aria-live="polite"></div>`;
+	}
+	function updateCatalogFilterState(){
+	  const root = $('#catalogFilters');
+	  if(!root) return;
+	  const categoryInputs = $$('input[name="category"]:checked', root);
+	  const brandInputs = $$('input[name="brand"]:checked', root);
+	  const flavorInputs = $$('input[name="flavor"]:checked', root);
+	  const priceMin = $('#catalogPriceMin')?.value.trim() || '';
+	  const priceMax = $('#catalogPriceMax')?.value.trim() || '';
+	  const stockOnly = Boolean($('#stockOnly')?.checked);
+	  const saleOnly = Boolean($('#saleOnly')?.checked);
+	  const counts = {
+	    all: categoryInputs.length + Number(Boolean(priceMin)) + Number(Boolean(priceMax)) + Number(stockOnly) + Number(saleOnly),
+	    brand: brandInputs.length,
+	    flavor: flavorInputs.length
+	  };
+	  Object.entries(counts).forEach(([key, count]) => {
+	    const badge = $(`[data-filter-count="${key}"]`, root);
+	    if(!badge) return;
+	    badge.textContent = String(count);
+	    badge.hidden = count === 0;
+	  });
+	  const chips = [
+	    ...categoryInputs.map(input => ({type:'category', value:input.value, label:categoryName(input.value)})),
+	    ...brandInputs.map(input => ({type:'brand', value:input.value, label:input.value})),
+	    ...flavorInputs.map(input => ({type:'flavor', value:input.value, label:input.value})),
+	    ...(stockOnly ? [{type:'stock', value:'1', label:'В наличии'}] : []),
+	    ...(saleOnly ? [{type:'sale', value:'1', label:'Со скидкой'}] : []),
+	    ...(priceMin ? [{type:'priceMin', value:priceMin, label:`Цена от ${priceMin} BYN`}] : []),
+	    ...(priceMax ? [{type:'priceMax', value:priceMax, label:`Цена до ${priceMax} BYN`}] : [])
+	  ];
+	  const active = $('[data-active-filters]', root);
+	  if(!active) return;
+	  active.hidden = chips.length === 0;
+	  active.innerHTML = chips.length ? `${chips.map(chip => `<button type="button" class="catalog-filter-chip" data-filter-remove="${esc(chip.type)}" data-filter-value="${esc(chip.value)}">${esc(chip.label)} <span aria-hidden="true">×</span></button>`).join('')}<button type="button" class="catalog-filter-clear" data-clear-filters>Сбросить всё</button>` : '';
+	}
+	function removeCatalogFilter(type, value){
+	  const root = $('#catalogFilters');
+	  if(!root) return;
+	  if(['category','brand','flavor'].includes(type)){
+	    const input = $$(`input[name="${type}"]`, root).find(item => item.value === value);
+	    if(input) input.checked = false;
+	  }
+	  if(type === 'stock' && $('#stockOnly')) $('#stockOnly').checked = false;
+	  if(type === 'sale' && $('#saleOnly')) $('#saleOnly').checked = false;
+	  if(type === 'priceMin' && $('#catalogPriceMin')) $('#catalogPriceMin').value = '';
+	  if(type === 'priceMax' && $('#catalogPriceMax')) $('#catalogPriceMax').value = '';
+	}
 	  function renderCatalog(){
 	    renderCatalogSmart();
 	    renderCatalogSuggestions();
 	    const filters = $('#catalogFilters');
     const params = new URLSearchParams(location.search);
-    if(filters){
-      const activeCategories = params.getAll('category');
-      const activeBrands = params.getAll('brand');
-      filters.innerHTML = `
-        <div class="filter-group"><h4>Категории</h4><div class="check-list">
-          ${getCategories().map(c=>`<label><input type="checkbox" name="category" value="${esc(c.id)}" ${activeCategories.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('')}
-        </div></div>
-        <div class="filter-group"><h4>Бренды</h4><div class="check-list">
-          ${brands().map(b=>`<label><input type="checkbox" name="brand" value="${esc(b)}" ${activeBrands.includes(b) ? 'checked' : ''}> ${esc(b)}</label>`).join('')}
-        </div></div>
-        <div class="filter-group"><h4>Наличие</h4><div class="check-list"><label><input type="checkbox" id="stockOnly" ${params.get('stock') === '1' ? 'checked' : ''}> Только в наличии</label></div></div>
-        <button class="btn btn-light full" type="button" data-clear-filters>Сбросить фильтры</button>`;
-    }
+    renderCatalogFilterMenus(params);
     const q = params.get('q');
     if(q && $('#catalogSearch')) $('#catalogSearch').value = q;
     const recommendationTag = params.get('tag');
     if(recommendationTag && !q && $('#catalogSearch')) $('#catalogSearch').value = recommendationTag;
     const sortParam = params.get('sort');
     if(sortParam && $('#catalogSort')) $('#catalogSort').value = sortParam;
-    const apply = () => { syncCatalogUrl(); renderCatalogProducts(); };
+    const apply = () => { syncCatalogUrl(); updateCatalogFilterState(); renderCatalogProducts(); };
     const searchEl = $('#catalogSearch');
     if(searchEl){
       searchEl.addEventListener('input', () => {
@@ -2521,24 +2632,51 @@
       chooseCatalogSuggestion(item.dataset.catalogSuggestion || '');
     });
     document.addEventListener('click', event => {
-      if(event.target.closest('.catalog-search-wrap')) return;
-      const panel = $('#catalogSearchPanel');
-      if(panel) panel.hidden = true;
+      if(!event.target.closest('.catalog-search-wrap')){
+	      const panel = $('#catalogSearchPanel');
+	      if(panel) panel.hidden = true;
+	    }
+	    if(!event.target.closest('#catalogFilters')){
+	      $$('[data-filter-menu][open]').forEach(menu => { menu.open = false; });
+	    }
     });
     if(filters){
-      filters.addEventListener('input', apply);
-      filters.addEventListener('change', apply);
+      filters.addEventListener('input', event => {
+	      if(event.target.matches('#catalogPriceMin, #catalogPriceMax')) apply();
+	    });
+      filters.addEventListener('change', event => {
+	      if(event.target.matches('input[type="checkbox"]')) apply();
+	    });
       filters.addEventListener('click', event => {
-        if(!event.target.closest('[data-clear-filters]')) return;
-        $$('input[type="checkbox"]', filters).forEach(input => { input.checked = false; });
-        const search = $('#catalogSearch'); if(search) search.value = '';
-        const sort = $('#catalogSort'); if(sort) sort.value = 'default';
-        const nextParams = new URLSearchParams(location.search);
-        nextParams.delete('tag');
-        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
-        apply();
+	      const remove = event.target.closest('[data-filter-remove]');
+	      if(remove){
+	        removeCatalogFilter(remove.dataset.filterRemove || '', remove.dataset.filterValue || '');
+	        apply();
+	        return;
+	      }
+	      if(event.target.closest('[data-clear-filters]')){
+	        $$('input[type="checkbox"]', filters).forEach(input => { input.checked = false; });
+	        $$('#catalogPriceMin, #catalogPriceMax', filters).forEach(input => { input.value = ''; });
+	        const search = $('#catalogSearch'); if(search) search.value = '';
+	        const sort = $('#catalogSort'); if(sort) sort.value = 'default';
+	        const nextParams = new URLSearchParams(location.search);
+	        nextParams.delete('tag');
+	        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
+	        $$('[data-filter-menu][open]', filters).forEach(menu => { menu.open = false; });
+	        apply();
+	      }
       });
+	    filters.addEventListener('toggle', event => {
+	      const menu = event.target.closest('[data-filter-menu]');
+	      if(!menu?.open) return;
+	      $$('[data-filter-menu][open]', filters).forEach(other => { if(other !== menu) other.open = false; });
+	    }, true);
+	    filters.addEventListener('keydown', event => {
+	      if(event.key !== 'Escape') return;
+	      $$('[data-filter-menu][open]', filters).forEach(menu => { menu.open = false; });
+	    });
     }
+    updateCatalogFilterState();
     renderCatalogProducts();
   }
   function renderCatalogProducts(){
