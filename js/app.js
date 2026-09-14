@@ -2636,9 +2636,9 @@
 	      const panel = $('#catalogSearchPanel');
 	      if(panel) panel.hidden = true;
 	    }
-	    if(!event.target.closest('#catalogFilters')){
-	      $$('[data-filter-menu][open]').forEach(menu => { menu.open = false; });
-	    }
+	    $$('[data-filter-menu][open]').forEach(menu => {
+	      if(!menu.contains(event.target)) menu.open = false;
+	    });
     });
     if(filters){
       filters.addEventListener('input', event => {

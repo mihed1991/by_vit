@@ -122,6 +122,10 @@ async function main() {
     assert.equal(catalogFilterVisualStyle.borderStyle, 'none', 'Catalog filter triggers must stay visually light');
     const desktopFilterRowTops = await page.locator('#catalogFilters summary, #catalogFilters .catalog-filter-all-link').evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
     assert.equal(new Set(desktopFilterRowTops).size, 1, 'Filters and the all-products link must share one desktop row');
+    await page.locator('#catalogFilters summary').filter({ hasText: 'Все фильтры' }).click();
+    assert.equal(await page.locator('[data-filter-menu]').first().getAttribute('open'), '');
+    await page.locator('.page-hero h1').click();
+    assert.equal(await page.locator('[data-filter-menu][open]').count(), 0, 'An open catalog filter must close after an outside click');
     await page.locator('#catalogFilters summary').filter({ hasText: 'Производитель' }).click();
     await page.locator('#catalogFilters input[name="brand"][value="Optimum Nutrition"]').check();
     await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 2);
@@ -226,6 +230,7 @@ async function main() {
     }
     await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('#catalogFilters summary').first().waitFor();
+    assert.equal(await mobilePage.locator('#catalogSort').isVisible(), false, 'Catalog sorting must be hidden on mobile');
     const mobileFilterLayout = await mobilePage.locator('#catalogFilters summary, #catalogFilters .catalog-filter-all-link').evaluateAll(nodes => nodes.map(node => ({
       top: Math.round(node.getBoundingClientRect().top),
       height: Math.round(node.getBoundingClientRect().height),

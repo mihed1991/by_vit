@@ -6686,6 +6686,10 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
   body[data-page="catalog"] .catalog-filter-clear {
     flex: 0 0 auto;
   }
+
+  body[data-page="catalog"] #catalogSort {
+    display: none;
+  }
 }
 
 /* Catalog reorder pass: smart sections replace the disabled filter column. */
