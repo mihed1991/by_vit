@@ -877,7 +877,42 @@
     merged.heroSlides = normalizeHeroSlides(site, defaults, merged.mobileHeroMedia);
     return merged;
   }
-  function getProducts(){ return read(KEYS.products, getDefaults().products); }
+  function migrateLegacyWheyVariants(products){
+    const list = Array.isArray(products) ? clone(products) : [];
+    const source = list.find(product => String(product.id) === '1');
+    const largeOption = source?.packageOptions?.find(option => String(option.id) === '2270g' || slugText(option.label) === '2.27 кг');
+    if(!source || !largeOption || list.some(product => String(product.id) === '13')) return {products:list,changed:false};
+    const baseOption = source.packageOptions.find(option => String(option.id) === '900g') || source.packageOptions[0];
+    source.packageGroup = 'optimum-whey-protein';
+    source.packageOptions = [baseOption];
+    source.price = Number(baseOption?.price || source.price || 0);
+    const largeVariant = {
+      ...clone(source),
+      id:13,
+      price:Number(largeOption.price || 0),
+      oldPrice:undefined,
+      stock:Number(source.stock || 0),
+      badge:'',
+      popular:false,
+      packageOptions:[clone(largeOption)]
+    };
+    delete largeVariant.moyskladId;
+    delete largeVariant.moyskladHref;
+    delete largeVariant.moyskladArticle;
+    const sourceIndex = list.indexOf(source);
+    list.splice(sourceIndex + 1, 0, largeVariant);
+    return {products:list,changed:true};
+  }
+  function getProducts(){
+    const products = read(KEYS.products, getDefaults().products);
+    if(serverState) return products;
+    const migrated = migrateLegacyWheyVariants(products);
+    if(migrated.changed){
+      try{ localStorage.setItem(KEYS.products, JSON.stringify(migrated.products)); }
+      catch(error){ console.warn('Не удалось сохранить разделённые фасовки', error); }
+    }
+    return migrated.products;
+  }
   function saveProducts(products){ write(KEYS.products, products); }
   function getSite(){ return normalizeSite(read(KEYS.site, getDefaults().site)); }
   function saveSite(site){ write(KEYS.site, normalizeSite(site)); }
@@ -952,7 +987,7 @@
   function recommendedProducts(product, limit=4){
     const products = getProducts();
     const selected = [];
-    const seen = new Set([String(product.id)]);
+    const seen = new Set([String(product.id), ...linkedPackageProducts(product).map(item => String(item.id))]);
     relatedProductIds(product).forEach(id => {
       const item = products.find(candidate => String(candidate.id) === String(id));
       if(item && !seen.has(String(item.id))){ selected.push(item); seen.add(String(item.id)); }
@@ -1025,6 +1060,25 @@
   function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
   function defaultPackage(product){ return product?.packageOptions?.[0] || {id:'base',label:'1 шт.',price:Number(product?.price || 0)}; }
   function optionById(product, optionId){ return product?.packageOptions?.find(o => o.id === optionId) || defaultPackage(product); }
+  function packageGroupKey(product){ return slugText(product?.packageGroup || ''); }
+  function productPackageLabel(product){ return String(product?.packageLabel || defaultPackage(product)?.label || '1 шт.').trim(); }
+  function packageSortValue(product){
+    const label = productPackageLabel(product).toLowerCase().replace(',', '.');
+    const value = Number.parseFloat(label.replace(/[^0-9.]+/g, ''));
+    if(!Number.isFinite(value)) return Number.MAX_SAFE_INTEGER;
+    if(/кг|kg/.test(label)) return value * 1000;
+    if(/(^|\s)(л|l)(\s|$)/.test(label)) return value * 1000;
+    return value;
+  }
+  function linkedPackageProducts(product){
+    const group = packageGroupKey(product);
+    if(!group) return [];
+    return getProducts().filter(candidate => packageGroupKey(candidate) === group).sort((a,b) => (
+      packageSortValue(a) - packageSortValue(b)
+      || Number(a.id || 0) - Number(b.id || 0)
+      || String(a.id).localeCompare(String(b.id), 'ru')
+    ));
+  }
   function cartKey(productId, optionId, flavor){ return [productId, optionId || 'base', flavor || ''].join('::'); }
   function formTypeLabel(type){ return FORM_TYPES[type] || type || '—'; }
   function badgeColor(product){
@@ -2630,6 +2684,11 @@
     }
     const images = product.images?.length ? product.images : [firstImage(product)];
     const firstOption = defaultPackage(product);
+    const packageVariants = linkedPackageProducts(product);
+    const hasLinkedPackageVariants = packageVariants.length > 1;
+    const packageChoices = hasLinkedPackageVariants
+      ? packageVariants.map(variant => `<button class="chip ${String(variant.id) === String(product.id) ? 'active' : ''}" data-package-product-id="${esc(variant.id)}">${esc(productPackageLabel(variant))}</button>`).join('')
+      : (product.packageOptions || [firstOption]).map((option,index) => `<button class="chip ${index===0?'active':''}" data-package-id="${esc(option.id)}" data-price="${esc(option.price)}">${esc(option.label)}</button>`).join('');
     const firstFlavor = product.flavors?.[0] || '';
     const relatedProducts = recommendedProducts(product, 4);
     const recentlyViewedProducts = getRecentProductIds()
@@ -2661,7 +2720,7 @@
           </div>
           <div class="price" id="productPrice">${money(firstOption.price)}</div>
           ${product.oldPrice ? `<div class="old-price" style="font-size:16px;margin:4px 0 18px;display:inline-block">${money(product.oldPrice)}</div>` : ''}
-          <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${(product.packageOptions || [firstOption]).map((o,i)=>`<button class="chip ${i===0?'active':''}" data-package-id="${esc(o.id)}" data-price="${esc(o.price)}">${esc(o.label)}</button>`).join('')}</div></div>
+          <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${packageChoices}</div></div>
           ${product.flavors?.length ? `<div class="option-block"><strong>Вкус</strong><div class="option-list" id="flavorOptions">${product.flavors.map((f,i)=>`<button class="chip ${i===0?'active':''}" data-flavor="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>` : ''}
           <div class="product-fulfillment"><span>Получение</span><strong>Ориентировочно: самовывоз сегодня · доставка 1–3 дня</strong></div>
           <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button class="btn btn-primary" data-product-add="${esc(product.id)}">Добавить в корзину</button></div>
@@ -2688,12 +2747,23 @@
     setTab('desc');
     $('.tab-buttons')?.addEventListener('click', e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
     $$('.gallery-thumbs button').forEach(btn=>btn.addEventListener('click',()=>{ $$('.gallery-thumbs button').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); $('#mainProductImage').src = btn.dataset.gallery; }));
-    $('#packageOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-package-id]'); if(!b)return; $$('#packageOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $('#productPrice').textContent=money(b.dataset.price); });
+    $('#packageOptions')?.addEventListener('click', e=>{
+      const linked = e.target.closest('[data-package-product-id]');
+      if(linked){
+        if(String(linked.dataset.packageProductId) !== String(product.id)) location.href = `product.html?id=${encodeURIComponent(linked.dataset.packageProductId)}`;
+        return;
+      }
+      const option = e.target.closest('[data-package-id]');
+      if(!option) return;
+      $$('#packageOptions .chip').forEach(item=>item.classList.remove('active'));
+      option.classList.add('active');
+      $('#productPrice').textContent=money(option.dataset.price);
+    });
     $('#flavorOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-flavor]'); if(!b)return; $$('#flavorOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); });
     $('[data-qty-minus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Math.max(1,Number(i.value||1)-1); });
     $('[data-qty-plus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Number(i.value||1)+1; });
     $('[data-product-add]')?.addEventListener('click',()=>{
-      const pack = $('#packageOptions .chip.active')?.dataset.packageId || firstOption.id;
+      const pack = hasLinkedPackageVariants ? firstOption.id : ($('#packageOptions .chip.active')?.dataset.packageId || firstOption.id);
       const flavor = $('#flavorOptions .chip.active')?.dataset.flavor || firstFlavor;
       addToCart(product.id, pack, flavor, Math.max(1,Number($('#productQty')?.value || 1)));
     });
@@ -3669,7 +3739,7 @@
     const products = getProducts();
     const table = $('#adminProductsTable');
     if(table){
-      table.innerHTML = `<div class="admin-table-actions"><button class="btn btn-danger small" data-admin-bulk-delete type="button">Удалить выбранные</button></div><table class="admin-table"><thead><tr><th><input type="checkbox" data-admin-select-all></th><th>Фото</th><th>Товар</th><th>Категория</th><th>Форма</th><th>Бейдж</th><th>Цена</th><th>Остаток</th><th></th></tr></thead><tbody>${products.map(p=>`<tr><td><input type="checkbox" data-admin-product-select value="${esc(p.id)}"></td><td><img class="admin-thumb" src="${esc(firstImage(p))}" alt=""></td><td><strong>${esc(p.name)}</strong><br><small>${esc(p.brand)}</small></td><td>${esc(categoryName(p.category))}</td><td>${esc(formTypeLabel(p.formType))}</td><td>${p.badge ? `<span class="badge admin-badge-preview" style="--badge-bg:${badgeColor(p)}">${esc(p.badge)}</span>` : '—'}</td><td>${money(p.price)}</td><td>${esc(p.stock)}</td><td><button class="btn btn-light small" data-admin-edit="${esc(p.id)}">Ред.</button> <button class="btn btn-danger small" data-admin-delete="${esc(p.id)}">Удалить</button></td></tr>`).join('')}</tbody></table>`;
+      table.innerHTML = `<div class="admin-table-actions"><button class="btn btn-danger small" data-admin-bulk-delete type="button">Удалить выбранные</button></div><table class="admin-table"><thead><tr><th><input type="checkbox" data-admin-select-all></th><th>Фото</th><th>Товар</th><th>Категория</th><th>Форма</th><th>Бейдж</th><th>Цена</th><th>Остаток</th><th></th></tr></thead><tbody>${products.map(p=>`<tr><td><input type="checkbox" data-admin-product-select value="${esc(p.id)}"></td><td><img class="admin-thumb" src="${esc(firstImage(p))}" alt=""></td><td><strong>${esc(p.name)}</strong><br><small>${esc(p.brand)} · ${esc(productPackageLabel(p))}</small></td><td>${esc(categoryName(p.category))}</td><td>${esc(formTypeLabel(p.formType))}</td><td>${p.badge ? `<span class="badge admin-badge-preview" style="--badge-bg:${badgeColor(p)}">${esc(p.badge)}</span>` : '—'}</td><td>${money(p.price)}</td><td>${esc(p.stock)}</td><td><button class="btn btn-light small" data-admin-edit="${esc(p.id)}">Ред.</button> <button class="btn btn-danger small" data-admin-delete="${esc(p.id)}">Удалить</button></td></tr>`).join('')}</tbody></table>`;
     }
     fillCategorySelect($('#adminCategory'));
     fillFormTypeSelect($('#adminFormType'));
@@ -3764,6 +3834,7 @@
     $('#adminFullDescription').value = '';
     $('#adminIngredients').value = '';
     $('#adminUsage').value = '';
+    $('#adminPackageGroup').value = '';
     $('#adminPackageOptions').value = '';
     $('#adminFlavors').value = '';
     $('#adminFormType').value = 'powder';
@@ -3801,6 +3872,7 @@
     $('#adminFullDescription').value = product.description || '';
     $('#adminIngredients').value = product.ingredients || '';
     $('#adminUsage').value = product.usage || '';
+    $('#adminPackageGroup').value = product.packageGroup || '';
     $('#adminPackageOptions').value = packageOptionsToLines(product.packageOptions, product.price);
     $('#adminFlavors').value = (product.flavors || []).join(', ');
     $('#adminImageData').value = '';
@@ -3820,8 +3892,9 @@
     const idValue = $('#adminProductId').value;
     const id = idValue ? Number(idValue) : Date.now();
     const existing = products.find(p=>p.id===id) || {};
+    const packageGroup = $('#adminPackageGroup').value.trim();
     const same = products.find(p => String(p.id) !== String(id) && p.name?.trim().toLowerCase() === $('#adminProductName').value.trim().toLowerCase() && p.brand?.trim().toLowerCase() === $('#adminBrand').value.trim().toLowerCase());
-    if(same){ toast('Такой товар уже есть в списке'); return; }
+    if(same && (!packageGroup || packageGroupKey(same) !== slugText(packageGroup))){ toast('Такой товар уже есть в списке. Для другой фасовки укажите одинаковую группу в обеих карточках.'); return; }
     const rawPrice = Number(String($('#adminPrice').value || 0).replace(',', '.')) || 0;
     const packageOptions = parsePackageOptions($('#adminPackageOptions').value, rawPrice);
     const price = Number(packageOptions[0]?.price || rawPrice || 0);
@@ -3853,6 +3926,7 @@
       rating:existing.rating || 4.7,
       images:[$('#adminImageData').value || ($('#adminImageRemoved').value !== '1' ? ($('#adminExistingImage').value || firstImage(existing)) : '') || 'assets/product-whey.jpg'],
       flavors:parseList($('#adminFlavors').value),
+      packageGroup:packageGroup || undefined,
       packageOptions,
       shortDescription:$('#adminShortDescription').value.trim(),
       description:$('#adminFullDescription').value.trim() || $('#adminShortDescription').value.trim(),

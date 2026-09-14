@@ -102,6 +102,22 @@ async function main() {
 
     const state = await request(baseUrl, '/api/state');
     assert.equal(state.data.products.find(product => Number(product.id) === 1).stock, 13);
+    assert.equal(state.data.products.find(product => Number(product.id) === 13).stock, 15);
+
+    const largePackageOrder = {
+      items: [{ productId: 13, optionId: '2270g', flavor: 'Шоколад', qty: 1, price: 0.01 }],
+      deliveryKey: 'pickup',
+      pickupStoreId: 'main',
+      payment: 'Оплата при получении',
+      customer: { name: 'Package Variant Test', phone: '+375 29 123-45-67', address: '' }
+    };
+    const largePackageCreated = await request(baseUrl, '/api/orders', { method: 'POST', body: { order: largePackageOrder } });
+    assert.equal(largePackageCreated.status, 201, JSON.stringify(largePackageCreated.data));
+    assert.equal(largePackageCreated.data.order.items[0].price, 249);
+    assert.equal(largePackageCreated.data.order.total, 249);
+    const stateAfterLargePackage = await request(baseUrl, '/api/state');
+    assert.equal(stateAfterLargePackage.data.products.find(product => Number(product.id) === 1).stock, 13);
+    assert.equal(stateAfterLargePackage.data.products.find(product => Number(product.id) === 13).stock, 14);
 
     const regularProductOrder = {
       items: [{ productId: 4, optionId: '90caps', flavor: '', qty: 1 }],
@@ -168,7 +184,7 @@ async function main() {
     assert.match(sessionCookie, /SameSite=Lax/i);
     const adminState = await request(baseUrl, '/api/admin/state', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(adminState.status, 200);
-    assert.equal(adminState.data.orders.length, 4);
+    assert.equal(adminState.data.orders.length, 5);
     const moyskladStatus = await request(baseUrl, '/api/admin/moysklad/status', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(moyskladStatus.status, 200);
     assert.equal(moyskladStatus.data.configured, false);

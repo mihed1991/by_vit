@@ -99,7 +99,7 @@ async function main() {
 
     await page.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.product-card').first().waitFor();
-    assert.equal(await page.locator('.product-card').count(), 12);
+    assert.equal(await page.locator('.product-card').count(), 13);
     await page.locator('[data-action="cart"][data-id="1"]').click();
     await page.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.cart-item').waitFor();
@@ -121,6 +121,12 @@ async function main() {
     await page.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
     await page.locator('[data-product-add="1"]').waitFor();
     assert.match(await page.locator('.product-detail-title').textContent(), /whey protein/i);
+    assert.deepEqual(await page.locator('#packageOptions .chip').allTextContents(), ['900 г', '2.27 кг']);
+    assert.equal(await page.locator('#packageOptions .chip.active').textContent(), '900 г');
+    await page.locator('[data-package-product-id="13"]').click();
+    await page.waitForURL('**/product.html?id=13');
+    assert.equal(await page.locator('#packageOptions .chip.active').textContent(), '2.27 кг');
+    assert.equal(await page.locator('#productPrice').textContent(), '249 BYN');
 
     await page.goto('/admin.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#adminPassword').fill(adminPassword);
@@ -134,7 +140,7 @@ async function main() {
     await page.locator('[data-admin-tab="moysklad"]').click();
     await page.locator('#admin-moysklad.active').waitFor();
     await page.locator('#adminMoySkladStatus').getByText('Не настроен', { exact: true }).first().waitFor();
-    assert.equal(await page.locator('#adminMoySkladMappings tbody tr').count(), 12);
+    assert.equal(await page.locator('#adminMoySkladMappings tbody tr').count(), 13);
     assert.equal(await page.locator('[data-moysklad-sync]').isDisabled(), true);
     await page.locator('#adminMoySkladMappings [data-moysklad-edit]').first().click();
     await page.locator('#admin-products.active').waitFor();
@@ -148,6 +154,30 @@ async function main() {
     mobilePage.on('pageerror', error => mobileErrors.push(error.message));
     mobilePage.on('console', message => { if (message.type() === 'error') mobileErrors.push(message.text()); });
     await assertNoHorizontalOverflow(mobilePage, '/index.html');
+    for (const pathname of ['/index.html', '/catalog.html', '/sale.html']) {
+      await mobilePage.goto(pathname, { waitUntil: 'domcontentloaded' });
+      const productCard = mobilePage.locator('.product-grid .product-card').first();
+      await productCard.waitFor();
+      const mobileCardStyle = await productCard.evaluate(card => {
+        const button = card.querySelector('.card-buttons .btn');
+        const price = card.querySelector('.price');
+        return {
+          cardRadius:getComputedStyle(card).borderRadius,
+          cardShadow:getComputedStyle(card).boxShadow,
+          buttonRadius:getComputedStyle(button).borderRadius,
+          buttonHeight:button.getBoundingClientRect().height,
+          buttonFontSize:getComputedStyle(button).fontSize,
+          priceWeight:getComputedStyle(price).fontWeight
+        };
+      });
+      assert.equal(mobileCardStyle.cardRadius, '2px', `${pathname} product card must use Swiss radius`);
+      assert.equal(mobileCardStyle.cardShadow, 'none', `${pathname} product card must stay flat`);
+      assert.equal(mobileCardStyle.buttonRadius, '2px', `${pathname} add-to-cart button must use Swiss radius`);
+      assert.equal(mobileCardStyle.buttonHeight, 36, `${pathname} add-to-cart button must keep its compact mobile height`);
+      assert.equal(mobileCardStyle.buttonFontSize, '13px', `${pathname} add-to-cart button must keep its mobile typography`);
+      assert.equal(mobileCardStyle.priceWeight, '650', `${pathname} price must match desktop weight`);
+    }
+    await mobilePage.goto('/index.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('[data-burger]').click();
     await mobilePage.locator('[data-mobile-panel].open').waitFor();
     assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'true');

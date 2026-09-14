@@ -9,8 +9,8 @@
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
   <link rel="stylesheet" href="css/style.css?v=108">
-  <script src="js/data.js?v=66" defer></script>
-  <script src="js/app.js?v=96" defer></script>
+  <script src="js/data.js?v=67" defer></script>
+  <script src="js/app.js?v=100" defer></script>
 </head>
 
 <body data-page="admin">
@@ -177,9 +177,11 @@
                     </div>
 
                     <div class="admin-form-section">
-                      <h4>Фасовки и вкусы</h4>
-                      <textarea id="adminPackageOptions" placeholder="900 г | 129&#10;2.27 кг | 249"></textarea>
+                      <h4>Фасовка и вкусы</h4>
+                      <input id="adminPackageGroup" placeholder="Группа фасовок, например optimum-whey">
+                      <textarea id="adminPackageOptions" placeholder="900 г | 129"></textarea>
                       <input id="adminFlavors" placeholder="Вкусы через запятую">
+                      <p class="admin-hint">Каждую фасовку создавайте отдельным товаром. Одинаковая группа связывает карточки и добавляет переключение между ними.</p>
                     </div>
 
                     <div class="admin-form-section">
