@@ -57,6 +57,8 @@ async function main() {
   if (!executablePath) throw new Error('Chrome/Chromium was not found. Set CHROME_PATH to run browser checks.');
 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'byvit-e2e-check-'));
+  const qaScreenshotDir = String(process.env.BYVIT_E2E_SCREENSHOTS || '').trim();
+  if(qaScreenshotDir) fs.mkdirSync(qaScreenshotDir, { recursive: true });
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.js'], {
@@ -207,6 +209,41 @@ async function main() {
     await page.locator('#adminMoySkladMappings [data-moysklad-edit]').first().click();
     await page.locator('#admin-products.active').waitFor();
     assert.equal(await page.locator('#adminProductId').inputValue(), '1');
+    assert.equal(await page.locator('#adminProductImages [data-product-image-item]').count(), 1);
+    const galleryUploads = [
+      ['product-side.svg', '#dbe8d8'],
+      ['product-back.svg', '#e7dfcf'],
+      ['product-label.svg', '#d9e1ea'],
+      ['product-detail.svg', '#ead8d8']
+    ].map(([name, color], index) => ({
+      name,
+      mimeType:'image/svg+xml',
+      buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="${color}"/><text x="300" y="315" text-anchor="middle" font-family="Arial" font-size="54" fill="#2d5a27">BYVIT ${index + 2}</text></svg>`)
+    }));
+    await page.locator('#adminImageUpload').setInputFiles(galleryUploads);
+    await page.waitForFunction(() => document.querySelectorAll('#adminProductImages [data-product-image-item]').length === 5);
+    assert.equal(await page.locator('#adminImageUpload').isDisabled(), true, 'Product editor must limit the gallery to five images');
+    await page.locator('[data-product-image-primary]').last().check();
+    assert.equal(await page.locator('[data-product-image-item].is-primary').count(), 1);
+    if(qaScreenshotDir) await page.locator('.admin-product-images-section').screenshot({ path:path.join(qaScreenshotDir, 'admin-product-images.png') });
+    const selectedPrimaryImage = await page.locator('[data-product-image-item].is-primary [data-product-image-src]').inputValue();
+    await page.locator('#adminProductForm button[type="submit"]').click();
+    await page.waitForTimeout(600);
+    const savedGalleryState = await (await page.request.get('/api/state')).json();
+    const savedGalleryProduct = savedGalleryState.products.find(item => Number(item.id) === 1);
+    assert.equal(savedGalleryProduct.images.length, 5);
+    assert.equal(savedGalleryProduct.images[0], selectedPrimaryImage);
+    await page.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
+    await page.locator('.gallery-thumbs button').first().waitFor();
+    assert.equal(await page.locator('.gallery-thumbs button').count(), 5);
+    assert.equal(await page.locator('#mainProductImage').getAttribute('src'), selectedPrimaryImage);
+    const desktopThumbTops = await page.locator('.gallery-thumbs button').evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
+    assert.equal(new Set(desktopThumbTops).size, 1, 'Desktop product thumbnails must stay on one line');
+    const secondGalleryImage = await page.locator('.gallery-thumbs button').nth(1).getAttribute('data-gallery');
+    await page.locator('.gallery-thumbs button').nth(1).click();
+    assert.equal(await page.locator('#mainProductImage').getAttribute('src'), secondGalleryImage);
+    assert.equal(await page.locator('.gallery-thumbs button').nth(1).getAttribute('aria-pressed'), 'true');
+    if(qaScreenshotDir) await page.locator('.product-gallery').screenshot({ path:path.join(qaScreenshotDir, 'product-gallery-desktop.png') });
     assert.deepEqual(pageErrors, [], `Browser page errors: ${pageErrors.join('; ')}`);
     await desktop.close();
 
@@ -246,6 +283,11 @@ async function main() {
     for (const pathname of ['/catalog.html', '/product.html?id=1', '/cart.html', '/delivery.html']) {
       await assertNoHorizontalOverflow(mobilePage, pathname);
     }
+    await mobilePage.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
+    assert.equal(await mobilePage.locator('.gallery-thumbs button').count(), 5);
+    const mobileThumbTops = await mobilePage.locator('.gallery-thumbs button').evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
+    assert.equal(new Set(mobileThumbTops).size, 1, 'Mobile product thumbnails must stay on one horizontal line');
+    if(qaScreenshotDir) await mobilePage.locator('.product-gallery').screenshot({ path:path.join(qaScreenshotDir, 'product-gallery-mobile.png') });
     await mobilePage.setViewportSize({ width: 319, height: 730 });
     await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('#catalogFilters summary').first().waitFor();

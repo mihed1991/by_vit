@@ -8,9 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=108">
+  <link rel="stylesheet" href="css/style.css?v=120">
   <script src="js/data.js?v=67" defer></script>
-  <script src="js/app.js?v=100" defer></script>
+  <script src="js/app.js?v=106" defer></script>
 </head>
 
 <body data-page="admin">
@@ -123,9 +123,6 @@
                   <h3>Карточка товара</h3>
                   <form class="admin-form" id="adminProductForm">
                     <input id="adminProductId" type="hidden">
-                    <input id="adminImageData" type="hidden">
-                    <input id="adminExistingImage" type="hidden">
-                    <input id="adminImageRemoved" type="hidden" value="0">
 
                     <div class="admin-form-section">
                       <h4>Основное</h4>
@@ -199,15 +196,17 @@
                       <p class="admin-hint">Отмеченные товары показываются первыми. Можно выбрать до четырёх.</p>
                     </div>
 
-                    <div class="admin-form-section">
-                      <h4>Изображение</h4>
-                      <label class="toggle-row">
-                        <span><strong>Файл товара</strong><br><small>JPG, PNG, WebP или SVG. На сервере сохранится файл,
-                            а в товаре — короткая ссылка.</small></span>
-                        <input id="adminImageUpload" type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+                    <div class="admin-form-section admin-product-images-section">
+                      <h4>Изображения товара</h4>
+                      <div class="admin-product-images" id="adminProductImages" aria-live="polite"></div>
+                      <label class="toggle-row admin-product-images-upload">
+                        <span><strong>Добавить изображения</strong><br><small>До 5 файлов JPG, PNG, WebP или SVG. Главное изображение используется в каталоге.</small></span>
+                        <input id="adminImageUpload" type="file" multiple accept="image/jpeg,image/png,image/webp,image/svg+xml">
                       </label>
-                      <button class="btn btn-light small" data-admin-image-clear type="button">Убрать
-                        изображение</button>
+                      <div class="admin-product-images-actions">
+                        <span class="admin-hint"><strong data-product-image-count>0</strong> / 5 изображений</span>
+                        <button class="btn btn-light small" data-admin-images-clear type="button">Убрать все</button>
+                      </div>
                     </div>
 
                     <div class="field-row">

@@ -39,6 +39,7 @@
     sale:{visible:true,order:2,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
   };
   const MAX_HOME_GALLERY_IMAGES = 6;
+  const MAX_PRODUCT_IMAGES = 5;
   const PAGE_SEO = {
     home:{title:'ByVit — спортивное питание и БАДы с доставкой по Беларуси',description:'Спортивное питание, витамины и БАДы в ByVit: понятные карточки, актуальные цены, самовывоз и доставка по Беларуси.',path:'/'},
     catalog:{title:'Каталог спортивного питания | ByVit',description:'Каталог спортивного питания ByVit: протеины, креатин, аминокислоты, витамины и добавки с фильтрами по брендам и категориям.',path:'/catalog.html'},
@@ -1057,7 +1058,11 @@
       if(image.complete && image.naturalWidth) showImage();
     });
   }
-  function firstImage(product){ return product?.images?.[0] || 'assets/product-whey.jpg'; }
+  function productImages(product){
+    return [...new Set((Array.isArray(product?.images) ? product.images : []).map(source => String(source || '').trim()).filter(Boolean))]
+      .slice(0, MAX_PRODUCT_IMAGES);
+  }
+  function firstImage(product){ return productImages(product)[0] || 'assets/product-whey.jpg'; }
   function defaultPackage(product){ return product?.packageOptions?.[0] || {id:'base',label:'1 шт.',price:Number(product?.price || 0)}; }
   function optionById(product, optionId){ return product?.packageOptions?.find(o => o.id === optionId) || defaultPackage(product); }
   function packageGroupKey(product){ return slugText(product?.packageGroup || ''); }
@@ -2821,7 +2826,7 @@
       root.innerHTML = `<div class="empty-state"><h3>Товар не найден</h3><p>Похоже, ссылка устарела или товар больше не опубликован.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`;
       return;
     }
-    const images = product.images?.length ? product.images : [firstImage(product)];
+    const images = productImages(product).length ? productImages(product) : [firstImage(product)];
     const firstOption = defaultPackage(product);
     const packageVariants = linkedPackageProducts(product);
     const hasLinkedPackageVariants = packageVariants.length > 1;
@@ -2845,7 +2850,7 @@
       <div class="product-detail">
         <div class="product-gallery">
           <div class="gallery-main"><img id="mainProductImage" src="${esc(images[0])}" alt="${esc(product.name)}"></div>
-          <div class="gallery-thumbs">${images.map((img,i)=>`<button class="${i===0?'active':''}" data-gallery="${esc(img)}"><img src="${esc(img)}" alt=""></button>`).join('')}</div>
+          <div class="gallery-thumbs" aria-label="Изображения товара">${images.map((img,i)=>`<button type="button" class="${i===0?'active':''}" data-gallery="${esc(img)}" aria-label="Показать изображение ${i + 1}" aria-pressed="${i===0?'true':'false'}"><img src="${esc(img)}" alt=""></button>`).join('')}</div>
         </div>
         <aside class="product-panel">
           <div class="product-brand">${esc(product.brand)}</div>
@@ -2885,7 +2890,15 @@
     }
     setTab('desc');
     $('.tab-buttons')?.addEventListener('click', e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
-    $$('.gallery-thumbs button').forEach(btn=>btn.addEventListener('click',()=>{ $$('.gallery-thumbs button').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); $('#mainProductImage').src = btn.dataset.gallery; }));
+    $$('.gallery-thumbs button').forEach(btn=>btn.addEventListener('click',()=>{
+      $$('.gallery-thumbs button').forEach(item => {
+        item.classList.remove('active');
+        item.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      $('#mainProductImage').src = btn.dataset.gallery;
+    }));
     $('#packageOptions')?.addEventListener('click', e=>{
       const linked = e.target.closest('[data-package-product-id]');
       if(linked){
@@ -3882,6 +3895,7 @@
     }
     fillCategorySelect($('#adminCategory'));
     fillFormTypeSelect($('#adminFormType'));
+    if(!$('#adminProductId')?.value) renderAdminProductImages([]);
     renderAdminRecommendationOptions(parseList($('#adminRecommendationTags')?.value || ''));
     renderAdminRelatedProducts([], $('#adminProductId')?.value || '');
   }
@@ -3957,6 +3971,85 @@
     if(!select) return;
     select.innerHTML = `${Object.entries(FORM_TYPES).map(([value,label])=>`<option value="${esc(value)}">${esc(label)}</option>`).join('')}<option value="custom">Своя форма</option>`;
   }
+  function adminProductImageEditor(source, index=0){
+    return `<article class="admin-product-image-item ${index === 0 ? 'is-primary' : ''}" data-product-image-item>
+      <img src="${esc(source)}" alt="Изображение товара ${index + 1}" loading="lazy">
+      <input type="hidden" data-product-image-src value="${esc(source)}">
+      <div class="admin-product-image-meta">
+        <label><input type="radio" name="adminProductPrimaryImage" data-product-image-primary ${index === 0 ? 'checked' : ''}> Главное</label>
+        <button type="button" data-product-image-remove aria-label="Удалить изображение ${index + 1}">Удалить</button>
+      </div>
+    </article>`;
+  }
+  function collectAdminProductImages(){
+    const root = $('#adminProductImages');
+    if(!root) return [];
+    const items = $$('[data-product-image-item]', root).map(item => ({
+      source:$('[data-product-image-src]', item)?.value.trim() || '',
+      primary:Boolean($('[data-product-image-primary]', item)?.checked)
+    })).filter(item => item.source);
+    const primary = items.find(item => item.primary);
+    return [...new Set([
+      ...(primary ? [primary.source] : []),
+      ...items.filter(item => item !== primary).map(item => item.source)
+    ])].slice(0, MAX_PRODUCT_IMAGES);
+  }
+  function syncAdminProductImageState(){
+    const root = $('#adminProductImages');
+    if(!root) return;
+    const items = $$('[data-product-image-item]', root);
+    if(items.length && !items.some(item => $('[data-product-image-primary]', item)?.checked)){
+      const firstPrimary = $('[data-product-image-primary]', items[0]);
+      if(firstPrimary) firstPrimary.checked = true;
+    }
+    items.forEach(item => item.classList.toggle('is-primary', Boolean($('[data-product-image-primary]', item)?.checked)));
+    const count = $('[data-product-image-count]');
+    if(count) count.textContent = String(items.length);
+    const upload = $('#adminImageUpload');
+    if(upload) upload.disabled = items.length >= MAX_PRODUCT_IMAGES;
+    const clear = $('[data-admin-images-clear]');
+    if(clear) clear.disabled = items.length === 0;
+  }
+  function renderAdminProductImages(images=[]){
+    const root = $('#adminProductImages');
+    if(!root) return;
+    const normalized = [...new Set((Array.isArray(images) ? images : []).map(source => String(source || '').trim()).filter(Boolean))]
+      .slice(0, MAX_PRODUCT_IMAGES);
+    root.innerHTML = normalized.length
+      ? normalized.map(adminProductImageEditor).join('')
+      : '<p class="admin-product-images-empty">Изображения пока не добавлены.</p>';
+    syncAdminProductImageState();
+  }
+  async function readAdminProductImages(input){
+    const files = Array.from(input.files || []);
+    if(!files.length) return;
+    const images = collectAdminProductImages();
+    const available = Math.max(0, MAX_PRODUCT_IMAGES - images.length);
+    if(!available){ toast('Можно добавить максимум 5 изображений'); input.value = ''; return; }
+    const selected = files.slice(0, available);
+    if(files.length > available) toast(`Будут добавлены только ${available} из ${files.length} файлов`);
+    setUploadBusy(input, true);
+    let added = 0;
+    try{
+      for(const file of selected){
+        try{
+          const source = await fileToStoredSource(file, {maxEdge:MAX_IMAGE_EDGE, scope:'products'});
+          if(source && !images.includes(source)){
+            images.push(source);
+            added += 1;
+          }
+        }catch(error){
+          console.warn(error);
+        }
+      }
+      renderAdminProductImages(images);
+      toast(added ? `Добавлено изображений: ${added}. Выберите главное и сохраните товар` : 'Не удалось добавить изображения');
+    }finally{
+      input.value = '';
+      setUploadBusy(input, false);
+      syncAdminProductImageState();
+    }
+  }
   function resetProductForm(){
     $('#adminProductId').value = '';
     $('#adminProductName').value = '';
@@ -3978,9 +4071,8 @@
     $('#adminFlavors').value = '';
     $('#adminFormType').value = 'powder';
     $('#adminCustomFormType').value = '';
-    $('#adminImageData').value = '';
-    $('#adminExistingImage').value = '';
-    $('#adminImageRemoved').value = '0';
+    renderAdminProductImages([]);
+    if($('#adminImageUpload')) $('#adminImageUpload').value = '';
     $('#adminPopular').checked = false;
     $('#adminRecommendationTags').value = '';
     renderAdminRecommendationOptions([]);
@@ -4014,9 +4106,8 @@
     $('#adminPackageGroup').value = product.packageGroup || '';
     $('#adminPackageOptions').value = packageOptionsToLines(product.packageOptions, product.price);
     $('#adminFlavors').value = (product.flavors || []).join(', ');
-    $('#adminImageData').value = '';
-    $('#adminExistingImage').value = firstImage(product) || '';
-    $('#adminImageRemoved').value = '0';
+    renderAdminProductImages(productImages(product));
+    if($('#adminImageUpload')) $('#adminImageUpload').value = '';
     $('#adminPopular').checked = product.popular === true;
     $('#adminRecommendationTags').value = (Array.isArray(product.recommendationTags) ? product.recommendationTags : parseList(product.recommendationTags || '')).join(', ');
     renderAdminRecommendationOptions(parseList($('#adminRecommendationTags').value));
@@ -4042,6 +4133,7 @@
     const moyskladReference = $('#adminMoySkladId').value.trim();
     const moyskladHref = /^https?:\/\//i.test(moyskladReference) ? moyskladReference : '';
     const moyskladId = moyskladHref ? '' : moyskladReference;
+    const images = collectAdminProductImages();
     const item = {
       ...existing,
       id,
@@ -4063,7 +4155,7 @@
       relatedAuto:$('#adminRelatedAuto').checked,
       relatedProductIds:$$('[data-related-product]:checked').map(input => Number(input.value)).filter(Boolean).slice(0,4),
       rating:existing.rating || 4.7,
-      images:[$('#adminImageData').value || ($('#adminImageRemoved').value !== '1' ? ($('#adminExistingImage').value || firstImage(existing)) : '') || 'assets/product-whey.jpg'],
+      images:images.length ? images : ['assets/product-whey.jpg'],
       flavors:parseList($('#adminFlavors').value),
       packageGroup:packageGroup || undefined,
       packageOptions,
@@ -4213,10 +4305,6 @@
       const hidden = $(hiddenSelector);
       const previous = hidden?.value.trim() || '';
       if(hidden) hidden.value = source;
-      if(hiddenSelector === '#adminImageData'){
-        const removed = $('#adminImageRemoved');
-        if(removed) removed.value = '0';
-      }
       if(previous !== source) deleteUploadedSource(previous);
       toast(serverAvailable ? 'Файл загружен в хранилище' : 'Файл подготовлен локально');
     }catch(error){
@@ -5312,7 +5400,23 @@
       const contentDelete = event.target.closest('[data-content-delete]'); if(contentDelete){ contentDelete.closest('[data-content-item]')?.remove(); return; }
       const footerBadgeAdd = event.target.closest('[data-footer-badge-add]'); if(footerBadgeAdd){ const root = $('#footerBadgesList'); if(root) root.insertAdjacentHTML('beforeend', footerBadgeEditor({enabled:true}, $$('[data-footer-badge-key]', root).length)); return; }
       const footerBadgeDelete = event.target.closest('[data-footer-badge-delete]'); if(footerBadgeDelete){ const block = footerBadgeDelete.closest('[data-footer-badge-key]'); deleteUploadedSource($('[data-footer-badge-image]', block)?.value); block?.remove(); return; }
-      const adminImageClear = event.target.closest('[data-admin-image-clear]'); if(adminImageClear){ const uploaded = $('#adminImageData'); const existing = $('#adminExistingImage'); deleteUploadedSource(uploaded?.value || existing?.value); if(uploaded) uploaded.value = ''; if(existing) existing.value = ''; const removed = $('#adminImageRemoved'); if(removed) removed.value = '1'; toast('Изображение убрано. Сохраните товар'); return; }
+      const productImageRemove = event.target.closest('[data-product-image-remove]');
+      if(productImageRemove){
+        const item = productImageRemove.closest('[data-product-image-item]');
+        deleteUploadedSource($('[data-product-image-src]', item)?.value);
+        item?.remove();
+        if(!$$('[data-product-image-item]', $('#adminProductImages')).length) renderAdminProductImages([]);
+        else syncAdminProductImageState();
+        toast('Изображение убрано. Сохраните товар');
+        return;
+      }
+      const productImagesClear = event.target.closest('[data-admin-images-clear]');
+      if(productImagesClear){
+        $$('[data-product-image-src]', $('#adminProductImages')).forEach(input => deleteUploadedSource(input.value));
+        renderAdminProductImages([]);
+        toast('Все изображения убраны. Сохраните товар');
+        return;
+      }
       const mobileHeroClear = event.target.closest('[data-mobile-hero-clear]'); if(mobileHeroClear){ const field = $('#siteMobileHeroMediaSrc'); deleteUploadedSource(field?.value); if(field) field.value = ''; const upload = $('#siteMobileHeroMediaUpload'); if(upload) upload.value = ''; toast('Мобильное медиа убрано. Сохраните настройки'); return; }
       const headerLogoClear = event.target.closest('[data-header-logo-clear]'); if(headerLogoClear){ const field = $('#headerLogoImage'); deleteUploadedSource(field?.value); if(field) field.value = ''; toast('Файл значка убран. Сохраните хэдер'); return; }
       const headerBrandClear = event.target.closest('[data-header-brand-clear]'); if(headerBrandClear){ const field = $('#headerBrandImage'); deleteUploadedSource(field?.value); if(field) field.value = ''; toast('Файл названия убран. Сохраните хэдер'); return; }
@@ -5337,6 +5441,7 @@
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });
     document.addEventListener('change', event => {
+      if(event.target.matches('[data-product-image-primary]')){ syncAdminProductImageState(); return; }
       if(event.target.matches('[data-recommendation-tag]')){ toggleAdminRecommendationTag(event.target); return; }
       if(event.target.matches('[data-related-product]')){
         const selected = $$('[data-related-product]:checked');
@@ -5368,7 +5473,7 @@
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
     $('#adminGoalsForm')?.addEventListener('submit', saveAdminGoals);
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
-    $('#adminImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#adminImageData', {scope:'products'}));
+    $('#adminImageUpload')?.addEventListener('change', e=>readAdminProductImages(e.target));
     $('#siteHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteHeroMediaSrc', {scope:'hero'}));
     $('#siteMobileHeroMediaUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#siteMobileHeroMediaSrc', {scope:'hero'}));
     $('#headerLogoImageUpload')?.addEventListener('change', e=>readFileToHidden(e.target,'#headerLogoImage', {scope:'header'}));
