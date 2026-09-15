@@ -180,6 +180,7 @@
     const formatted = Number.isInteger(num) ? String(num) : num.toFixed(2).replace('.', ',');
     return `${formatted} BYN`;
   }
+  function roundCurrency(value){ return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100; }
   function slugText(value){ return String(value || '').toLowerCase().trim(); }
   function toast(message){
     let node = $('#toast');
@@ -619,7 +620,8 @@
       methods[id] = {
         enabled:method?.enabled !== false,
         title:String(method?.title || '').trim() || 'Способ доставки',
-        subtitle:String(method?.subtitle || '').trim()
+        subtitle:String(method?.subtitle || '').trim(),
+        price:Math.max(0, Number(method?.price || 0)) || 0
       };
     });
     return methods;
@@ -2925,16 +2927,42 @@
 
   function cartTotals(){
     const items = getCart();
-    const subtotal = items.reduce((sum,item)=>sum + Number(item.price || 0) * Number(item.qty || 0),0);
-    const promoSubtotal = items.reduce((sum,item)=>{
+    const lineTotal = item => roundCurrency(Number(item.price || 0) * Number(item.qty || 0));
+    const subtotal = roundCurrency(items.reduce((sum,item)=>sum + lineTotal(item),0));
+    const eligibleItems = items.filter(item => Number(productById(item.productId)?.oldPrice || 0) <= 0);
+    const promoSubtotal = roundCurrency(items.reduce((sum,item)=>{
       const product = productById(item.productId);
-      return sum + (Number(product?.oldPrice || 0) > 0 ? 0 : Number(item.price || 0) * Number(item.qty || 0));
-    },0);
+      return sum + (Number(product?.oldPrice || 0) > 0 ? 0 : lineTotal(item));
+    },0));
     const promo = String(sessionStorage.getItem('byvit_v60_promo') || '').toUpperCase();
     const activePromo = (getSite().promos || []).find(item => item.enabled !== false && item.code === promo);
     const rawDiscount = activePromo ? (activePromo.type === 'fixed' ? Number(activePromo.value || 0) : promoSubtotal * Number(activePromo.value || 0) / 100) : 0;
-    const discount = Math.min(promoSubtotal, rawDiscount);
-    return {subtotal,promoSubtotal,discount,total:Math.max(0,subtotal-discount),promo:activePromo && promoSubtotal > 0 ? promo : ''};
+    const discount = roundCurrency(Math.min(promoSubtotal, rawDiscount));
+    const itemDiscounts = {};
+    let remainingDiscount = discount;
+    eligibleItems.forEach((item, index) => {
+      const amount = index === eligibleItems.length - 1
+        ? remainingDiscount
+        : roundCurrency(activePromo?.type === 'fixed'
+          ? discount * lineTotal(item) / Math.max(1, promoSubtotal)
+          : lineTotal(item) * Number(activePromo?.value || 0) / 100);
+      const applied = roundCurrency(Math.min(lineTotal(item), Math.max(0, amount)));
+      itemDiscounts[item.key] = applied;
+      remainingDiscount = roundCurrency(Math.max(0, remainingDiscount - applied));
+    });
+    const delivery = selectedDelivery();
+    const deliveryPrice = roundCurrency(Math.max(0, Number(delivery.method.price || 0)));
+    return {
+      subtotal,
+      promoSubtotal,
+      discount,
+      deliveryPrice,
+      total:roundCurrency(Math.max(0, subtotal - discount) + deliveryPrice),
+      promo:activePromo && promoSubtotal > 0 ? promo : '',
+      promoType:activePromo?.type || '',
+      promoValue:Number(activePromo?.value || 0),
+      itemDiscounts
+    };
   }
   function selectedDelivery(){
     const key = $('input[name="delivery"]:checked')?.value || 'pickup';
@@ -3031,23 +3059,38 @@
     applyCheckoutSettings();
     const list = $('#cartList');
     const cart = getCart();
+    const totals = cartTotals();
     if(list){
       if(!cart.length){ list.innerHTML = `<div class="empty-state"><h3>Корзина пустая</h3><p>Товары пока не добавлены.</p><a class="btn btn-primary" href="catalog.html">В каталог</a></div>`; }
       else list.innerHTML = cart.map(item=>{
         const p = productById(item.productId) || {};
         const optionText = `${esc(item.optionLabel || '')}${item.flavor ? ` · ${esc(item.flavor)}` : ''}`;
-        return `<div class="cart-item" data-key="${esc(item.key)}"><img class="cart-item-img" src="${esc(firstImage(p))}" alt="${esc(p.name || '')}"><div class="cart-item-main"><div class="cart-item-info"><h3>${esc(p.name || 'Товар')}</h3><small>${optionText}</small></div><div class="cart-item-controls"><strong class="price cart-item-price">${money(Number(item.price)*Number(item.qty))}</strong><div class="qty-stepper cart-qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div><button class="btn btn-light small cart-remove" data-cart-remove="${esc(item.key)}">Удалить</button></div></div></div>`;
+        const qty = Math.max(1, Number(item.qty || 1));
+        const currentLinePrice = roundCurrency(Number(item.price || 0) * qty);
+        const oldUnitPrice = Number(p.oldPrice || 0);
+        const isSale = oldUnitPrice > Number(item.price || 0);
+        const oldLinePrice = isSale ? roundCurrency(oldUnitPrice * qty) : 0;
+        const promoDiscount = roundCurrency(totals.itemDiscounts[item.key] || 0);
+        const finalLinePrice = roundCurrency(currentLinePrice - promoDiscount);
+        const saleBadge = String(p.badge || '').trim() || 'Акция';
+        const promoBadge = totals.promoType === 'percent' ? `${totals.promo} −${totals.promoValue}%` : `${totals.promo} −${money(promoDiscount)}`;
+        const pricingBadge = isSale
+          ? `<span class="cart-price-badge cart-price-badge-sale">${esc(saleBadge)}</span>`
+          : (promoDiscount ? `<span class="cart-price-badge cart-price-badge-promo">${esc(promoBadge)}</span>` : '');
+        const comparePrice = isSale ? oldLinePrice : (promoDiscount ? currentLinePrice : 0);
+        const discountNote = promoDiscount ? `<small class="cart-promo-note">Скидка по промокоду: −${money(promoDiscount)}</small>` : '';
+        return `<div class="cart-item ${isSale ? 'has-sale-price' : ''} ${promoDiscount ? 'has-promo-price' : ''}" data-key="${esc(item.key)}"><img class="cart-item-img" src="${esc(firstImage(p))}" alt="${esc(p.name || '')}"><div class="cart-item-main"><div class="cart-item-info">${pricingBadge}<h3>${esc(p.name || 'Товар')}</h3><small>${optionText}</small></div><div class="cart-item-controls"><div class="cart-item-pricing"><div class="cart-price-values"><strong class="price cart-item-price">${money(finalLinePrice)}</strong>${comparePrice ? `<del class="cart-item-old-price">${money(comparePrice)}</del>` : ''}</div>${discountNote}</div><div class="qty-stepper cart-qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div><button class="btn btn-light small cart-remove" data-cart-remove="${esc(item.key)}">Удалить</button></div></div></div>`;
       }).join('');
     }
     renderSummary();
   }
   function renderSummary(){
-    const {subtotal,discount,total,promo} = cartTotals();
+    const {subtotal,discount,deliveryPrice,total,promo} = cartTotals();
     const checkout = getSite().checkout || DEFAULT_CHECKOUT;
     const delivery = selectedDelivery();
     const root = $('#cartSummary');
     if(root){
-      root.innerHTML = `<div class="summary-row"><span>${esc(checkout.itemsLabel || 'Товары')}</span><strong>${money(subtotal)}</strong></div>${discount ? `<div class="summary-row"><span>Промокод ${esc(promo)}</span><strong>−${money(discount)}</strong></div>` : ''}<div class="summary-row"><span>${esc(checkout.deliveryLabel || 'Доставка')}</span><strong>${esc(delivery.method.title || 'по тарифу')}</strong></div><div class="summary-row"><span>${esc(checkout.totalLabel || 'Итого')}</span><span class="summary-total">${money(total)}</span></div>`;
+      root.innerHTML = `<div class="summary-row"><span>${esc(checkout.itemsLabel || 'Товары')}</span><strong>${money(subtotal)}</strong></div>${discount ? `<div class="summary-row"><span>Промокод ${esc(promo)}</span><strong>−${money(discount)}</strong></div>` : ''}<div class="summary-row"><span class="summary-row-copy"><span>${esc(checkout.deliveryLabel || 'Доставка')}</span><small>${esc(delivery.method.title || '')}</small></span><strong>${deliveryPrice > 0 ? money(deliveryPrice) : 'Бесплатно'}</strong></div><div class="summary-row"><span>${esc(checkout.totalLabel || 'Итого')}</span><span class="summary-total">${money(total)}</span></div>`;
     }
   }
   function renderDeliveryOptions(){
@@ -3058,7 +3101,7 @@
     const enabled = Object.entries(methods).filter(([,m])=>m.enabled !== false);
     const previous = $('input[name="delivery"]:checked')?.value;
     const hasPrevious = previous && enabled.some(([key]) => key === previous);
-    root.innerHTML = enabled.map(([key,m],i)=>`<label class="delivery-option"><input type="radio" name="delivery" value="${esc(key)}" ${(hasPrevious ? key === previous : i === 0) ? 'checked' : ''}><span class="delivery-radio" aria-hidden="true"></span><span class="delivery-option-text"><strong>${esc(m.title)}</strong><small>${esc(m.subtitle || '')}</small></span></label>`).join('');
+    root.innerHTML = enabled.map(([key,m],i)=>`<label class="delivery-option"><input type="radio" name="delivery" value="${esc(key)}" ${(hasPrevious ? key === previous : i === 0) ? 'checked' : ''}><span class="delivery-radio" aria-hidden="true"></span><span class="delivery-option-text"><span class="delivery-option-copy"><strong>${esc(m.title)}</strong><small>${esc(m.subtitle || '')}</small></span><span class="delivery-option-price">${Number(m.price || 0) > 0 ? money(m.price) : 'Бесплатно'}</span></span></label>`).join('');
     renderPickupStoreOptions();
     applyCartBlockVisibility();
     syncAddressForDelivery();
@@ -3083,14 +3126,14 @@
     if(promo && !eligibleItems.length){ sessionStorage.removeItem('byvit_v60_promo'); toast('Промокод не действует на акционные товары'); }
     else if(promo){ sessionStorage.setItem('byvit_v60_promo', code); toast(hasSaleItems ? 'Промокод применён только к товарам без акции' : 'Промокод применён'); }
     else { sessionStorage.removeItem('byvit_v60_promo'); toast('Промокод не найден'); }
-    renderSummary();
+    renderCart();
   }
   function updatePromoFromInput(){
     const code = String($('#promoCode')?.value || '').trim().toUpperCase();
     const applied = String(sessionStorage.getItem('byvit_v60_promo') || '').toUpperCase();
     if(applied && code !== applied){
       sessionStorage.removeItem('byvit_v60_promo');
-      renderSummary();
+      renderCart();
     }
   }
   function buildOrderText(order){
@@ -3590,7 +3633,10 @@
         <input data-delivery-method-id value="${esc(id)}" placeholder="ID, например courier">
         <input data-delivery-method-title value="${esc(method.title || '')}" placeholder="Название">
       </div>
-      <input data-delivery-method-subtitle value="${esc(method.subtitle || '')}" placeholder="Подпись">
+      <div class="field-row">
+        <input data-delivery-method-subtitle value="${esc(method.subtitle || '')}" placeholder="Подпись">
+        <input data-delivery-method-price type="number" min="0" step="0.01" value="${esc(Math.max(0, Number(method.price || 0)) || 0)}" placeholder="Стоимость, BYN" aria-label="Стоимость доставки в BYN">
+      </div>
       <button class="btn btn-danger small" data-delivery-method-delete type="button">Удалить способ</button>
     </article>`;
   }
@@ -3718,6 +3764,7 @@
     $$('[data-delivery-method-key]').forEach((card, index) => {
       const title = $('[data-delivery-method-title]', card)?.value.trim() || '';
       const subtitle = $('[data-delivery-method-subtitle]', card)?.value.trim() || '';
+      const price = Math.max(0, Number($('[data-delivery-method-price]', card)?.value || 0)) || 0;
       const rawId = $('[data-delivery-method-id]', card)?.value.trim() || title || `delivery-${index + 1}`;
       const id = categoryIdFromName(rawId, index);
       if(!title && !subtitle) return;
@@ -3725,7 +3772,8 @@
       methods[id] = {
         enabled:$('[data-delivery-method-enabled]', card)?.checked !== false,
         title:title || 'Способ доставки',
-        subtitle
+        subtitle,
+        price
       };
     });
     return methods;

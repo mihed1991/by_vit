@@ -213,10 +213,10 @@
 	      homeGallery:[],
 	      brandImages:{},
 	      deliveryMethods:{
-        pickup:{enabled:true,title:'Самовывоз',subtitle:'из магазина ByVit'},
-        delivery:{enabled:true,title:'Курьер',subtitle:'по городу'},
-        europost:{enabled:true,title:'Европочта',subtitle:'по Беларуси'},
-        post:{enabled:true,title:'Почта',subtitle:'по тарифу оператора'}
+	        pickup:{enabled:true,title:'Самовывоз',subtitle:'из магазина ByVit',price:0},
+	        delivery:{enabled:true,title:'Курьер',subtitle:'по городу',price:0},
+	        europost:{enabled:true,title:'Европочта',subtitle:'по Беларуси',price:0},
+	        post:{enabled:true,title:'Почта',subtitle:'по тарифу оператора',price:0}
       }
     }
   };
