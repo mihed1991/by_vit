@@ -167,6 +167,7 @@ async function main() {
     await page.locator('[data-action="cart"][data-id="1"]').click();
     await page.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.cart-item').waitFor();
+    assert.equal(await page.locator('.cart-item-img').first().evaluate(image => getComputedStyle(image).borderRadius), '2px');
     assert.equal(await page.locator('.cart-item.has-sale-price').count(), 1);
     assert.match(await page.locator('.cart-item.has-sale-price .cart-item-old-price').textContent(), /149 BYN/);
     assert.match(await page.locator('.cart-item.has-sale-price .cart-price-badge-sale').textContent(), /хит/i);
@@ -336,6 +337,7 @@ async function main() {
     await mobilePage.locator('.delivery-option:has(input[name="delivery"][value="delivery"])').click();
     assert.equal(await mobilePage.locator('.cart-item.has-sale-price').count(), 1);
     assert.equal(await mobilePage.locator('.cart-item.has-promo-price').count(), 1);
+    assert.equal(await mobilePage.locator('.cart-item-img').first().evaluate(image => getComputedStyle(image).borderRadius), '2px');
     await assertNoHorizontalOverflow(mobilePage, '/cart.html');
     if(qaScreenshotDir) await mobilePage.locator('.cart-layout').screenshot({ path:path.join(qaScreenshotDir, 'cart-pricing-mobile.png') });
     await mobilePage.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });

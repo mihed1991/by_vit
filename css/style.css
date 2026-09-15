@@ -13946,3 +13946,7 @@ body[data-page="cart"] .delivery-option-price {
     font-size: 11px;
   }
 }
+
+body[data-page="cart"] .cart-item-img {
+  border-radius: 2px !important;
+}
