@@ -81,6 +81,13 @@ async function main() {
     assert.match(productPage.data, new RegExp(`<link rel="canonical" href="${baseUrl}/product.html\\?id=1">`));
     assert.match(productPage.data, /"@type":"Product"/);
 
+    const europostOffices = await request(baseUrl, '/api/europost/offices?q=Минск');
+    assert.equal(europostOffices.status, 200);
+    assert.ok(europostOffices.data.availableTotal >= 6);
+    assert.ok(europostOffices.data.total >= 1);
+    assert.equal(europostOffices.data.offices[0].city, 'Минск');
+    assert.ok(europostOffices.data.offices[0].id);
+
     const forgedOrder = {
       items: [{ productId: 1, optionId: '900g', flavor: 'Шоколад', qty: 2, price: 0.01, lineTotal: 0.01 }],
       subtotal: 0.01,
@@ -134,6 +141,20 @@ async function main() {
     assert.equal(regularProductCreated.data.order.total, 71.1);
     assert.equal(regularProductCreated.data.order.promo, 'WELCOME');
 
+    const europostOrder = {
+      items: [{ productId: 4, optionId: '90caps', flavor: '', qty: 1 }],
+      deliveryKey: 'europost',
+      europostOffice: europostOffices.data.offices[0],
+      payment: 'Оплата при получении',
+      customer: { name: 'Europost Test', phone: '+375 29 123-45-67', address: 'подменённый адрес' }
+    };
+    const europostCreated = await request(baseUrl, '/api/orders', { method: 'POST', body: { order: europostOrder } });
+    assert.equal(europostCreated.status, 201, JSON.stringify(europostCreated.data));
+    assert.equal(europostCreated.data.order.deliveryKey, 'europost');
+    assert.equal(europostCreated.data.order.europostOffice.id, europostOffices.data.offices[0].id);
+    assert.match(europostCreated.data.order.customer.address, /Отделение №1: г\. Минск/);
+    assert.doesNotMatch(europostCreated.data.order.customer.address, /подменённый/);
+
     const concurrentOrder = {
       items: [{ productId: 2, optionId: '300g', flavor: 'Без вкуса', qty: 14 }],
       deliveryKey: 'pickup',
@@ -184,7 +205,7 @@ async function main() {
     assert.match(sessionCookie, /SameSite=Lax/i);
     const adminState = await request(baseUrl, '/api/admin/state', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(adminState.status, 200);
-    assert.equal(adminState.data.orders.length, 5);
+    assert.equal(adminState.data.orders.length, 6);
     const moyskladStatus = await request(baseUrl, '/api/admin/moysklad/status', { headers: { Cookie: sessionCookie.split(';')[0] } });
     assert.equal(moyskladStatus.status, 200);
     assert.equal(moyskladStatus.data.configured, false);

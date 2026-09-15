@@ -8,9 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Корзина | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=122">
+  <link rel="stylesheet" href="css/style.css?v=126">
   <script src="js/data.js?v=67" defer></script>
-  <script src="js/app.js?v=107" defer></script>
+  <script src="js/app.js?v=111" defer></script>
 </head>
 
 <body data-page="cart">
@@ -76,7 +76,25 @@
               <form class="checkout-form" id="checkoutForm"><input id="orderName" required placeholder="Имя"><input
                   id="orderPhone" required placeholder="Телефон">
                 <div class="delivery-options" id="deliveryOptions"></div>
-                <div class="pickup-store-options" id="pickupStoreOptions" hidden></div><input id="orderAddress"
+                <div class="pickup-store-options" id="pickupStoreOptions" hidden></div>
+                <div class="europost-office-options" id="europostOfficeOptions" hidden>
+                  <div class="europost-office-head"><span>Отделение Европочты</span><a
+                      href="https://evropochta.by/about/offices/" target="_blank" rel="noopener">Официальный список ↗</a>
+                  </div>
+                  <div class="europost-office-selector">
+                    <button class="europost-office-toggle" id="europostOfficeToggle" type="button" aria-expanded="false"
+                      aria-controls="europostOfficeDropdown"><span id="europostOfficeToggleText">Выберите отделение</span><span
+                        class="europost-office-chevron" aria-hidden="true"></span></button>
+                    <button class="europost-office-clear" id="europostOfficeClear" type="button" hidden
+                      aria-label="Отменить выбор отделения">×</button>
+                  </div>
+                  <div class="europost-office-dropdown" id="europostOfficeDropdown" hidden>
+                    <input id="europostOfficeSearch" type="search" autocomplete="off"
+                      placeholder="Город, адрес или номер отделения">
+                    <div class="europost-office-status" id="europostOfficeStatus" aria-live="polite"></div>
+                    <div class="europost-office-list" id="europostOfficeList"></div>
+                  </div>
+                </div><input id="orderAddress"
                   placeholder="Адрес / отделение"><select id="paymentMethod">
                   <option>Оплата при получении</option>
                   <option>Перевод на карту</option>

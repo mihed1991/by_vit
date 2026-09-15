@@ -164,7 +164,17 @@ async function main() {
     await page.locator('.catalog-filter-reset').click();
     await page.waitForFunction(() => document.querySelectorAll('#catalogProducts .product-card').length === 13);
     assert.equal(new URL(page.url()).search, '', 'Clear filters must restore the unfiltered catalog URL');
-    await page.locator('[data-action="cart"][data-id="1"]').click();
+    const firstCatalogCartButton = page.locator('[data-action="cart"][data-id="1"]');
+    assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзину');
+    await firstCatalogCartButton.click();
+    assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзине');
+    await page.waitForTimeout(250);
+    assert.equal(await firstCatalogCartButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(232, 240, 229)');
+    await firstCatalogCartButton.click();
+    assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзину');
+    assert.equal(await page.locator('[data-count="cart"]').first().textContent(), '');
+    await firstCatalogCartButton.click();
+    assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзине');
     await page.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.cart-item').waitFor();
     assert.equal(await page.locator('.cart-item-img').first().evaluate(image => getComputedStyle(image).borderRadius), '2px');
@@ -186,6 +196,31 @@ async function main() {
     assert.equal(await page.locator('.cart-item.has-sale-price.has-promo-price').count(), 0, 'Sale products must remain excluded from promo discounts');
     assert.match(await page.locator('#cartSummary').textContent(), /Промокод WELCOME/);
     assert.match(await page.locator('.delivery-option-price').first().textContent(), /Бесплатно/);
+    await page.locator('.delivery-option:has(input[name="delivery"][value="europost"])').click();
+    await page.locator('#europostOfficeOptions').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#orderAddress').isVisible(), false, 'Free-form address must be hidden for Europost');
+    assert.equal(await page.locator('#europostOfficeDropdown').isVisible(), false, 'Europost list must start collapsed');
+    const closedPickerBox = await page.locator('#europostOfficeOptions').boundingBox();
+    await page.locator('#europostOfficeToggle').click();
+    await page.locator('#europostOfficeDropdown').waitFor({ state: 'visible' });
+    const openPickerBox = await page.locator('#europostOfficeOptions').boundingBox();
+    assert.equal(Math.round(openPickerBox.x), Math.round(closedPickerBox.x), 'Europost picker must not shift horizontally when opened');
+    assert.equal(Math.round(openPickerBox.width), Math.round(closedPickerBox.width), 'Europost picker width must stay fixed');
+    const officeListOverflow = await page.locator('#europostOfficeList').evaluate(list => ({
+      overflowX:getComputedStyle(list).overflowX,
+      scrollbarWidth:getComputedStyle(list).scrollbarWidth
+    }));
+    assert.equal(officeListOverflow.overflowX, 'hidden');
+    assert.equal(officeListOverflow.scrollbarWidth, 'none');
+    await page.locator('#europostOfficeSearch').fill('Минск');
+    await page.locator('.europost-office').first().waitFor();
+    await page.locator('.europost-office').first().click();
+    assert.equal(await page.locator('#europostOfficeDropdown').isVisible(), false, 'Selecting an office must collapse the list');
+    assert.match(await page.locator('#europostOfficeToggleText').textContent(), /Отделение №1/);
+    await page.locator('#europostOfficeClear').click();
+    assert.match(await page.locator('#europostOfficeToggleText').textContent(), /Выберите отделение/);
+    await page.locator('#europostOfficeToggle').click();
+    await page.locator('.europost-office').first().click();
     if(qaScreenshotDir) await page.locator('.cart-layout').screenshot({ path:path.join(qaScreenshotDir, 'cart-pricing-desktop.png') });
     await page.locator('#orderName').fill('E2E Покупатель');
     await page.locator('#orderPhone').fill('+375 29 123-45-67');
@@ -193,6 +228,8 @@ async function main() {
     await page.locator('#modal.open').waitFor();
     assert.match(await page.locator('[data-modal-title]').textContent(), /спасибо/i);
     assert.equal(await page.locator('.cart-item').count(), 0, 'Cart must clear after a successful order');
+    await page.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
+    assert.equal((await page.locator('[data-action="cart"][data-id="1"]').textContent()).trim(), 'В корзину');
 
     const state = await (await page.request.get('/api/state')).json();
     assert.equal(state.orders.length, 0, 'Public state must not expose customer orders');
@@ -217,6 +254,8 @@ async function main() {
     assert.equal(adminStateResponse.status(), 200);
     const adminState = await adminStateResponse.json();
     assert.equal(adminState.orders.length, 1);
+    assert.equal(adminState.orders[0].deliveryKey, 'europost');
+    assert.match(adminState.orders[0].customer.address, /Отделение №1: г\. Минск/);
     await page.locator('[data-admin-tab="delivery"]').click();
     await page.locator('#admin-delivery.active').waitFor();
     const courierCard = page.locator('[data-delivery-method-key="delivery"]');
@@ -334,11 +373,19 @@ async function main() {
     await mobilePage.goto('/cart.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('#promoCode').fill('WELCOME');
     await mobilePage.locator('#promoApply').click();
-    await mobilePage.locator('.delivery-option:has(input[name="delivery"][value="delivery"])').click();
+    await mobilePage.locator('.delivery-option:has(input[name="delivery"][value="europost"])').click();
+    await mobilePage.locator('#europostOfficeOptions').waitFor({ state: 'visible' });
+    await mobilePage.locator('#europostOfficeToggle').click();
+    await mobilePage.locator('#europostOfficeDropdown').waitFor({ state: 'visible' });
+    await mobilePage.locator('#europostOfficeSearch').fill('Брест');
+    await mobilePage.locator('.europost-office').first().waitFor();
+    await mobilePage.locator('.europost-office').first().click();
     assert.equal(await mobilePage.locator('.cart-item.has-sale-price').count(), 1);
     assert.equal(await mobilePage.locator('.cart-item.has-promo-price').count(), 1);
     assert.equal(await mobilePage.locator('.cart-item-img').first().evaluate(image => getComputedStyle(image).borderRadius), '2px');
-    await assertNoHorizontalOverflow(mobilePage, '/cart.html');
+    await mobilePage.locator('#europostOfficeToggle').click();
+    const mobileCartDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+    assert.ok(mobileCartDimensions.scrollWidth <= mobileCartDimensions.width + 1, 'Open Europost picker must not create horizontal overflow');
     if(qaScreenshotDir) await mobilePage.locator('.cart-layout').screenshot({ path:path.join(qaScreenshotDir, 'cart-pricing-mobile.png') });
     await mobilePage.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
     assert.equal(await mobilePage.locator('.gallery-thumbs button').count(), 5);

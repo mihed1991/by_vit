@@ -39,6 +39,10 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for PostgreSQL backup/restore, migration, Cad
 
 Do not commit `.env`, `data/store.json`, uploads, database volumes, or exported backups.
 
+## Europost offices
+
+When Europost is selected at checkout, the server loads the official office directory and exposes a compact searchable list to the storefront. The result is cached for 12 hours in the persistent data directory; a stale cache remains available if the external API is temporarily unavailable. `EUROPOST_CACHE_TTL_MS` and `EUROPOST_TIMEOUT_MS` can be adjusted in `.env`.
+
 ## MoySklad inventory
 
 The server can import available product stock from MoySklad. The access token remains in `.env`; the browser receives only connection status and synchronization results.

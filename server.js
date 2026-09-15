@@ -7,6 +7,7 @@ const vm = require('vm');
 const { createStorage } = require('./lib/storage');
 const { createMedia } = require('./lib/media');
 const { createMoySkladClient, mappingFor } = require('./lib/moysklad');
+const { createEuropostClient } = require('./lib/europost');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -62,6 +63,12 @@ const moysklad = createMoySkladClient({
   token: MOYSKLAD_TOKEN,
   baseUrl: MOYSKLAD_API_BASE,
   stockEndpoint: MOYSKLAD_STOCK_ENDPOINT
+});
+const europost = createEuropostClient({
+  dataDir: DATA_DIR,
+  ttlMs: Number(process.env.EUROPOST_CACHE_TTL_MS || 12 * 60 * 60 * 1000),
+  timeoutMs: Number(process.env.EUROPOST_TIMEOUT_MS || 12_000),
+  testMode: NODE_ENV === 'test'
 });
 
 const sessions = new Map();
@@ -639,6 +646,16 @@ function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+function normalizeEuropostSelection(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const id = textField(source.id, 'Отделение Европочты', 64, { required: true });
+  const number = textField(source.number, 'Номер отделения Европочты', 24);
+  const city = textField(source.city, 'Город отделения Европочты', 100);
+  const address = textField(source.address, 'Адрес отделения Европочты', 300, { required: true });
+  const schedule = textField(source.schedule, 'Режим работы Европочты', 300);
+  return { id, number, city, address, schedule };
+}
+
 function normalizeOrder(store, payload) {
   const source = payload && typeof payload === 'object' ? payload : {};
   const rawItems = Array.isArray(source.items) ? source.items : [];
@@ -706,12 +723,16 @@ function normalizeOrder(store, payload) {
 
   const pickupStores = Array.isArray(store.site?.pickupStores) ? store.site.pickupStores.filter(item => item.enabled !== false) : [];
   let pickupStore = null;
+  let europostOffice = null;
   let address = textField(source.customer?.address, 'Адрес', 300);
   if (deliveryKey === 'pickup') {
     const pickupStoreId = textField(source.pickupStoreId || source.pickupStore?.id || pickupStores[0]?.id, 'Пункт самовывоза', 64);
     pickupStore = pickupStores.find(item => String(item.id) === pickupStoreId) || null;
     if (pickupStores.length && !pickupStore) throw new HttpError(400, 'Выберите доступный пункт самовывоза.');
     address = pickupStore ? [pickupStore.title, pickupStore.address].filter(Boolean).join(': ') : '';
+  } else if (deliveryKey === 'europost') {
+    europostOffice = normalizeEuropostSelection(source.europostOffice);
+    address = [`Отделение №${europostOffice.number || europostOffice.id}`, europostOffice.address].filter(Boolean).join(': ');
   } else if (store.site?.checkout?.blocks?.address !== false && !address) {
     throw new HttpError(400, 'Укажите адрес или отделение доставки.');
   }
@@ -736,6 +757,7 @@ function normalizeOrder(store, payload) {
     deliveryKey,
     deliveryTitle: String(delivery.title || deliveryKey),
     pickupStore: pickupStore ? clone(pickupStore) : null,
+    europostOffice,
     payment,
     comment: textField(source.comment, 'Комментарий', 1000),
     customer: { name, phone, address }
@@ -792,6 +814,7 @@ function buildOrderText(order) {
   lines.push(`Телефон: ${order.customer?.phone || ''}`);
   lines.push(`Получение: ${order.deliveryTitle || ''}`);
   lines.push(`Адрес/отделение: ${order.pickupStore ? ([order.pickupStore.title, order.pickupStore.address].filter(Boolean).join(' - ') || '—') : (order.customer?.address || '—')}`);
+  if (order.europostOffice?.schedule) lines.push(`Режим работы: ${order.europostOffice.schedule}`);
   lines.push(`Оплата: ${order.payment || ''}`);
   lines.push(`Промокод: ${order.promo || ''}`);
   if (order.comment) lines.push(`Комментарий: ${order.comment}`);
@@ -1094,6 +1117,19 @@ async function handleApi(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       send(res, 200, publicState(store));
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/europost/offices') {
+      if (!allowRateLimitedRequest(req, res, 'europost-offices', 120, 60 * 1000)) return;
+      const result = await europost.list();
+      const query = String(url.searchParams.get('q') || '').trim().toLocaleLowerCase('ru').slice(0, 100);
+      const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') || 24)));
+      const matchingOffices = result.offices.filter(office => {
+        if (!query) return true;
+        return [office.number, office.city, office.address].some(value => String(value || '').toLocaleLowerCase('ru').includes(query));
+      });
+      const offices = matchingOffices.slice(0, limit);
+      send(res, 200, { offices, total: matchingOffices.length, availableTotal: result.offices.length, source: result.source, updatedAt: result.updatedAt, warning: result.warning || '' });
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/admin/state') {

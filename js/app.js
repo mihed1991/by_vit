@@ -391,6 +391,12 @@
   let telegramRecoveryLinkTimer = null;
   const pendingMediaDeletes = new Set();
   let heroSlideTimer = null;
+  let europostOfficeResults = [];
+  let europostOfficeTotal = 0;
+  let selectedEuropostOfficeValue = null;
+  let europostSearchTimer = null;
+  let europostRequestId = 0;
+  let europostPickerOpen = false;
   function canUseServer(){
     return window.BYVIT_STATIC !== true && (location.protocol === 'http:' || location.protocol === 'https:');
   }
@@ -1169,6 +1175,19 @@
       el.textContent = count > 0 ? String(count) : '';
       el.hidden = count <= 0;
     });
+    syncCartButtons();
+  }
+  function cartContainsProduct(productId){
+    return getCart().some(item => String(item.productId) === String(productId));
+  }
+  function syncCartButtons(){
+    $$('[data-action="cart"]').forEach(button => {
+      if(button.disabled) return;
+      const inCart = cartContainsProduct(button.dataset.id);
+      button.textContent = inCart ? 'В корзине' : 'В корзину';
+      button.classList.toggle('cart-state-active', inCart);
+      button.setAttribute('aria-pressed', inCart ? 'true' : 'false');
+    });
   }
   function headerActionIcon(type, extraClass = ''){
     const className = ['header-action-glyph', extraClass].filter(Boolean).join(' ');
@@ -1659,6 +1678,7 @@
   function productCard(product){
     const wishActive = getWishlist().includes(product.id);
     const compareActive = getCompare().includes(product.id);
+    const inCart = cartContainsProduct(product.id);
     const out = Number(product.stock || 0) <= 0;
     const option = defaultPackage(product);
     return `
@@ -1688,7 +1708,7 @@
             <div class="stars" title="Рейтинг">${'★'.repeat(Math.round(product.rating || 5)).slice(0,5)}</div>
           </div>
           <div class="card-buttons">
-            <button class="btn btn-primary small" data-action="cart" data-id="${esc(product.id)}" ${out ? 'disabled' : ''}>В корзину</button>
+            <button class="btn btn-primary small ${inCart ? 'cart-state-active' : ''}" data-action="cart" data-id="${esc(product.id)}" aria-pressed="${inCart ? 'true' : 'false'}" ${out ? 'disabled' : ''}>${inCart ? 'В корзине' : 'В корзину'}</button>
             <button class="circle-action ${wishActive ? 'active' : ''}" data-action="wishlist" data-id="${esc(product.id)}" title="Избранное">♡</button>
             <button class="circle-action ${compareActive ? 'active' : ''}" data-action="compare" data-id="${esc(product.id)}" title="Сравнить">⇄</button>
           </div>
@@ -1704,6 +1724,7 @@
       image.hidden = true;
       image.closest('.product-media')?.classList.add('is-image-missing');
     }, {once:true}));
+    syncCartButtons();
   }
 
   function addToCart(productId, optionId, flavor, qty=1){
@@ -1720,6 +1741,17 @@
     saveCart(cart);
     trackEvent('add_to_cart', {productId:product.id});
     toast('Товар добавлен в корзину');
+  }
+
+  function toggleCartProduct(productId){
+    const cart = getCart();
+    const inCart = cart.some(item => String(item.productId) === String(productId));
+    if(inCart){
+      saveCart(cart.filter(item => String(item.productId) !== String(productId)));
+      toast('Товар удалён из корзины');
+      return;
+    }
+    addToCart(productId);
   }
 
   let cartDrawerReturnFocus = null;
@@ -2980,6 +3012,12 @@
   function checkoutBlocks(){
     return (getSite().checkout || DEFAULT_CHECKOUT).blocks || DEFAULT_CHECKOUT.blocks;
   }
+  function isEuropostDelivery(key = selectedDelivery().key){
+    return String(key || '').toLowerCase() === 'europost';
+  }
+  function selectedEuropostOffice(){
+    return selectedEuropostOfficeValue;
+  }
   function applyCheckoutSettings(){
     const checkout = getSite().checkout || DEFAULT_CHECKOUT;
     const summaryTitle = $('#cartSummary')?.closest('.summary-card')?.querySelector('h3');
@@ -3006,6 +3044,7 @@
     setHidden($('#checkoutForm')?.closest('.summary-card'), blocks.checkout === false);
     setHidden($('#deliveryOptions'), blocks.delivery === false);
     setHidden($('#pickupStoreOptions'), blocks.delivery === false || selectedDelivery().key !== 'pickup');
+    setHidden($('#europostOfficeOptions'), blocks.delivery === false || blocks.address === false || !isEuropostDelivery());
     setHidden($('#paymentMethod'), blocks.payment === false);
     setHidden($('#orderComment'), blocks.comment === false);
     setHidden($('#orderAddress'), blocks.address === false);
@@ -3019,7 +3058,7 @@
     const checkout = site.checkout || DEFAULT_CHECKOUT;
     const {key} = selectedDelivery();
     address.placeholder = checkout.addressPlaceholder || 'Адрес / отделение';
-    if(key === 'pickup'){
+    if(key === 'pickup' || isEuropostDelivery(key)){
       address.hidden = true;
       address.readOnly = false;
       address.classList.add('readonly');
@@ -3029,6 +3068,107 @@
       address.hidden = false;
       address.readOnly = false;
       address.classList.remove('readonly');
+    }
+  }
+  function renderEuropostOfficeResults(meta = {}){
+    const root = $('#europostOfficeOptions');
+    const list = $('#europostOfficeList');
+    const status = $('#europostOfficeStatus');
+    if(!root || !list || !status) return;
+    const selected = selectedEuropostOffice();
+    const resultsHtml = europostOfficeResults.map(office => {
+      const checked = selected?.id === office.id;
+      return `<label class="europost-office ${checked ? 'selected' : ''}"><input type="radio" name="europostOffice" value="${esc(office.id)}" ${checked ? 'checked' : ''}><span class="delivery-radio" aria-hidden="true"></span><span class="europost-office-copy"><strong>Отделение №${esc(office.number || office.id)}</strong><span>${esc(office.address)}</span>${office.schedule ? `<small>${esc(office.schedule)}</small>` : ''}</span></label>`;
+    }).join('');
+    list.innerHTML = resultsHtml || '<div class="europost-office-empty">Отделения по запросу не найдены.</div>';
+    const total = Number(meta.total ?? europostOfficeTotal);
+    if(meta.loading) status.textContent = 'Загружаем официальный список…';
+    else if(meta.error) status.textContent = meta.error;
+    else {
+      const shown = europostOfficeResults.length;
+      status.textContent = total > shown ? `Показано ${shown} из ${total}. Уточните город или адрес.` : `${shown} отделений`;
+    }
+  }
+  function renderEuropostOfficeSelector(){
+    const selected = selectedEuropostOffice();
+    const text = $('#europostOfficeToggleText');
+    const clear = $('#europostOfficeClear');
+    if(text){
+      text.innerHTML = selected
+        ? `<strong>Отделение №${esc(selected.number || selected.id)}</strong><small>${esc(selected.address)}</small>`
+        : '<span>Выберите отделение</span>';
+    }
+    if(clear) clear.hidden = !selected;
+  }
+  function setEuropostPickerOpen(open){
+    const root = $('#europostOfficeOptions');
+    const dropdown = $('#europostOfficeDropdown');
+    const toggle = $('#europostOfficeToggle');
+    europostPickerOpen = Boolean(open && root && !root.hidden);
+    if(root) root.classList.toggle('picker-open', europostPickerOpen);
+    if(dropdown) dropdown.hidden = !europostPickerOpen;
+    if(toggle) toggle.setAttribute('aria-expanded', europostPickerOpen ? 'true' : 'false');
+    if(europostPickerOpen){
+      if(!europostOfficeResults.length) loadEuropostOffices($('#europostOfficeSearch')?.value || '');
+      window.setTimeout(() => $('#europostOfficeSearch')?.focus(), 0);
+    }
+  }
+  async function loadEuropostOffices(query = ''){
+    if(!isEuropostDelivery()) return;
+    const requestId = ++europostRequestId;
+    renderEuropostOfficeResults({loading:true});
+    try{
+      const data = await fetchJson(`/api/europost/offices?q=${encodeURIComponent(String(query || '').trim())}&limit=24`);
+      if(requestId !== europostRequestId) return;
+      europostOfficeResults = Array.isArray(data.offices) ? data.offices : [];
+      europostOfficeTotal = Number(data.total || europostOfficeResults.length);
+      renderEuropostOfficeResults();
+    }catch(error){
+      if(requestId !== europostRequestId) return;
+      europostOfficeResults = [];
+      renderEuropostOfficeResults({error:'Не удалось загрузить отделения. Проверьте соединение и повторите поиск.'});
+    }
+  }
+  function renderEuropostOfficeOptions(){
+    const root = $('#europostOfficeOptions');
+    if(!root) return;
+    const blocks = checkoutBlocks();
+    const visible = blocks.delivery !== false && blocks.address !== false && isEuropostDelivery();
+    root.hidden = !visible;
+    if(!visible){ setEuropostPickerOpen(false); return; }
+    renderEuropostOfficeSelector();
+    if(europostOfficeResults.length) renderEuropostOfficeResults();
+  }
+  function handleEuropostSearch(event){
+    clearTimeout(europostSearchTimer);
+    europostSearchTimer = setTimeout(() => loadEuropostOffices(event.target.value), 220);
+  }
+  function handleEuropostSelection(event){
+    const input = event.target.closest('input[name="europostOffice"]');
+    if(!input) return;
+    const office = europostOfficeResults.find(item => item.id === input.value);
+    if(!office) return;
+    selectedEuropostOfficeValue = {...office};
+    renderEuropostOfficeSelector();
+    renderEuropostOfficeResults();
+    setEuropostPickerOpen(false);
+  }
+  function clearEuropostSelection(){
+    selectedEuropostOfficeValue = null;
+    renderEuropostOfficeSelector();
+    renderEuropostOfficeResults();
+    setEuropostPickerOpen(false);
+    toast('Выбор отделения отменён');
+  }
+  function handleEuropostOutsideClick(event){
+    if(!europostPickerOpen) return;
+    const root = $('#europostOfficeOptions');
+    if(root && !root.contains(event.target)) setEuropostPickerOpen(false);
+  }
+  function handleEuropostKeydown(event){
+    if(event.key === 'Escape' && europostPickerOpen){
+      setEuropostPickerOpen(false);
+      $('#europostOfficeToggle')?.focus();
     }
   }
   function renderPickupStoreOptions(){
@@ -3103,11 +3243,13 @@
     const hasPrevious = previous && enabled.some(([key]) => key === previous);
     root.innerHTML = enabled.map(([key,m],i)=>`<label class="delivery-option"><input type="radio" name="delivery" value="${esc(key)}" ${(hasPrevious ? key === previous : i === 0) ? 'checked' : ''}><span class="delivery-radio" aria-hidden="true"></span><span class="delivery-option-text"><span class="delivery-option-copy"><strong>${esc(m.title)}</strong><small>${esc(m.subtitle || '')}</small></span><span class="delivery-option-price">${Number(m.price || 0) > 0 ? money(m.price) : 'Бесплатно'}</span></span></label>`).join('');
     renderPickupStoreOptions();
+    renderEuropostOfficeOptions();
     applyCartBlockVisibility();
     syncAddressForDelivery();
   }
   function handleDeliveryChange(){
     renderPickupStoreOptions();
+    renderEuropostOfficeOptions();
     syncAddressForDelivery();
     renderSummary();
   }
@@ -3145,6 +3287,7 @@
     lines.push(`Телефон: ${order.customer.phone}`);
     lines.push(`Получение: ${order.deliveryTitle}`);
     lines.push(`Адрес/отделение: ${order.pickupStore ? ([order.pickupStore.title, order.pickupStore.address].filter(Boolean).join(' - ') || '—') : (order.customer.address || '—')}`);
+    if(order.europostOffice?.schedule) lines.push(`Режим работы: ${order.europostOffice.schedule}`);
     lines.push(`Оплата: ${order.payment}`);
     lines.push(`Промокод: ${order.promo || ''}`);
     if(order.comment) lines.push(`Комментарий: ${order.comment}`);
@@ -3177,13 +3320,23 @@
     const site = getSite();
     const delivery = (site.deliveryMethods || {})[deliveryKey] || {title:deliveryKey};
     const pickupStore = deliveryKey === 'pickup' ? selectedPickupStore() : null;
-    const address = pickupStore ? [pickupStore.title, pickupStore.address].filter(Boolean).join(': ') : (addressEl && !addressEl.hidden ? addressEl.value.trim() : '');
+    const europostOffice = isEuropostDelivery(deliveryKey) ? selectedEuropostOffice() : null;
+    if(isEuropostDelivery(deliveryKey) && !europostOffice){
+      toast('Выберите отделение Европочты');
+      setEuropostPickerOpen(true);
+      return;
+    }
+    const address = pickupStore
+      ? [pickupStore.title, pickupStore.address].filter(Boolean).join(': ')
+      : europostOffice ? [`Отделение №${europostOffice.number || europostOffice.id}`, europostOffice.address].join(': ')
+        : (addressEl && !addressEl.hidden ? addressEl.value.trim() : '');
     const totals = cartTotals();
     const orderRequest = {
       items:cart.map(item => ({productId:item.productId,optionId:item.optionId,flavor:item.flavor || '',qty:Number(item.qty || 1)})),
       promo:totals.promo,
       deliveryKey,
       pickupStoreId:pickupStore?.id || '',
+      europostOffice,
       payment:$('#paymentMethod')?.value || 'Оплата при получении',
       comment:$('#orderComment')?.value.trim() || '',
       customer:{name,phone,address}
@@ -5392,7 +5545,7 @@
         event.preventDefault();
         event.stopPropagation();
         const id = action.dataset.id;
-        if(action.dataset.action === 'cart') addToCart(id);
+        if(action.dataset.action === 'cart') toggleCartProduct(id);
         if(action.dataset.action === 'wishlist') toggleWishlist(id);
         if(action.dataset.action === 'compare') toggleCompare(id);
         if(action.dataset.action === 'quick') quickView(id);
@@ -5508,6 +5661,12 @@
       if(event.target.matches('#adminSectionSearch')){ filterAdminSections(event.target.value); return; }
     });
     $('#deliveryOptions')?.addEventListener('change', handleDeliveryChange);
+    $('#europostOfficeToggle')?.addEventListener('click', () => setEuropostPickerOpen(!europostPickerOpen));
+    $('#europostOfficeClear')?.addEventListener('click', clearEuropostSelection);
+    $('#europostOfficeSearch')?.addEventListener('input', handleEuropostSearch);
+    $('#europostOfficeList')?.addEventListener('change', handleEuropostSelection);
+    document.addEventListener('click', handleEuropostOutsideClick);
+    document.addEventListener('keydown', handleEuropostKeydown);
     $('#promoApply')?.addEventListener('click', applyPromo);
     $('#promoCode')?.addEventListener('input', updatePromoFromInput);
     $('#checkoutForm')?.addEventListener('submit', submitOrder);
