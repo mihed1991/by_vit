@@ -593,6 +593,19 @@
       items
     };
   }
+  function normalizeStockContact(site, defaults, quickContact, footer){
+    const stored = site?.stockContact || {};
+    const fallback = defaults.stockContact || {};
+    const items = quickContact?.items || [];
+    const quickPhone = items.find(item => item.enabled !== false && item.type === 'phone' && (item.value || item.href));
+    const quickTelegram = items.find(item => item.enabled !== false && item.type === 'telegram' && (item.value || item.href));
+    const hasStoredPhone = Object.prototype.hasOwnProperty.call(stored, 'phone');
+    const hasStoredTelegram = Object.prototype.hasOwnProperty.call(stored, 'telegram');
+    return {
+      phone:String(hasStoredPhone ? stored.phone : (quickPhone?.value || footer?.contacts?.phones?.[0] || site?.phone || fallback.phone || defaults.phone || '')).trim(),
+      telegram:String(hasStoredTelegram ? stored.telegram : (quickTelegram?.value || footer?.contacts?.telegram || site?.telegram?.contact || fallback.telegram || defaults.telegram?.contact || '')).trim()
+    };
+  }
   function normalizeFooterBadges(items, fallback){
     const source = Array.isArray(items) ? items : (Array.isArray(fallback) ? fallback : []);
     return source.map((item, index) => ({
@@ -841,6 +854,7 @@
     merged.deliveryMethods = normalizeDeliveryMethods(site, defaults);
     merged.footer = normalizeFooter(site, defaults);
     merged.quickContact = normalizeQuickContact(site, defaults);
+    merged.stockContact = normalizeStockContact(site, defaults, merged.quickContact, merged.footer);
     merged.pageHeaders = normalizePageHeaders(site, defaults);
     merged.categories = normalizeCategories(site, defaults);
     merged.faqItems = normalizeFaqItems(site, defaults);
@@ -1615,6 +1629,33 @@
     if(type === 'viber') return `viber://chat?number=${clean.replace(/[^\d+]/g,'')}`;
     if(type === 'whatsapp') return `https://wa.me/${clean.replace(/[^\d]/g,'')}`;
     return clean;
+  }
+  function renderStockContact(site){
+    const config = site.stockContact || {};
+    const contacts = [
+      {label:'Позвонить', type:'phone', value:config.phone || ''},
+      {label:'Написать', type:'telegram', value:config.telegram || ''}
+    ];
+    const actions = contacts.map(item => {
+      if(!item.value){
+        return `<span class="stock-contact-action is-disabled" aria-disabled="true"><strong>${esc(item.label)}</strong><small>Добавьте контакт в админке</small></span>`;
+      }
+      const href = contactHref(item.type, item.value);
+      const external = /^https?:\/\//i.test(href);
+      return `<a class="stock-contact-action" href="${esc(href)}" ${external ? 'target="_blank" rel="noopener"' : ''}><strong>${esc(item.label)}</strong><small>${esc(item.value)}</small></a>`;
+    }).join('');
+    return `<div class="stock-contact" data-stock-contact>
+      <button class="stock-contact-toggle" type="button" data-stock-contact-toggle aria-expanded="false" aria-controls="stockContactMenu">Уточнить по наличию</button>
+      <div class="stock-contact-menu" id="stockContactMenu" data-stock-contact-menu hidden>${actions}</div>
+    </div>`;
+  }
+  function closeStockContactMenus(){
+    $$('[data-stock-contact].open').forEach(root => {
+      root.classList.remove('open');
+      $('[data-stock-contact-toggle]', root)?.setAttribute('aria-expanded', 'false');
+      const menu = $('[data-stock-contact-menu]', root);
+      if(menu) menu.hidden = true;
+    });
   }
   function footerContactLink(item){
     const label = item.label || item.value || 'Контакт';
@@ -2868,6 +2909,8 @@
       ? packageVariants.map(variant => `<button class="chip ${String(variant.id) === String(product.id) ? 'active' : ''}" data-package-product-id="${esc(variant.id)}">${esc(productPackageLabel(variant))}</button>`).join('')
       : (product.packageOptions || [firstOption]).map((option,index) => `<button class="chip ${index===0?'active':''}" data-package-id="${esc(option.id)}" data-price="${esc(option.price)}">${esc(option.label)}</button>`).join('');
     const firstFlavor = product.flavors?.[0] || '';
+    const outOfStock = Number(product.stock || 0) <= 0;
+    const stockContact = outOfStock ? renderStockContact(getSite()) : '';
     const relatedProducts = recommendedProducts(product, 4);
     const recentlyViewedProducts = getRecentProductIds()
       .filter(productId => String(productId) !== String(product.id))
@@ -2886,7 +2929,8 @@
           <div class="gallery-main"><img id="mainProductImage" src="${esc(images[0])}" alt="${esc(product.name)}"></div>
           <div class="gallery-thumbs" aria-label="Изображения товара">${images.map((img,i)=>`<button type="button" class="${i===0?'active':''}" data-gallery="${esc(img)}" aria-label="Показать изображение ${i + 1}" aria-pressed="${i===0?'true':'false'}"><img src="${esc(img)}" alt=""></button>`).join('')}</div>
         </div>
-        <aside class="product-panel">
+        <aside class="product-panel ${outOfStock ? 'has-stock-contact' : ''}">
+          ${stockContact}
           <div class="product-brand">${esc(product.brand)}</div>
           <h1 class="product-detail-title">${esc(product.name)}</h1>
           <p>${esc(product.shortDescription || '')}</p>
@@ -2901,7 +2945,7 @@
           <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${packageChoices}</div></div>
           ${product.flavors?.length ? `<div class="option-block"><strong>Вкус</strong><div class="option-list" id="flavorOptions">${product.flavors.map((f,i)=>`<button class="chip ${i===0?'active':''}" data-flavor="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>` : ''}
           <div class="product-fulfillment"><span>Получение</span><strong>Ориентировочно: самовывоз сегодня · доставка 1–3 дня</strong></div>
-          <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button class="btn btn-primary" data-product-add="${esc(product.id)}">Добавить в корзину</button></div>
+          <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button class="btn btn-primary" data-product-add="${esc(product.id)}" ${outOfStock ? 'disabled aria-disabled="true"' : ''}>${outOfStock ? 'Нет в наличии' : 'Добавить в корзину'}</button></div>
           <div class="hero-actions" style="margin:0"><button class="btn btn-light" data-action="wishlist" data-id="${esc(product.id)}">♡ Избранное</button><button class="btn btn-light" data-action="compare" data-id="${esc(product.id)}">⇄ Сравнить</button></div>
         </aside>
       </div>
@@ -4932,7 +4976,9 @@
     }
   }
   function renderAdminQuickContact(){
-    const quick = getSite().quickContact || {};
+    const site = getSite();
+    const quick = site.quickContact || {};
+    const stockContact = site.stockContact || {};
     const enabled = $('#quickContactEnabled');
     if(enabled) enabled.checked = quick.enabled !== false;
     const buttonText = $('#quickContactButtonText');
@@ -4943,6 +4989,10 @@
     if(opacityValue) opacityValue.textContent = `${Math.round(Number(quick.opacity ?? 1) * 100)}%`;
     const items = $('#quickContactItems');
     if(items) items.value = footerContactsToLines(quick.items || []);
+    const stockPhone = $('#stockContactPhone');
+    if(stockPhone) stockPhone.value = stockContact.phone || '';
+    const stockTelegram = $('#stockContactTelegram');
+    if(stockTelegram) stockTelegram.value = stockContact.telegram || '';
   }
   function saveAdminQuickContact(event){
     event.preventDefault();
@@ -4953,6 +5003,10 @@
       opacity:Number($('#quickContactOpacity')?.value || 1),
       position:{x:'',y:''},
       items:linesToFooterContacts($('#quickContactItems')?.value || '')
+    };
+    site.stockContact = {
+      phone:$('#stockContactPhone')?.value.trim() || '',
+      telegram:$('#stockContactTelegram')?.value.trim() || ''
     };
     saveSite(site);
     renderQuickContact(getSite());
@@ -5504,6 +5558,20 @@
 	      const drawerMinus = event.target.closest('[data-drawer-cart-minus]'); if(drawerMinus){ changeDrawerCart(drawerMinus.dataset.drawerCartMinus, -1); return; }
 	      const drawerRemove = event.target.closest('[data-drawer-cart-remove]'); if(drawerRemove){ removeDrawerCart(drawerRemove.dataset.drawerCartRemove); return; }
 	      const close = event.target.closest('[data-modal-close]'); if(close || event.target.id === 'modal'){ closeModal(); return; }
+	      const stockContactToggle = event.target.closest('[data-stock-contact-toggle]');
+	      if(stockContactToggle){
+	        const root = stockContactToggle.closest('[data-stock-contact]');
+	        const willOpen = !root?.classList.contains('open');
+	        closeStockContactMenus();
+	        if(root && willOpen){
+	          root.classList.add('open');
+	          stockContactToggle.setAttribute('aria-expanded', 'true');
+	          const menu = $('[data-stock-contact-menu]', root);
+	          if(menu) menu.hidden = false;
+	        }
+	        return;
+	      }
+	      if(!event.target.closest('[data-stock-contact]')) closeStockContactMenus();
 	      const contactToggle = event.target.closest('[data-contact-toggle]');
 	      if(contactToggle){
 	        if(contactToggle.dataset.dragMoved === '1') return;
@@ -5638,6 +5706,9 @@
       const logout = event.target.closest('[data-admin-logout]'); if(logout){ adminLogout(); return; }
     });
     document.addEventListener('keydown', handleCartDrawerKeydown);
+    document.addEventListener('keydown', event => {
+      if(event.key === 'Escape') closeStockContactMenus();
+    });
     document.addEventListener('submit', event => {
       if(event.target.matches('#reviewForm')){ submitReview(event); return; }
     });

@@ -8,9 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=126">
-  <script src="js/data.js?v=67" defer></script>
-  <script src="js/app.js?v=111" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=127">
+  <script src="js/data.js?v=68" defer></script>
+  <script src="js/app.js?v=112" defer></script>
 </head>
 
 <body data-page="admin">
@@ -519,6 +519,14 @@
                       placeholder="Позвонить | phone | +375290000000 | 1&#10;Viber | viber | +375290000000 | 1&#10;WhatsApp | whatsapp | +375290000000 | 1&#10;Почта | email | info@byvit.by | 1"></textarea>
                     <p class="admin-hint">Типы: phone, viber, whatsapp, telegram, email, link. Последняя цифра: 1 —
                       включено, 0 — скрыто.</p>
+                  </div>
+                  <div class="admin-form-section">
+                    <h4>Уточнение наличия</h4>
+                    <div class="field-row">
+                      <input id="stockContactPhone" placeholder="Телефон для звонка">
+                      <input id="stockContactTelegram" placeholder="Telegram ник или ссылка">
+                    </div>
+                    <p class="admin-hint">Эти контакты показываются в карточке товара, когда остаток равен нулю.</p>
                   </div>
                   <button class="btn btn-primary" type="submit">Сохранить связь</button>
                 </form>

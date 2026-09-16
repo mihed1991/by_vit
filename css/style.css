@@ -14196,14 +14196,106 @@ body[data-page="cart"] .europost-office-empty {
 
 [data-action="cart"].cart-state-active {
   border-color: var(--green) !important;
-  background: var(--green-soft) !important;
+  background: #fff !important;
   color: var(--green-dark) !important;
 }
 
 [data-action="cart"].cart-state-active:hover {
   border-color: var(--green-dark) !important;
-  background: var(--green-soft) !important;
+  background: #fff !important;
   color: var(--green-dark) !important;
+}
+
+body[data-page="product"] .stock-contact {
+  position: relative;
+  z-index: 65;
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
+
+body[data-page="product"] .stock-contact-toggle {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: 5px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+body[data-page="product"] .stock-contact-toggle::after {
+  content: "⌄";
+  margin-left: 7px;
+  font-size: 13px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+body[data-page="product"] .stock-contact.open .stock-contact-toggle::after {
+  transform: rotate(180deg) translateY(-1px);
+}
+
+body[data-page="product"] .stock-contact-toggle:hover,
+body[data-page="product"] .stock-contact-toggle:focus-visible {
+  color: var(--green-dark);
+}
+
+body[data-page="product"] .stock-contact-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  width: min(280px, calc(100vw - 40px));
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(25, 26, 23, .13);
+}
+
+body[data-page="product"] .stock-contact-menu[hidden] {
+  display: none !important;
+}
+
+body[data-page="product"] .stock-contact-action {
+  display: grid;
+  gap: 2px;
+  min-height: 58px;
+  align-content: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+body[data-page="product"] .stock-contact-action:last-child {
+  border-bottom: 0;
+}
+
+body[data-page="product"] a.stock-contact-action:hover,
+body[data-page="product"] a.stock-contact-action:focus-visible {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+body[data-page="product"] .stock-contact-action strong {
+  font-size: 13px;
+}
+
+body[data-page="product"] .stock-contact-action small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-page="product"] .stock-contact-action.is-disabled {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 body[data-page="cart"] .europost-office-empty {
@@ -14213,6 +14305,15 @@ body[data-page="cart"] .europost-office-empty {
 }
 
 @media(max-width:760px) {
+  body[data-page="product"] .stock-contact {
+    margin-bottom: 6px;
+  }
+
+  body[data-page="product"] .stock-contact-toggle {
+    min-height: 42px;
+    font-size: 12px;
+  }
+
   body[data-page="cart"] .europost-office-options {
     padding: 10px;
   }

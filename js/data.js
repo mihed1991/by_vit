@@ -127,6 +127,7 @@
           {id:'email',label:'Почта',type:'email',value:'info@byvit.by',href:'',enabled:true}
         ]
       },
+	  stockContact:{phone:'+375 29 000-00-00',telegram:''},
 	      footer:{
         description:'Спортивное питание и БАДы в строгом минималистичном интерфейсе.',
         copyright:'© 2026 ByVit. Demo static e-commerce.',
