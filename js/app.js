@@ -2156,7 +2156,7 @@
   function renderHeroMedia(site){
     const hero = $('.hero');
     const root = $('#heroMedia');
-    const imageFallback = 'assets/hero-fallback.svg';
+    const imageFallback = 'assets/hero-default.webp';
     const mobileMedia = site.mobileHeroMedia || {};
     const slides = (site.heroSlides || []).filter(slide => slide.enabled !== false).slice(0,4);
     const activeSlides = slides.length ? slides : [normalizeHeroSlide({

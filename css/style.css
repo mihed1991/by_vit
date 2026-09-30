@@ -3196,6 +3196,7 @@ p {
   }
 
   .quick-contact {
+    display: none;
     right: 12px;
     bottom: 88px
   }
@@ -6616,6 +6617,10 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
 }
 
 @media(max-width:760px) {
+  body[data-page="catalog"] #catalogSmart {
+    display: none;
+  }
+
   body[data-page="catalog"] .catalog-filter-bar {
     margin: 1px 0 3px;
     padding: 2px 0 4px;
@@ -6665,7 +6670,8 @@ body[data-page="catalog"] .catalog-filter-clear:hover {
     right: 0;
     left: 0;
     width: 100%;
-    max-height: 58vh;
+    height: 380px;
+    max-height: min(380px, 58vh);
     padding: 10px;
     transform: none;
   }
