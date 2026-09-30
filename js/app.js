@@ -101,9 +101,9 @@
     {id:'discount',value:'10%',label:'WELCOME скидка',enabled:true}
   ];
   const DEFAULT_HERO_COLORS = {
-    eyebrow:'#123D30',
-    title:'#3F3F3F',
-    text:'#3F3F3F'
+    eyebrow:'#3f3f3f',
+    title:'#123d30',
+    text:'#3f423d'
   };
   const DEFAULT_BRAND_IMAGE = {
     src:'',
@@ -849,15 +849,17 @@
     };
   }
   function normalizeHeroSlides(site, defaults, mobileHero){
-    const hasStoredSlides = Array.isArray(site?.heroSlides) && site.heroSlides.length;
+    const storedSlides = Array.isArray(site?.heroSlides)
+      ? site.heroSlides.filter(slide => String(slide?.desktopSrc || slide?.src || slide?.mobileSrc || '').trim()) : [];
+    const hasStoredSlides = storedSlides.length > 0;
     const hasLegacyMedia = !!(site && (site.heroMediaSrc || site.heroMediaMode || site.mobileHeroMedia?.src || site.mobileHeroMedia?.enabled));
-    const existing = hasStoredSlides ? site.heroSlides : (!hasLegacyMedia && Array.isArray(defaults.heroSlides) ? defaults.heroSlides : []);
+    const existing = hasStoredSlides ? storedSlides : (!hasLegacyMedia && Array.isArray(defaults.heroSlides) ? defaults.heroSlides : []);
     const fallback = {
       id:'hero-1',
       enabled:true,
       href:site?.heroHref || defaults.heroHref || '',
-      desktopMode:site?.heroMediaMode || defaults.heroMediaMode || 'video',
-      desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-default.mp4',
+      desktopMode:site?.heroMediaSrc ? (site.heroMediaMode || defaults.heroMediaMode) : defaults.heroMediaMode,
+      desktopSrc:site?.heroMediaSrc || defaults.heroMediaSrc || 'assets/hero-default.webp',
       mobileEnabled:mobileHero.enabled === true,
       mobileMode:mobileHero.mode || 'image',
       mobileSrc:mobileHero.src || ''
@@ -869,6 +871,33 @@
     const defaults = getDefaults().site || {};
     const storedTypographyVersion = Number(site?.typographyVersion || 1);
     const merged = {...defaults, ...(site || {})};
+    // Upgrade only the old built-in video hero; keep banners and copy added in admin.
+    const oldDefaultMedia = 'assets/hero-default.mp4';
+    const oldSlides = Array.isArray(site?.heroSlides) ? site.heroSlides : [];
+    const hasCustomSlide = oldSlides.some(slide => slide?.desktopSrc && slide.desktopSrc !== oldDefaultMedia);
+    const hasCustomMedia = !!(site?.heroMediaSrc && site.heroMediaSrc !== oldDefaultMedia);
+    const hasCustomMobileSlide = oldSlides.some(slide => slide?.mobileSrc);
+    const usesOldDefaultHero = !hasCustomSlide && !hasCustomMedia && !hasCustomMobileSlide
+      && (site?.heroMediaSrc === oldDefaultMedia || oldSlides.some(slide => slide?.desktopSrc === oldDefaultMedia));
+    const heroSource = usesOldDefaultHero
+      ? {...site, heroSlides:defaults.heroSlides.map((slide, index) => index === 0
+        ? {...slide, href:oldSlides[0]?.href || site?.heroHref || slide.href || ''} : slide),
+        heroMediaMode:defaults.heroMediaMode, heroMediaSrc:defaults.heroMediaSrc}
+      : site;
+    if(usesOldDefaultHero){
+      const oldCopy = {
+        heroEyebrow:'Premium supplements',
+        heroTitle:'Премиальное питание для тела, которое работает',
+        heroText:'ByVit собирает спортпит, витамины и добавки без визуального шума: только оригинальные бренды, понятная карточка товара и быстрый заказ.',
+        heroTextSize:16, heroAlign:'right', heroEyebrowColor:'#123D30', heroTitleColor:'#3F3F3F',
+        heroTextColor:'#3F3F3F', heroMediaOpacity:0.78, heroVeilOpacity:1, heroOverlayOpacity:0.18
+      };
+      Object.entries(oldCopy).forEach(([field, value]) => {
+        if(site?.[field] === value) merged[field] = defaults[field];
+      });
+      merged.heroMediaMode = defaults.heroMediaMode;
+      merged.heroMediaSrc = defaults.heroMediaSrc;
+    }
     delete merged.sleepPage;
     merged.header = normalizeSiteHeader(site, defaults);
     merged.telegram = {...(defaults.telegram || {}), ...(site?.telegram || {})};
@@ -907,8 +936,8 @@
     merged.heroTextSize = Number(merged.heroTextSize || 16);
     merged.heroAlign = merged.heroAlign || 'right';
     merged.heroHref = String(merged.heroHref || '').trim();
-    merged.heroMediaMode = merged.heroMediaMode || 'video';
-    merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-default.mp4';
+    merged.heroMediaMode = merged.heroMediaMode || 'image';
+    merged.heroMediaSrc = merged.heroMediaSrc || 'assets/hero-default.webp';
     delete merged.heroAnimation;
     merged.heroEyebrowColor = colorValue(merged.heroEyebrowColor, DEFAULT_HERO_COLORS.eyebrow);
     merged.heroTitleColor = colorValue(merged.heroTitleColor, DEFAULT_HERO_COLORS.title);
@@ -922,7 +951,7 @@
     merged.heroActionsDesktop = merged.heroActionsDesktop !== false;
     merged.heroCopyMobile = merged.heroCopyMobile !== false;
     merged.heroActionsMobile = merged.heroActionsMobile !== false;
-    merged.heroSlides = normalizeHeroSlides(site, defaults, merged.mobileHeroMedia);
+    merged.heroSlides = normalizeHeroSlides(heroSource, defaults, merged.mobileHeroMedia);
     return merged;
   }
   function migrateLegacyWheyVariants(products){
@@ -2132,8 +2161,8 @@
     const slides = (site.heroSlides || []).filter(slide => slide.enabled !== false).slice(0,4);
     const activeSlides = slides.length ? slides : [normalizeHeroSlide({
       href:site.heroHref || '',
-      desktopMode:site.heroMediaMode || 'video',
-      desktopSrc:site.heroMediaSrc || 'assets/hero-default.mp4',
+      desktopMode:site.heroMediaMode || 'image',
+      desktopSrc:site.heroMediaSrc || 'assets/hero-default.webp',
       mobileEnabled:mobileMedia.enabled === true,
       mobileMode:mobileMedia.mode || 'image',
       mobileSrc:mobileMedia.src || ''
@@ -4244,7 +4273,7 @@
       enabled:true,
       href:$('#siteHeroHref')?.value.trim() || '',
       desktopMode,
-      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-default.mp4',
+      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-default.webp',
       mobileEnabled:$('#siteMobileHeroEnabled')?.checked === true,
       mobileMode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
       mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || ''
@@ -5423,8 +5452,8 @@
     const defaults = getDefaults().site || {};
     const previous = $('#siteHeroMediaSrc')?.value.trim() || '';
     const values = {
-      siteHeroMediaMode:defaults.heroMediaMode || 'video',
-      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-default.mp4'
+      siteHeroMediaMode:defaults.heroMediaMode || 'image',
+      siteHeroMediaSrc:defaults.heroMediaSrc || 'assets/hero-default.webp'
     };
     Object.entries(values).forEach(([id, value]) => {
       const field = $('#'+id);

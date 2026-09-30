@@ -111,7 +111,12 @@ async function main() {
     assert.equal(desktopHeaderFit, true, 'Larger desktop logo must not overlap navigation at 1200px');
     await page.setViewportSize({ width:1440, height:900 });
     if(qaScreenshotDir) await page.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-desktop.png') });
-    assert.equal(await page.locator('.hero video source').getAttribute('src'), 'assets/hero-default.mp4');
+    assert.equal(await page.locator('.hero .hero-desktop-media').getAttribute('src'), 'assets/hero-default.webp');
+    await page.locator('.hero .hero-desktop-media').evaluate(image => image.decode());
+    assert.equal(await page.locator('.hero').getAttribute('data-align'), 'left');
+    assert.equal(await page.locator('#heroEyebrow').textContent(), 'Больше, чем добавки');
+    assert.equal(await page.locator('#heroTitle').innerText(), 'Забота о себе в каждой детали');
+    assert.equal(await page.locator('#heroText').innerText(), 'Качественные добавки для энергии, здоровья и баланса');
     assert.equal(await page.locator('a[href="admin.html"]').count(), 0, 'Public homepage must not expose an admin link');
     const homeBlockOrder = await page.locator('main > [data-home-block]').evaluateAll(nodes => nodes.map(node => node.dataset.homeBlock));
     assert.deepEqual(homeBlockOrder, ['categories', 'sale', 'goals', 'brands', 'trust']);
