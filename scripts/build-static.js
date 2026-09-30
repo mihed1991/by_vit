@@ -32,7 +32,7 @@ function pageMetadata(source, file) {
   const title = source.match(/<title>([\s\S]*?)<\/title>/i)?.[1]?.trim() || 'ByVit';
   const description = source.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)?.[1]?.trim() || '';
   const pageUrl = new URL(file === 'index.html' ? './' : file, publicUrl).href;
-  const imageUrl = new URL('assets/product-whey.jpg', publicUrl).href;
+  const imageUrl = new URL('assets/hero-share.jpg', publicUrl).href;
   return [
     `<link rel="canonical" href="${escapeHtml(pageUrl)}">`,
     '<meta property="og:type" content="website">',
@@ -40,7 +40,13 @@ function pageMetadata(source, file) {
     `<meta property="og:description" content="${escapeHtml(description)}">`,
     `<meta property="og:url" content="${escapeHtml(pageUrl)}">`,
     `<meta property="og:image" content="${escapeHtml(imageUrl)}">`,
-    '<meta name="twitter:card" content="summary_large_image">'
+    '<meta property="og:image:type" content="image/jpeg">',
+    '<meta property="og:image:width" content="1600">',
+    '<meta property="og:image:height" content="640">',
+    '<meta property="og:image:alt" content="ByVit — спортивное питание и добавки">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    `<meta name="twitter:image" content="${escapeHtml(imageUrl)}">`,
+    '<meta name="twitter:image:alt" content="ByVit — спортивное питание и добавки">'
   ].join('\n  ');
 }
 
