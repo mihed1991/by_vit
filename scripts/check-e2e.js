@@ -93,11 +93,73 @@ async function main() {
 
     await page.goto('/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.hero').waitFor();
+    assert.equal(await page.locator('.site-header .brand-mark').isVisible(), false, 'Default header icon must be hidden');
+    assert.equal(await page.locator('.site-header .brand-wordmark-img').getAttribute('src'), 'assets/byvit-header-wordmark.svg');
+    assert.equal(await page.locator('.site-header .brand-tagline-img').getAttribute('src'), 'assets/byvit-header-tagline.svg');
+    assert.equal(await page.locator('.site-header .brand-tagline-img').isVisible(), true);
+    const desktopLockup = await page.locator('.site-header .brand-lockup').evaluate(node => ({width:node.getBoundingClientRect().width, gap:getComputedStyle(node).gap}));
+    assert.ok(Math.abs(desktopLockup.width - 211.2) < 1);
+    assert.equal(desktopLockup.gap, '10px');
+    const footerLockup = await page.locator('.footer-wordmark').evaluate(node => ({width:node.getBoundingClientRect().width, gap:getComputedStyle(node).gap, name:node.querySelector('.footer-wordmark-name')?.getAttribute('src'), subtitle:node.querySelector('.footer-wordmark-subtitle')?.getAttribute('src')}));
+    assert.ok(Math.abs(footerLockup.width - desktopLockup.width * .5) < 1, 'Desktop footer logo must be half the header size');
+    assert.equal(footerLockup.gap, '5px');
+    assert.equal(footerLockup.name, 'assets/byvit-header-wordmark.svg');
+    assert.equal(footerLockup.subtitle, 'assets/byvit-header-tagline.svg');
+    if(qaScreenshotDir) await page.locator('.footer').screenshot({path:path.join(qaScreenshotDir, 'footer-desktop.png')});
+    await page.setViewportSize({ width:1200, height:814 });
+    const desktopHeaderFit = await page.evaluate(() => document.querySelector('.site-header .brand').getBoundingClientRect().right < document.querySelector('.site-header .main-nav').getBoundingClientRect().left);
+    assert.equal(desktopHeaderFit, true, 'Larger desktop logo must not overlap navigation at 1200px');
+    await page.setViewportSize({ width:1440, height:900 });
+    if(qaScreenshotDir) await page.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-desktop.png') });
     assert.equal(await page.locator('.hero video source').getAttribute('src'), 'assets/hero-default.mp4');
     assert.equal(await page.locator('a[href="admin.html"]').count(), 0, 'Public homepage must not expose an admin link');
     const homeBlockOrder = await page.locator('main > [data-home-block]').evaluateAll(nodes => nodes.map(node => node.dataset.homeBlock));
     assert.deepEqual(homeBlockOrder, ['categories', 'sale', 'goals', 'brands', 'trust']);
     assert.equal(await page.locator('[data-home-block="trust"]').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 255, 255)');
+    await page.locator('#homeGoals .goal-card').first().waitFor();
+    assert.equal(await page.locator('#homeGoals .goal-card').count(), 6);
+    const desktopGoalLayout = await page.locator('#homeGoals .goal-card').evaluateAll(cards => cards.map(card => {
+      const box = card.getBoundingClientRect();
+      const icon = card.querySelector('.desktop-goal-icon').getBoundingClientRect();
+      const heading = card.querySelector('h3').getBoundingClientRect();
+      const copy = card.querySelector('p').getBoundingClientRect();
+      return { top:card.offsetTop, border:getComputedStyle(card).borderTopWidth, icon:getComputedStyle(card.querySelector('.desktop-goal-icon')).display, iconCenterOffset:Math.abs((icon.top + icon.bottom - box.top - box.bottom) / 2), textSpacingDiff:Math.abs((heading.top - box.top) - (box.bottom - copy.bottom)) };
+    }));
+    assert.equal(new Set(desktopGoalLayout.slice(0, 3).map(card => card.top)).size, 1, 'Desktop goals must form a three-column first row');
+    assert.ok(desktopGoalLayout[3].top > desktopGoalLayout[0].top && desktopGoalLayout.every(card => card.border === '1px' && card.icon !== 'none' && card.iconCenterOffset <= 2 && card.textSpacingDiff <= 7));
+    assert.equal(await page.locator('#homeGoals .desktop-goal-action').count(), 0);
+    assert.equal(await page.locator('#homeGoals .figma-goal-arrow').first().evaluate(node => getComputedStyle(node).display), 'none');
+    assert.equal(await page.locator('#homeGoals .goal-card').first().locator('.desktop-goal-icon rect').count(), 4, 'Mass goal needs a symmetric dumbbell icon');
+    await page.locator('#homeGoals .goal-card').first().hover();
+    assert.equal(await page.locator('#homeGoals .goal-card').first().evaluate(node => getComputedStyle(node).borderTopColor), 'rgb(18, 61, 48)');
+    assert.equal(await page.locator('[data-home-block="brands"] .home-section-link').textContent(), 'Все бренды');
+    assert.equal(await page.locator('#homeBrands').evaluate(node => getComputedStyle(node).borderTopWidth), '1px');
+    await page.locator('#homeBrands .brand-card').nth(1).hover();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#homeBrands .brand-card:nth-child(2)')).outlineColor === 'rgb(18, 61, 48)');
+    assert.equal(await page.locator('#homeBrands .brand-card').nth(1).evaluate(node => getComputedStyle(node).outlineWidth), '1px');
+    const textBrandCard = page.locator('#homeBrands .brand-card:not(.has-image)').first();
+    for(const width of [1440, 1200]){
+      await page.setViewportSize({width, height:900});
+      const alignment = await textBrandCard.evaluate(card => {
+        const box = card.getBoundingClientRect();
+        const media = card.querySelector('.brand-media').getBoundingClientRect();
+        const label = card.querySelector('.brand-letter').getBoundingClientRect();
+        return {mediaOffset:Math.abs((media.top + media.bottom - box.top - box.bottom) / 2), labelOffset:Math.abs((label.top + label.bottom - box.top - box.bottom) / 2), align:getComputedStyle(card.querySelector('.brand-letter')).alignItems};
+      });
+      assert.ok(alignment.mediaOffset <= 2 && alignment.labelOffset <= 2 && alignment.align === 'center', `Text-only brand must be vertically centered at ${width}px: ${JSON.stringify(alignment)}`);
+    }
+    await page.setViewportSize({width:1440, height:900});
+    assert.equal(await page.locator('#homeTrust').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length), 4);
+    assert.equal(await page.locator('#homeTrust .desktop-trust-top span').count(), 0);
+    assert.equal(await page.locator('#homeTrust .desktop-trust-top svg').count(), 4);
+    if(qaScreenshotDir){
+      for(const [block, file] of [['goals','home-goals-desktop.png'], ['brands','home-brands-desktop.png'], ['trust','home-trust-desktop.png']]){
+        const section = page.locator(`[data-home-block="${block}"]`);
+        await section.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        await section.screenshot({path:path.join(qaScreenshotDir, file)});
+      }
+    }
 
     await page.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
     await page.locator('.product-card').first().waitFor();
@@ -143,7 +205,7 @@ async function main() {
         coversFilters
       };
     });
-    assert.equal(desktopSearchOverlay.background, 'rgb(255, 255, 255)');
+    assert.equal(desktopSearchOverlay.background, 'rgb(254, 253, 251)');
     assert.equal(desktopSearchOverlay.coversFilters, true, 'Desktop search suggestions must cover the filter row');
     await page.locator('#catalogSearch').fill('');
     await page.locator('#catalogFilters summary').filter({ hasText: 'Производитель' }).click();
@@ -169,7 +231,7 @@ async function main() {
     await firstCatalogCartButton.click();
     assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзине');
     await page.waitForTimeout(250);
-    assert.equal(await firstCatalogCartButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(255, 255, 255)');
+    assert.equal(await firstCatalogCartButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(254, 253, 251)');
     await firstCatalogCartButton.click();
     assert.equal((await firstCatalogCartButton.textContent()).trim(), 'В корзину');
     assert.equal(await page.locator('[data-count="cart"]').first().textContent(), '');
@@ -237,6 +299,14 @@ async function main() {
 
     await page.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
     await page.locator('[data-product-add="1"]').waitFor();
+    const desktopDetailCartButton = page.locator('[data-product-add="1"]');
+    assert.equal(await desktopDetailCartButton.textContent(), 'Добавить в корзину');
+    await desktopDetailCartButton.click();
+    assert.equal(await desktopDetailCartButton.textContent(), 'В корзине');
+    await page.waitForTimeout(250);
+    assert.equal(await desktopDetailCartButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(254, 253, 251)');
+    await desktopDetailCartButton.click();
+    assert.equal(await desktopDetailCartButton.textContent(), 'Добавить в корзину');
     assert.match(await page.locator('.product-detail-title').textContent(), /whey protein/i);
     assert.deepEqual(await page.locator('#packageOptions .chip').allTextContents(), ['900 г', '2.27 кг']);
     assert.equal(await page.locator('#packageOptions .chip.active').textContent(), '900 г');
@@ -256,15 +326,25 @@ async function main() {
     assert.equal(adminState.orders.length, 1);
     assert.equal(adminState.orders[0].deliveryKey, 'europost');
     assert.match(adminState.orders[0].customer.address, /Отделение №1: г\. Минск/);
+    assert.match(await page.locator('[data-hero-control="src"]').textContent(), /2560 × 1024 px/);
+    assert.match(await page.locator('[data-mobile-hero-control="src"]').textContent(), /1200 × 650 px/);
+    await page.locator('[data-mobile-home-field="heroTitle"]').fill('Тест мобильного баннера');
+    await page.locator('[data-mobile-home-item="trust"]').first().locator('[data-mobile-item-field="title"]').fill('Тестовое преимущество');
+    await page.locator('#adminSiteForm button[type="submit"]').click();
+    await page.waitForFunction(async () => (await (await fetch('/api/state')).json()).site.mobileHome?.heroTitle === 'Тест мобильного баннера');
     await page.locator('[data-admin-tab="quick-contact"]').click();
     await page.locator('#admin-quick-contact.active').waitFor();
     await page.locator('#stockContactPhone').fill('+375 29 111-22-33');
     await page.locator('#stockContactTelegram').fill('@byvit_support');
+    await page.locator('#quickContactButtonColor').fill('#804020');
     await page.locator('#adminQuickContactForm button[type="submit"]').click();
     await page.waitForTimeout(600);
     const contactState = await (await page.request.get('/api/state')).json();
     assert.equal(contactState.site.stockContact.phone, '+375 29 111-22-33');
     assert.equal(contactState.site.stockContact.telegram, '@byvit_support');
+    assert.equal(contactState.site.quickContact.buttonColor, '#804020');
+    assert.equal(await page.locator('.quick-contact-button').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(128, 64, 32)');
+    assert.equal(await page.locator('#quickContactButtonColor').evaluate(node => Math.round(node.getBoundingClientRect().width)), 48);
     await page.locator('[data-admin-tab="delivery"]').click();
     await page.locator('#admin-delivery.active').waitFor();
     const courierCard = page.locator('[data-delivery-method-key="delivery"]');
@@ -363,13 +443,49 @@ async function main() {
     mobilePage.on('pageerror', error => mobileErrors.push(error.message));
     mobilePage.on('console', message => { if (message.type() === 'error') mobileErrors.push(message.text()); });
     await assertNoHorizontalOverflow(mobilePage, '/index.html');
+    assert.equal(await mobilePage.locator('#homeGoals .desktop-goal-icon').first().evaluate(node => getComputedStyle(node).display), 'none');
+    assert.equal(await mobilePage.locator('#homeTrust .desktop-trust-top').first().evaluate(node => getComputedStyle(node).display), 'none');
+    assert.equal(await mobilePage.locator('.site-header .brand-mark').isVisible(), false);
+    assert.equal(await mobilePage.locator('.site-header .brand-wordmark-img').isVisible(), true);
+    assert.equal(await mobilePage.locator('.site-header .brand-tagline-img').isVisible(), false);
+    const mobileLockup = await mobilePage.locator('.site-header .brand-lockup').evaluate(node => ({width:node.getBoundingClientRect().width, display:getComputedStyle(node).display}));
+    assert.ok(Math.abs(mobileLockup.width - 105.6) < 1 && mobileLockup.display === 'flex');
+    const headerControls = await mobilePage.locator('.site-header .burger, .site-header .brand, .site-header .header-search-trigger, .site-header .header-contact-trigger').evaluateAll(nodes => nodes.map(node => ({left:node.getBoundingClientRect().left, center:node.getBoundingClientRect().left + node.getBoundingClientRect().width / 2, visible:getComputedStyle(node).display !== 'none'})));
+    assert.equal(headerControls.length, 4);
+    assert.ok(headerControls.every(item => item.visible));
+    assert.ok(headerControls[1].left < headerControls[0].left && headerControls[0].left < headerControls[2].left && headerControls[2].left < headerControls[3].left, 'Mobile header must show menu, centered logo, search, and contact in order');
+    assert.ok(Math.abs(headerControls[0].center - 195) < 2, 'Mobile wordmark must be centered');
+    assert.match(await mobilePage.locator('.header-contact-trigger').getAttribute('href'), /^tel:/);
+    await mobilePage.evaluate(() => window.scrollTo(0, 650));
+    await mobilePage.waitForFunction(() => window.scrollY >= 600);
+    const stickyState = await mobilePage.locator('.site-header').evaluate(node => ({top:node.getBoundingClientRect().top, position:getComputedStyle(node).position, bodyOverflowX:getComputedStyle(document.body).overflowX, bodyOverflowY:getComputedStyle(document.body).overflowY, scrollY:window.scrollY}));
+    assert.ok(Math.abs(stickyState.top) < 1, `Mobile header must remain visible while scrolling: ${JSON.stringify(stickyState)}`);
+    await mobilePage.evaluate(() => window.scrollTo(0, 0));
+    assert.equal(await mobilePage.locator('.footer-wordmark').evaluate(node => node.getBoundingClientRect().width), mobileLockup.width);
+    assert.equal(await mobilePage.locator('.footer-wordmark-subtitle').isVisible(), false);
+    if(qaScreenshotDir) await mobilePage.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-mobile.png') });
+    assert.equal(await mobilePage.locator('.mv-hero h1').textContent(), 'Тест мобильного баннера');
+    assert.equal(await mobilePage.locator('.mv-trust-list article h3').first().textContent(), 'Тестовое преимущество');
+    assert.equal(await mobilePage.locator('.mv-trust-list article').first().evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 255, 255)');
+    assert.deepEqual(await mobilePage.locator('.mv-product-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.productId)), ['1','2']);
+    const homeCardSize = await mobilePage.locator('.mv-product-card').first().evaluate(card => ({width:card.getBoundingClientRect().width, height:card.getBoundingClientRect().height}));
+    assert.equal(await mobilePage.locator('.mv-goal-list a').count(), 6);
+    assert.deepEqual(await mobilePage.locator('.mobile-bottom-nav a > span:nth-child(2)').allTextContents(), ['Главная', 'Каталог', 'Акции', 'Корзина', 'Магазины']);
+    assert.equal(await mobilePage.locator('.mobile-bottom-nav a[href="sale.html"] .bottom-nav-icon').textContent(), '%');
+    assert.equal(await mobilePage.locator('.mobile-bottom-nav a:first-child .bottom-nav-icon').evaluate(icon => getComputedStyle(icon).fontSize), '24px');
+    await mobilePage.locator('.mobile-bottom-nav a[href="sale.html"]').click();
+    assert.equal(new URL(mobilePage.url()).pathname, '/sale.html');
+    assert.equal(await mobilePage.locator('.mobile-bottom-nav a.active').getAttribute('href'), 'sale.html');
     for (const pathname of ['/index.html', '/catalog.html', '/sale.html']) {
       await mobilePage.goto(pathname, { waitUntil: 'domcontentloaded' });
-      const productCard = mobilePage.locator('.product-grid .product-card').first();
+      const redesignedHome = pathname === '/index.html';
+      const productCard = redesignedHome
+        ? mobilePage.locator('.mv-product-card').first()
+        : mobilePage.locator('.product-grid .product-card').first();
       await productCard.waitFor();
-      const mobileCardStyle = await productCard.evaluate(card => {
-        const button = card.querySelector('.card-buttons .btn');
-        const price = card.querySelector('.price');
+      const mobileCardStyle = await productCard.evaluate((card, isRedesignedHome) => {
+        const button = card.querySelector(isRedesignedHome ? '.mv-card-cart' : '.card-buttons .btn');
+        const price = card.querySelector(isRedesignedHome ? '.mv-card-price strong' : '.price');
         return {
           cardRadius:getComputedStyle(card).borderRadius,
           cardShadow:getComputedStyle(card).boxShadow,
@@ -378,13 +494,14 @@ async function main() {
           buttonFontSize:getComputedStyle(button).fontSize,
           priceWeight:getComputedStyle(price).fontWeight
         };
-      });
+      }, redesignedHome);
       assert.equal(mobileCardStyle.cardRadius, '2px', `${pathname} product card must use Swiss radius`);
       assert.equal(mobileCardStyle.cardShadow, 'none', `${pathname} product card must stay flat`);
-      assert.equal(mobileCardStyle.buttonRadius, '2px', `${pathname} add-to-cart button must use Swiss radius`);
-      assert.equal(mobileCardStyle.buttonHeight, 36, `${pathname} add-to-cart button must keep its compact mobile height`);
-      assert.equal(mobileCardStyle.buttonFontSize, '13px', `${pathname} add-to-cart button must keep its mobile typography`);
-      assert.equal(mobileCardStyle.priceWeight, '650', `${pathname} price must match desktop weight`);
+      assert.equal(mobileCardStyle.buttonRadius, '2px', `${pathname} add-to-cart button must use the shared square radius`);
+      assert.equal(mobileCardStyle.buttonHeight, 38, `${pathname} add-to-cart button must keep its specified mobile height`);
+      if(!redesignedHome) assert.equal(mobileCardStyle.buttonFontSize, '13px', `${pathname} add-to-cart button must keep its mobile typography`);
+      assert.equal(mobileCardStyle.priceWeight, '600', `${pathname} price must match the current brand typography`);
+      if(pathname === '/sale.html') assert.equal(await productCard.evaluate(card => getComputedStyle(card).minHeight), '0px', 'Sale cards must not retain extra space below their content');
     }
     await mobilePage.goto('/index.html', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('[data-burger]').click();
@@ -394,9 +511,22 @@ async function main() {
       await assertNoHorizontalOverflow(mobilePage, pathname);
     }
     await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
+    assert.equal(await mobilePage.locator('.mobile-card-wishlist').count(), 0, 'Mobile catalog must not overlay wishlist controls on product images');
     await mobilePage.locator('[data-action="cart"][data-id="1"]').click();
     await mobilePage.locator('[data-action="cart"][data-id="4"]').click();
     await mobilePage.goto('/cart.html', { waitUntil: 'domcontentloaded' });
+    assert.equal(await mobilePage.locator('#cartList .cart-item-product-link').first().getAttribute('href'), 'product.html?id=1');
+    assert.equal(await mobilePage.locator('#cartList .cart-item-info h3 a').first().getAttribute('href'), 'product.html?id=1');
+    assert.equal(await mobilePage.locator('#cartList .cart-remove-icon').first().isVisible(), true);
+    assert.equal(await mobilePage.locator('#cartList .cart-remove-label').first().isVisible(), false);
+    const cartRadii = await mobilePage.evaluate(() => ['.mobile-panel', '.page-hero', '#promoCode', '#promoApply'].map(selector => getComputedStyle(document.querySelector(selector)).borderRadius));
+    assert.deepEqual(cartRadii, ['2px', '2px', '2px', '2px']);
+    await mobilePage.locator('#cartList .cart-item-product-link').first().click();
+    assert.equal(new URL(mobilePage.url()).pathname + new URL(mobilePage.url()).search, '/product.html?id=1');
+    await mobilePage.goBack({ waitUntil: 'domcontentloaded' });
+    await mobilePage.locator('#cartList .cart-price-badge').first().click();
+    assert.equal(new URL(mobilePage.url()).pathname + new URL(mobilePage.url()).search, '/product.html?id=1');
+    await mobilePage.goBack({ waitUntil: 'domcontentloaded' });
     await mobilePage.locator('#promoCode').fill('WELCOME');
     await mobilePage.locator('#promoApply').click();
     await mobilePage.locator('.delivery-option:has(input[name="delivery"][value="europost"])').click();
@@ -413,11 +543,64 @@ async function main() {
     const mobileCartDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
     assert.ok(mobileCartDimensions.scrollWidth <= mobileCartDimensions.width + 1, 'Open Europost picker must not create horizontal overflow');
     if(qaScreenshotDir) await mobilePage.locator('.cart-layout').screenshot({ path:path.join(qaScreenshotDir, 'cart-pricing-mobile.png') });
+    await mobilePage.goto('/product.html?id=4', { waitUntil: 'domcontentloaded' });
+    await mobilePage.locator('.product-detail-title').waitFor();
     await mobilePage.goto('/product.html?id=1', { waitUntil: 'domcontentloaded' });
     assert.equal(await mobilePage.locator('.gallery-thumbs button').count(), 5);
+    const productTabs = await mobilePage.locator('.tab-buttons').evaluate(tabs => ({scrollbarWidth:getComputedStyle(tabs).scrollbarWidth, scrolls:tabs.scrollWidth > tabs.clientWidth}));
+    assert.deepEqual(productTabs, {scrollbarWidth:'none', scrolls:true});
+    for(const selector of ['#similarProducts .product-card', '#recentProducts .product-card']){
+      const size = await mobilePage.locator(selector).first().evaluate(card => ({width:card.getBoundingClientRect().width, height:card.getBoundingClientRect().height}));
+      assert.deepEqual(size, homeCardSize, `${selector} must match the mobile home card size`);
+    }
+    const detailCartButton = mobilePage.locator('[data-product-add="1"]');
+    assert.equal(await detailCartButton.textContent(), 'В корзине');
+    await detailCartButton.click();
+    assert.equal(await detailCartButton.textContent(), 'Добавить в корзину');
+    await detailCartButton.click();
+    assert.equal(await detailCartButton.textContent(), 'В корзине');
+    await mobilePage.locator('#flavorOptions [data-flavor="Ваниль"]').click();
+    assert.equal(await detailCartButton.textContent(), 'Добавить в корзину');
+    await mobilePage.locator('#flavorOptions [data-flavor="Шоколад"]').click();
+    assert.equal(await detailCartButton.textContent(), 'В корзине');
     const mobileThumbTops = await mobilePage.locator('.gallery-thumbs button').evaluateAll(nodes => nodes.map(node => Math.round(node.getBoundingClientRect().top)));
     assert.equal(new Set(mobileThumbTops).size, 1, 'Mobile product thumbnails must stay on one horizontal line');
     if(qaScreenshotDir) await mobilePage.locator('.product-gallery').screenshot({ path:path.join(qaScreenshotDir, 'product-gallery-mobile.png') });
+    await mobilePage.goto('/product.html?id=4', { waitUntil: 'domcontentloaded' });
+    await mobilePage.locator('#packageOptions .chip.active').waitFor();
+    const mobileProductControls = await mobilePage.evaluate(() => {
+      const style = selector => getComputedStyle(document.querySelector(selector)).borderRadius;
+      return {
+        packageRadius:style('#packageOptions .chip.active'),
+        cartRadius:style('[data-product-add]'),
+        wishlistRadius:style('[data-action="wishlist"]'),
+        compareRadius:style('[data-action="compare"]'),
+        wishlistIcon:document.querySelector('[data-action="wishlist"] .header-action-glyph')?.outerHTML || '',
+        compareIcon:document.querySelector('[data-action="compare"] .header-action-glyph')?.outerHTML || ''
+      };
+    });
+    assert.deepEqual({
+      packageRadius:mobileProductControls.packageRadius,
+      cartRadius:mobileProductControls.cartRadius,
+      wishlistRadius:mobileProductControls.wishlistRadius,
+      compareRadius:mobileProductControls.compareRadius
+    }, {packageRadius:'2px', cartRadius:'2px', wishlistRadius:'2px', compareRadius:'2px'});
+    assert.match(mobileProductControls.wishlistIcon, /M12 20\.2/);
+    assert.match(mobileProductControls.compareIcon, /M5 8h13/);
+    await mobilePage.locator('.product-panel [data-action="wishlist"]').click();
+    assert.equal(await mobilePage.locator('.product-panel [data-action="wishlist"] .header-action-glyph').count(), 1, 'Wishlist action must retain the shared header icon after changing state');
+    await mobilePage.locator('.product-panel [data-action="compare"]').click();
+    assert.equal(await mobilePage.locator('.product-panel [data-action="compare"] .header-action-glyph').count(), 1, 'Compare action must retain the shared header icon after changing state');
+    assert.equal(await mobilePage.locator('.page-hero').evaluate(node => getComputedStyle(node).borderRadius), '2px');
+    const footerAndNav = await mobilePage.evaluate(() => {
+      const footer = document.querySelector('.footer');
+      const nav = document.querySelector('.mobile-bottom-nav');
+      return {
+        navBorder:getComputedStyle(nav).borderTopWidth,
+        footerBeforeNav:Boolean(footer.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING)
+      };
+    });
+    assert.deepEqual(footerAndNav, {navBorder:'0px', footerBeforeNav:true});
     await mobilePage.goto('/product.html?id=3', { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('[data-stock-contact-toggle]').click();
     await mobilePage.locator('[data-stock-contact-menu]').waitFor({ state:'visible' });
@@ -425,6 +608,14 @@ async function main() {
     assert.ok(mobileStockContactDimensions.scrollWidth <= mobileStockContactDimensions.width + 1, 'Availability contact menu must not create mobile horizontal overflow');
     await mobilePage.setViewportSize({ width: 319, height: 730 });
     await mobilePage.goto('/catalog.html', { waitUntil: 'domcontentloaded' });
+    const bottomNavFits = await mobilePage.locator('.mobile-bottom-nav').evaluate(nav => {
+      const navRect = nav.getBoundingClientRect();
+      return [...nav.querySelectorAll('a')].every(link => {
+        const rect = link.getBoundingClientRect();
+        return rect.left >= navRect.left && rect.right <= navRect.right;
+      });
+    });
+    assert.equal(bottomNavFits, true, 'Five bottom-navigation items must fit at 319px');
     await mobilePage.locator('#catalogFilters summary').first().waitFor();
     assert.equal(await mobilePage.locator('#catalogSort').isVisible(), false, 'Catalog sorting must be hidden on mobile');
     const mobileFilterLayout = await mobilePage.locator('#catalogFilters summary, #catalogFilters .catalog-filter-all-link').evaluateAll(nodes => nodes.map(node => ({
@@ -467,12 +658,113 @@ async function main() {
         coversFilters
       };
     });
-    assert.equal(mobileSearchOverlay.background, 'rgb(255, 255, 255)');
+    assert.equal(mobileSearchOverlay.background, 'rgb(254, 253, 251)');
     assert.equal(mobileSearchOverlay.coversFilters, true, 'Mobile search suggestions must cover the filter row');
     const mobileCatalogDimensions = await mobilePage.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
     assert.ok(mobileCatalogDimensions.scrollWidth <= mobileCatalogDimensions.width + 1, 'Open mobile filters must not create horizontal overflow');
     assert.deepEqual(mobileErrors, [], `Mobile page errors: ${mobileErrors.join('; ')}`);
     await mobile.close();
+
+    const updates = await browser.newContext({ baseURL: baseUrl, viewport: { width: 1440, height: 900 } });
+    const updatePage = await updates.newPage();
+    await updatePage.goto('/admin.html', { waitUntil: 'domcontentloaded' });
+    await updatePage.locator('#adminPassword').fill(adminPassword);
+    await updatePage.locator('#adminLoginForm button[type="submit"]').click();
+    await updatePage.locator('#adminPanel').waitFor({ state: 'visible' });
+    const expandedState = await (await updatePage.request.get('/api/admin/state')).json();
+    const productTemplate = expandedState.products[0];
+    expandedState.products.push(...Array.from({ length: 22 }, (_, index) => ({
+      ...productTemplate,
+      id:1000 + index,
+      name:`Тест пагинации ${index + 1}`,
+      slug:`pagination-test-${index + 1}`
+    })));
+    expandedState.site.homeGallery = [
+      {id:'qa-gallery-1', src:'assets/home-mobile-hero.jpg', alt:'Фото 1', caption:'Подпись первого фото'},
+      {id:'qa-gallery-2', src:'assets/home-mobile-hero.jpg', alt:'Фото 2', caption:'Подпись второго фото'}
+    ];
+    const expandedSave = await updatePage.request.put('/api/admin/state', {data:expandedState});
+    assert.equal(expandedSave.status(), 200, 'Expanded catalog and gallery data must save');
+    await updatePage.reload({waitUntil:'domcontentloaded'});
+    await updatePage.locator('#adminHomeGalleryStoryTitle').fill('BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    await updatePage.locator('#adminHomeGalleryStoryText').fill('Оригинальные добавки для ваших целей.\nПоможем с выбором и получением заказа.');
+    await updatePage.locator('#adminHomeGalleryStoryButtonText').fill('О магазинах');
+    await updatePage.locator('#adminSiteForm button[type="submit"]').click();
+    await updatePage.waitForFunction(async () => (await (await fetch('/api/state')).json()).site.homeGalleryStoryTitle === 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    await updatePage.goto('/index.html', {waitUntil:'domcontentloaded'});
+    await updatePage.waitForFunction(() => document.querySelector('#homeGalleryStoryTitle')?.textContent === 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    assert.equal(await updatePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    assert.equal(await updatePage.locator('#homeGalleryStoryTitle').evaluate(node => getComputedStyle(node).textTransform), 'none');
+    assert.match(await updatePage.locator('#homeGalleryStoryText').textContent(), /Поможем с выбором/);
+    assert.equal(await updatePage.locator('#homeGalleryStoryButton').textContent(), 'О магазинах');
+    assert.equal(await updatePage.locator('#homeGalleryStoryButton').getAttribute('href'), 'stores.html');
+    assert.equal(await updatePage.locator('#homeGalleryControls').count(), 0, 'Gallery must not show arrow controls');
+    const galleryColumns = await updatePage.locator('.home-gallery-copy, .home-gallery-media').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
+    assert.ok(galleryColumns[0].right < galleryColumns[1].left, 'Desktop gallery must place text left of the photo');
+    assert.equal(await updatePage.locator('#homeGallery').evaluate(rail => rail.scrollWidth > rail.clientWidth), true, 'Photo rail must be horizontally scrollable');
+    assert.equal(await updatePage.locator('.home-gallery-item').nth(1).locator('.home-gallery-caption').textContent(), 'Подпись второго фото');
+    assert.equal(await updatePage.locator('.home-gallery-caption').first().isVisible(), false, 'Desktop copy must be separate from photos');
+    assert.equal(await updatePage.locator('.home-gallery-dots').isVisible(), true);
+    const galleryDotStyle = await updatePage.locator('.home-gallery-dots button').first().evaluate(dot => ({width:getComputedStyle(dot).width, height:getComputedStyle(dot).height, radius:getComputedStyle(dot).borderRadius, color:getComputedStyle(dot).color}));
+    assert.deepEqual(galleryDotStyle, {width:'8px', height:'8px', radius:'0px', color:'rgb(17, 61, 48)'});
+    await updatePage.locator('#homeGallerySection').scrollIntoViewIfNeeded();
+    await updatePage.locator('.home-gallery-head.is-revealed').waitFor();
+    await updatePage.waitForTimeout(600);
+    if(qaScreenshotDir) await updatePage.locator('#homeGallerySection').screenshot({path:path.join(qaScreenshotDir, 'home-gallery-desktop.png')});
+    await updatePage.locator('[data-gallery-index="1"]').click();
+    await updatePage.waitForFunction(() => document.querySelector('#homeGallery').scrollLeft > 0);
+    await updatePage.locator('[data-gallery-index="0"]').click();
+    await updatePage.waitForFunction(() => document.querySelector('#homeGallery').scrollLeft === 0);
+    const galleryBox = await updatePage.locator('#homeGallery').boundingBox();
+    await updatePage.mouse.move(galleryBox.x + galleryBox.width * .75, galleryBox.y + galleryBox.height * .5);
+    await updatePage.mouse.down();
+    await updatePage.mouse.move(galleryBox.x + galleryBox.width * .2, galleryBox.y + galleryBox.height * .5, {steps:8});
+    await updatePage.mouse.up();
+    await updatePage.waitForFunction(() => document.querySelector('#homeGallery').scrollLeft > 0, null, {timeout:3000});
+    assert.equal(await updatePage.locator('.product-card .circle-action .card-action-glyph').count() > 0, true);
+    await updatePage.goto('/catalog.html?sort=popular', {waitUntil:'domcontentloaded'});
+    await updatePage.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(await updatePage.locator('#catalogProducts .product-card').count(), 30);
+    assert.equal(await updatePage.locator('#catalogPagination').isVisible(), true);
+    await updatePage.locator('#catalogPagination [aria-label="Страница 2"]').click();
+    assert.match(updatePage.url(), /sort=popular.*page=2/);
+    assert.equal(await updatePage.locator('#catalogProducts .product-card').count(), 5);
+    await updatePage.goBack();
+    assert.equal(await updatePage.locator('#catalogProducts .product-card').count(), 30, 'Browser back must restore the first page');
+    await updatePage.goForward();
+    assert.equal(await updatePage.locator('#catalogProducts .product-card').count(), 5, 'Browser forward must restore the second page');
+    await updatePage.locator('#catalogSort').selectOption('price-asc');
+    assert.equal(new URL(updatePage.url()).searchParams.has('page'), false, 'Sort change must reset pagination');
+    assert.equal(await updatePage.locator('#catalogProducts .product-card').count(), 30);
+    await updatePage.goto('/catalog.html?page=99', {waitUntil:'domcontentloaded'});
+    await updatePage.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(new URL(updatePage.url()).searchParams.get('page'), '2', 'Out-of-range page must clamp');
+    await updatePage.goto('/catalog.html', {waitUntil:'domcontentloaded'});
+    assert.equal(await updatePage.locator('.mobile-card-wishlist').count(), 0);
+    await updatePage.locator('.footer-wordmark').hover();
+    const footerWordmarkDecoration = await updatePage.locator('.footer-wordmark').evaluate(element => getComputedStyle(element).textDecorationLine);
+    assert.equal(footerWordmarkDecoration, 'none');
+    await updates.close();
+
+    const galleryMobile = await browser.newContext({baseURL:baseUrl, viewport:{width:390,height:844}, isMobile:true, hasTouch:true});
+    const galleryMobilePage = await galleryMobile.newPage();
+    await galleryMobilePage.goto('/index.html', {waitUntil:'domcontentloaded'});
+    await galleryMobilePage.locator('.home-gallery-item').first().waitFor();
+    assert.equal(await galleryMobilePage.locator('.home-gallery-story').isVisible(), true, 'Mobile store story must appear below its photo');
+    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    assert.match(await galleryMobilePage.locator('#homeGalleryStoryText').textContent(), /Поможем с выбором/);
+    const galleryMobileLayout = await galleryMobilePage.locator('.home-gallery-head, .home-gallery-media, .home-gallery-story').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
+    assert.ok(galleryMobileLayout[0].bottom <= galleryMobileLayout[2].top && galleryMobileLayout[2].bottom <= galleryMobileLayout[1].top, 'Mobile store block must read title, photo, then story');
+    const mobilePhoto = await galleryMobilePage.locator('.home-gallery-item').first().boundingBox();
+    assert.ok(Math.abs(mobilePhoto.height / mobilePhoto.width - 9 / 16) < .02, 'Mobile store photo must keep its original 16:9 size');
+    assert.equal(await galleryMobilePage.locator('.home-gallery-caption').first().evaluate(node => getComputedStyle(node).clipPath), 'inset(50%)');
+    assert.equal(await galleryMobilePage.locator('#homeGalleryControls').count(), 0);
+    assert.deepEqual(await galleryMobilePage.locator('.home-gallery-dots button').first().evaluate(dot => ({width:getComputedStyle(dot).width, height:getComputedStyle(dot).height, radius:getComputedStyle(dot).borderRadius, color:getComputedStyle(dot).color, fontSize:getComputedStyle(dot).fontSize, background:getComputedStyle(dot).backgroundColor, panelBackground:getComputedStyle(dot.parentElement).backgroundColor})), {width:'8px', height:'8px', radius:'0px', color:'rgb(17, 61, 48)', fontSize:'12px', background:'rgba(0, 0, 0, 0)', panelBackground:'rgba(0, 0, 0, 0)'});
+    await galleryMobilePage.locator('#homeGallerySection').scrollIntoViewIfNeeded();
+    await galleryMobilePage.locator('.home-gallery-head.is-revealed').waitFor();
+    await galleryMobilePage.waitForTimeout(600);
+    if(qaScreenshotDir) await galleryMobilePage.locator('#homeGallerySection').screenshot({path:path.join(qaScreenshotDir, 'home-gallery-mobile.png')});
+    await galleryMobile.close();
 
     console.log('Desktop and mobile browser journeys passed.');
   } finally {

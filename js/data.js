@@ -36,8 +36,8 @@
       header:{
         storeName:'ByVit',
         logoText:'BV',
-        logoImage:'assets/favicon.svg',
-        brandImage:'',
+        logoImage:'',
+        brandImage:'assets/byvit-header-wordmark.svg',
         topRight:'BYVIT / STORE / 2026',
         searchPlaceholder:'Поиск товара',
         adminLabel:'Админ',
@@ -62,9 +62,9 @@
       heroMediaMode:'video',
       heroMediaSrc:'assets/hero-default.mp4',
       heroAnimation:'waves',
-      heroEyebrowColor:'#2d5a27',
-      heroTitleColor:'#191a17',
-      heroTextColor:'#3f423d',
+      heroEyebrowColor:'#123D30',
+      heroTitleColor:'#3F3F3F',
+      heroTextColor:'#3F3F3F',
       heroMediaOpacity:0.78,
       heroVeilOpacity:1,
       heroOverlayOpacity:0.18,
@@ -118,6 +118,7 @@
       quickContact:{
         enabled:true,
         buttonText:'Связаться',
+        buttonColor:'#123d30',
         opacity:1,
         position:{x:'',y:''},
         items:[
@@ -158,12 +159,12 @@
         ]
 	      },
 	      goals:[
-	        {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',enabled:true},
-	        {id:'strength',title:'Сила и выносливость',text:'Креатин, аминокислоты и предтренировочные комплексы.',href:'catalog.html?category=creatine',enabled:true},
-	        {id:'recovery',title:'Восстановление',text:'BCAA, EAA, омега-3, магний и поддержка сна.',href:'catalog.html?category=amino',enabled:true},
-	        {id:'joints',title:'Суставы и связки',text:'Коллаген и комплексы для опорно-двигательной системы.',href:'catalog.html?category=joints',enabled:true},
-	        {id:'immunity',title:'Иммунитет',text:'D3, K2, омега-3 и ежедневные витаминные комплексы.',href:'catalog.html?category=vitamins',enabled:true},
-	        {id:'energy',title:'Энергия и фокус',text:'Предтрены, адаптогены и добавки для тонуса.',href:'catalog.html?category=preworkout',enabled:true}
+	        {id:'mass',title:'Набор массы',text:'Протеин, гейнеры, креатин и калорийные перекусы.',href:'catalog.html?category=protein',icon:'dumbbell',enabled:true},
+	        {id:'strength',title:'Сила и выносливость',text:'Креатин, аминокислоты и предтренировочные комплексы.',href:'catalog.html?category=creatine',icon:'activity',enabled:true},
+	        {id:'recovery',title:'Восстановление',text:'BCAA, EAA, омега-3, магний и поддержка сна.',href:'catalog.html?category=amino',icon:'leaf',enabled:true},
+	        {id:'joints',title:'Суставы и связки',text:'Коллаген и комплексы для опорно-двигательной системы.',href:'catalog.html?category=joints',icon:'shield',enabled:true},
+	        {id:'immunity',title:'Иммунитет',text:'D3, K2, омега-3 и ежедневные витаминные комплексы.',href:'catalog.html?category=vitamins',icon:'shield',enabled:true},
+	        {id:'energy',title:'Энергия и фокус',text:'Предтрены, адаптогены и добавки для тонуса.',href:'catalog.html?category=preworkout',icon:'flame',enabled:true}
 	      ],
 	      pageHeaders:{
         catalog:{title:'Каталог',text:'Поиск, категории, бренды, сортировка и наличие.'},
@@ -211,8 +212,29 @@
 	        sale:{visible:true,order:2,eyebrow:'Акции',title:'Скидки и спецпредложения',text:'Товары со старой ценой и актуальными промо-предложениями.',titleSize:36,textSize:15,buttonText:'Все акции',buttonUrl:'sale.html'}
 	      },
 	      homeGalleryTitle:'Наш магазин',
+	      homeGalleryStoryTitle:'ByVit — спортивное питание и добавки',
+	      homeGalleryStoryText:'В ByVit собраны спортивное питание и добавки для разных целей: от восстановления после тренировки до повседневной поддержки. В карточках указаны состав, фасовка и наличие, чтобы выбор был понятным.\n\nОформите заказ онлайн и выберите удобное получение: самовывоз, курьер или Европочта по Беларуси.',
+	      homeGalleryStoryButtonText:'Подробнее',
+	      homeGalleryStoryButtonUrl:'stores.html',
 	      homeGallery:[],
 	      brandImages:{},
+	      mobileHome:{
+	        heroEyebrow:'Больше, чем добавки ───',heroTitle:'Результаты начинаются здесь',heroText:'Оригинальные добавки для твоих целей.',heroButtonText:'К покупкам',
+	        productsTitle:'Популярные товары',productsLinkText:'Смотреть все →',goalsEyebrow:'── Твои цели — наши решения',goalsTitle:'Подбери добавки под свою цель',
+	        brandsTitle:'Популярные бренды',brandsLinkText:'Все бренды →',trustTitle:'Почему ByVit',benefitsVisible:true,
+	        benefits:[
+	          {icon:'truck',title:'Доставка',text:'по Беларуси',href:'delivery.html',enabled:true},
+	          {icon:'shield',title:'Оригинальные',text:'товары',href:'about.html',enabled:true},
+	          {icon:'leaf',title:'Экспертная',text:'поддержка',href:'faq.html',enabled:true},
+	          {icon:'star',title:'Тысячи',text:'довольных клиентов',href:'about.html',enabled:true}
+	        ],
+	        trust:[
+	          {icon:'shield',title:'Только оригинальные товары',text:'Прямые поставки от брендов',enabled:true},
+	          {icon:'tag',title:'Честные цены',text:'Регулярные акции и скидки',enabled:true},
+	          {icon:'truck',title:'Удобное получение',text:'Самовывоз, курьер, Европочта',enabled:true},
+	          {icon:'headphones',title:'Помощь в выборе',text:'Пишем и консультируем',enabled:true}
+	        ]
+	      },
 	      deliveryMethods:{
 	        pickup:{enabled:true,title:'Самовывоз',subtitle:'из магазина ByVit',price:0},
 	        delivery:{enabled:true,title:'Курьер',subtitle:'по городу',price:0},

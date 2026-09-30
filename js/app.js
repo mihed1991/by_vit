@@ -18,7 +18,9 @@
     admin:'byvit_v60_admin_session'
   };
   const REMOVED_PAGE_HREFS = new Set(['healthy-sleep.html', 'profile.html']);
-  const DEFAULT_BADGE_COLOR = '#2d5a27';
+  const DEFAULT_BADGE_COLOR = '#123D30';
+  const DEFAULT_HEADER_WORDMARK = 'assets/byvit-header-wordmark.svg';
+  const DEFAULT_HEADER_TAGLINE = 'assets/byvit-header-tagline.svg';
   const FORM_TYPES = {
     powder:'Порошок',
     liquid:'Жидкость',
@@ -99,9 +101,9 @@
     {id:'discount',value:'10%',label:'WELCOME скидка',enabled:true}
   ];
   const DEFAULT_HERO_COLORS = {
-    eyebrow:'#2d5a27',
-    title:'#191a17',
-    text:'#3f423d'
+    eyebrow:'#123D30',
+    title:'#3F3F3F',
+    text:'#3F3F3F'
   };
   const DEFAULT_BRAND_IMAGE = {
     src:'',
@@ -515,7 +517,8 @@
       return {
         id:String(value.id || `gallery-${index + 1}`),
         src:String(value.src || '').trim(),
-        alt:String(value.alt || '').trim()
+        alt:String(value.alt || '').trim(),
+        caption:String(value.caption || '').trim()
       };
     }).filter(item => item.src);
   }
@@ -531,8 +534,9 @@
     const header = {...(defaults.header || {}), ...storedHeader};
     header.storeName = header.storeName || 'ByVit';
     header.logoText = header.logoText || 'BV';
-    header.logoImage = (Object.prototype.hasOwnProperty.call(storedHeader, 'logoImage') ? String(storedHeader.logoImage || '').trim() : String(defaults.header?.logoImage || 'assets/favicon.svg').trim()) || 'assets/favicon.svg';
-    header.brandImage = Object.prototype.hasOwnProperty.call(storedHeader, 'brandImage') ? String(storedHeader.brandImage || '').trim() : String(defaults.header?.brandImage || '').trim();
+    const logoImage = Object.prototype.hasOwnProperty.call(storedHeader, 'logoImage') ? String(storedHeader.logoImage || '').trim() : String(defaults.header?.logoImage || '').trim();
+    header.logoImage = logoImage === 'assets/favicon.svg' ? '' : logoImage;
+    header.brandImage = String(storedHeader.brandImage || defaults.header?.brandImage || DEFAULT_HEADER_WORDMARK).trim();
     header.topRight = header.topRight || 'BYVIT / STORE / 2026';
     header.searchPlaceholder = header.searchPlaceholder || 'Поиск товара';
     header.adminLabel = header.adminLabel || 'Админ';
@@ -585,6 +589,7 @@
     return {
       enabled:config.enabled !== false,
       buttonText:String(config.buttonText || 'Связаться').trim() || 'Связаться',
+      buttonColor:/^#[\da-f]{6}$/i.test(String(config.buttonColor || '')) ? config.buttonColor : '#123d30',
       opacity:Math.min(1, Math.max(.25, Number(config.opacity ?? 1))),
       position:{
         x:Number.isFinite(x) ? Math.max(0, Math.round(x)) : '',
@@ -700,6 +705,7 @@
       title:String(item.title || '').trim(),
       text:String(item.text || '').trim(),
       href:String(item.href || 'catalog.html').trim(),
+      icon:mobileHomeIcon(item.icon, defaults.goals?.find(goal => goal.id === item.id)?.icon || 'star'),
       enabled:item.enabled !== false
     })).filter(item => item.title || item.text);
   }
@@ -730,6 +736,21 @@
       String(brand || '').trim(),
       normalizeBrandImageValue(value)
     ]).filter(([brand, image]) => brand && image.src));
+  }
+  const MOBILE_HOME_ICONS = new Set(['truck','shield','leaf','star','tag','headphones','dumbbell','flame','activity']);
+  function mobileHomeIcon(value, fallback){ return MOBILE_HOME_ICONS.has(value) ? value : fallback; }
+  function normalizeMobileHome(site, defaults){
+    const base = defaults.mobileHome || {};
+    const source = site?.mobileHome || {};
+    const result = {...base, ...source};
+    ['benefits','trust'].forEach(key => {
+      const initial = base[key] || [];
+      result[key] = initial.map((fallback, index) => {
+        const item = Array.isArray(source[key]) ? source[key][index] : null;
+        return {...fallback, ...(item || {}), icon:mobileHomeIcon(item?.icon, fallback.icon), enabled:item?.enabled !== false};
+      });
+    });
+    return result;
   }
   function normalizeFaqItems(site, defaults){
     const source = Array.isArray(site?.faqItems) ? site.faqItems : (Array.isArray(defaults.faqItems) ? defaults.faqItems : DEFAULT_FAQ_ITEMS);
@@ -864,9 +885,13 @@
     merged.homeBlocks = normalizeHomeBlocks(merged);
     merged.homeGallery = normalizeHomeGallery(site, defaults);
     merged.homeGalleryTitle = String(site?.homeGalleryTitle || defaults.homeGalleryTitle || 'Наш магазин').trim() || 'Наш магазин';
+    for(const field of ['homeGalleryStoryTitle','homeGalleryStoryText','homeGalleryStoryButtonText','homeGalleryStoryButtonUrl']){
+      merged[field] = String(site?.[field] ?? defaults[field] ?? '').trim();
+    }
     merged.homeLayoutVersion = Math.max(3, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
+    merged.mobileHome = normalizeMobileHome(site, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
     merged.pickupStores = normalizePickupStores(site, defaults);
@@ -1198,10 +1223,28 @@
     $$('[data-action="cart"]').forEach(button => {
       if(button.disabled) return;
       const inCart = cartContainsProduct(button.dataset.id);
-      button.textContent = inCart ? 'В корзине' : 'В корзину';
+      const label = $('.cart-button-label', button);
+      if(label) label.textContent = inCart ? 'В корзине' : 'В корзину';
+      else button.textContent = inCart ? 'В корзине' : 'В корзину';
       button.classList.toggle('cart-state-active', inCart);
       button.setAttribute('aria-pressed', inCart ? 'true' : 'false');
     });
+    const detailButton = $('[data-product-add]');
+    if(detailButton && !detailButton.disabled){
+      const product = productById(detailButton.dataset.productAdd);
+      if(product){
+        const {key} = productDetailCartSelection(product);
+        const inCart = getCart().some(item => item.key === key);
+        detailButton.textContent = inCart ? 'В корзине' : 'Добавить в корзину';
+        detailButton.classList.toggle('cart-state-active', inCart);
+        detailButton.setAttribute('aria-pressed', String(inCart));
+      }
+    }
+  }
+  function productDetailCartSelection(product){
+    const optionId = $('#packageOptions .chip.active')?.dataset.packageId || defaultPackage(product).id;
+    const flavor = $('#flavorOptions .chip.active')?.dataset.flavor || product.flavors?.[0] || '';
+    return {optionId, flavor, key:cartKey(product.id, optionId, flavor)};
   }
   function headerActionIcon(type, extraClass = ''){
     const className = ['header-action-glyph', extraClass].filter(Boolean).join(' ');
@@ -1226,6 +1269,25 @@
       link.innerHTML = `${headerActionIcon(item.type)}<span class="count-pill" data-count="${item.count}" hidden></span>`;
     });
     updateCounts();
+  }
+  function renderHeaderMobileContact(site){
+    const actions = $('.site-header .header-actions');
+    if(!actions) return;
+    let link = $('[data-header-contact]', actions);
+    if(!link){
+      link = document.createElement('a');
+      link.className = 'icon-link header-contact-trigger';
+      link.setAttribute('data-header-contact', '');
+      link.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M6.4 3.5 9 6.2l-1.5 2.4a15.5 15.5 0 0 0 7.9 7.9l2.4-1.5 2.7 2.6-1.5 3c-.3.6-1 .9-1.7.8A19.5 19.5 0 0 1 2.6 6.7c-.1-.7.2-1.4.8-1.7l3-1.5Z"></path><path d="M14 3.5a7 7 0 0 1 6.5 6.5M14 7a3.5 3.5 0 0 1 3 3"></path></svg>';
+      actions.appendChild(link);
+    }
+    const phone = contactItems(site).find(item => item.type === 'phone' && (item.value || item.href));
+    const phoneValue = phone?.href || phone?.value || site.stockContact?.phone || site.phone || '';
+    link.href = phoneValue ? contactHref('phone', phoneValue) : 'stores.html';
+    link.setAttribute('aria-label', phoneValue ? 'Позвонить' : 'Контакты');
+    link.title = phoneValue ? 'Позвонить' : 'Контакты';
+    const burger = $('[data-burger]', actions);
+    if(burger) actions.prepend(burger);
   }
   function currentPageHref(){
     return location.pathname.split('/').pop() || 'index.html';
@@ -1390,6 +1452,7 @@
     const items = [
       {label:'Главная',href:'index.html',icon:'⌂'},
       {label:'Каталог',href:'catalog.html',icon:'▦'},
+      {label:'Акции',href:'sale.html',icon:'%'},
       {label:'Корзина',href:'cart.html',iconType:'cart',count:'cart'},
       {label:'Магазины',href:'stores.html',iconType:'pin'}
     ];
@@ -1420,6 +1483,14 @@
     root.style.right = '';
     root.style.bottom = '';
     root.style.setProperty('--quick-contact-opacity', String(config.opacity ?? 1));
+    const buttonColor = config.buttonColor || '#123d30';
+    root.style.setProperty('--quick-contact-button-bg', buttonColor);
+    const channel = (index) => {
+      const value = parseInt(buttonColor.slice(index, index + 2), 16) / 255;
+      return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    };
+    const luminance = .2126 * channel(1) + .7152 * channel(3) + .0722 * channel(5);
+    root.style.setProperty('--quick-contact-button-text', luminance > .179 ? '#111111' : '#ffffff');
     const links = items.slice(0,5).map(item => {
       const href = item.href || contactHref(item.type, item.value);
       return `<a href="${esc(href)}" ${/^https?:\/\//i.test(href) ? 'target="_blank" rel="noopener"' : ''}>${esc(item.label)}</a>`;
@@ -1428,28 +1499,32 @@
   }
   function brandMarkContent(header){
     const src = String(header.logoImage || '').trim();
-    return src ? `<img class="brand-mark-img" src="${esc(src)}" alt="">` : esc(header.logoText || 'BV');
+    const text = String(header.logoText || '').trim();
+    return src ? `<img class="brand-mark-img" src="${esc(src)}" alt="">` : text && text !== 'BV' ? esc(text) : '';
   }
   function brandNameContent(header){
-    const src = String(header.brandImage || '').trim();
+    const src = String(header.brandImage || DEFAULT_HEADER_WORDMARK).trim();
     const name = header.storeName || 'ByVit';
-    return src ? `<img class="brand-name-img" src="${esc(src)}" alt="${esc(name)}">` : esc(name);
+    if(src === DEFAULT_HEADER_WORDMARK){
+      return `<span class="brand-lockup"><img class="brand-wordmark-img" src="${DEFAULT_HEADER_WORDMARK}" alt=""><img class="brand-tagline-img" src="${DEFAULT_HEADER_TAGLINE}" alt=""></span>`;
+    }
+    return src ? `<img class="brand-name-img" src="${esc(src)}" alt="">` : esc(name);
   }
   function renderBrandInLink(link, header){
     const mark = $('.brand-mark', link);
     const name = $('span:last-child', link);
     if(mark){
+      const logoImage = String(header.logoImage || '').trim();
       mark.innerHTML = brandMarkContent(header);
-      mark.classList.toggle('has-image', Boolean(String(header.logoImage || '').trim()));
+      mark.hidden = !mark.innerHTML;
+      mark.classList.toggle('has-image', Boolean(logoImage));
     }
     if(name){
       name.innerHTML = brandNameContent(header);
       name.classList.add('brand-name');
       name.classList.toggle('has-image', Boolean(String(header.brandImage || '').trim()));
     }
-  }
-  function brandLinkHtml(header, extra=''){
-    return `<a class="brand" href="index.html" ${extra}><span class="brand-mark ${String(header.logoImage || '').trim() ? 'has-image' : ''}">${brandMarkContent(header)}</span><span class="brand-name ${String(header.brandImage || '').trim() ? 'has-image' : ''}">${brandNameContent(header)}</span></a>`;
+    link.setAttribute('aria-label', `${header.storeName || 'ByVit'} — спортивное питание и добавки`);
   }
   function renderCatalogMegaMenu(){
     const header = $('.site-header');
@@ -1563,6 +1638,7 @@
 	    });
 	    renderHeaderActionIcons();
 	    renderHeaderSearch(header);
+	    renderHeaderMobileContact(site);
 	    renderBottomNav();
 	    renderQuickContact(site);
 	    setActiveNav();
@@ -1667,7 +1743,6 @@
     const footer = $('.footer');
     if(!footer) return;
     const site = getSite();
-    const header = site.header || {};
     const config = site.footer || {};
     const contacts = config.contacts || {};
     const contactLinks = [
@@ -1689,7 +1764,7 @@
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
         <div class="footer-brand-block">
-          ${brandLinkHtml(header, 'style="color:#fff"')}
+          <a class="footer-wordmark" href="index.html" aria-label="ByVit — спортивное питание и добавки"><img class="footer-wordmark-name" src="${DEFAULT_HEADER_WORDMARK}" alt=""><img class="footer-wordmark-subtitle" src="${DEFAULT_HEADER_TAGLINE}" alt=""></a>
         </div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}
@@ -1749,9 +1824,9 @@
             <div class="stars" title="Рейтинг">${'★'.repeat(Math.round(product.rating || 5)).slice(0,5)}</div>
           </div>
           <div class="card-buttons">
-            <button class="btn btn-primary small ${inCart ? 'cart-state-active' : ''}" data-action="cart" data-id="${esc(product.id)}" aria-pressed="${inCart ? 'true' : 'false'}" ${out ? 'disabled' : ''}>${inCart ? 'В корзине' : 'В корзину'}</button>
-            <button class="circle-action ${wishActive ? 'active' : ''}" data-action="wishlist" data-id="${esc(product.id)}" title="Избранное">♡</button>
-            <button class="circle-action ${compareActive ? 'active' : ''}" data-action="compare" data-id="${esc(product.id)}" title="Сравнить">⇄</button>
+            <button class="btn btn-primary small ${inCart ? 'cart-state-active' : ''}" data-action="cart" data-id="${esc(product.id)}" aria-pressed="${inCart ? 'true' : 'false'}" ${out ? 'disabled' : ''}><svg class="figma-card-cart-icon" aria-hidden="true"><use href="assets/home-mobile-icons.svg#cart"></use></svg><span class="cart-button-label">${inCart ? 'В корзине' : 'В корзину'}</span></button>
+            <button class="circle-action ${wishActive ? 'active' : ''}" data-action="wishlist" data-id="${esc(product.id)}" title="Избранное" aria-label="${wishActive ? 'Убрать из избранного' : 'Добавить в избранное'}" aria-pressed="${wishActive}">${headerActionIcon('wishlist', 'card-action-glyph')}</button>
+            <button class="circle-action ${compareActive ? 'active' : ''}" data-action="compare" data-id="${esc(product.id)}" title="Сравнить" aria-label="${compareActive ? 'Убрать из сравнения' : 'Добавить к сравнению'}" aria-pressed="${compareActive}">${headerActionIcon('compare', 'card-action-glyph')}</button>
           </div>
         </div>
       </article>`;
@@ -1952,7 +2027,20 @@
     $$(`[data-action="${type}"][data-id="${id}"]`).forEach(button => {
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      if(button.classList.contains('mobile-card-wishlist') || button.classList.contains('mv-card-wishlist')){
+        button.textContent = active ? '♥' : '♡';
+        button.setAttribute('aria-label', active ? 'Убрать из избранного' : 'Добавить в избранное');
+        return;
+      }
       if(button.classList.contains('circle-action')) return;
+      if(button.classList.contains('product-panel-action')){
+        const icon = type === 'wishlist' ? 'wishlist' : 'compare';
+        const label = type === 'wishlist'
+          ? (active ? 'В избранном' : 'Избранное')
+          : (active ? 'В сравнении' : 'Сравнить');
+        button.innerHTML = `${headerActionIcon(icon, 'product-panel-action-icon')}<span>${label}</span>`;
+        return;
+      }
       button.textContent = type === 'wishlist'
         ? `${active ? '♥' : '♡'} Избранное`
         : `${active ? '⇄' : '⇄'} ${active ? 'В сравнении' : 'Сравнить'}`;
@@ -1998,6 +2086,44 @@
       </div>`);
   }
 
+  function renderMobileHero(slides){
+    const hero = $('.mv-hero');
+    const mediaRoot = $('.mv-hero-media', hero);
+    const dots = $('.mv-hero-dots', hero);
+    const cta = $('.mv-hero-cta', hero);
+    if(!hero || !mediaRoot || !dots) return;
+
+    mediaRoot.innerHTML = slides.map((slide, index) => {
+      const mobileSrc = slide.mobileEnabled === true ? String(slide.mobileSrc || '').trim() : '';
+      const src = mobileSrc || (index === 0 ? '' : String(slide.desktopSrc || '').trim());
+      const mode = mobileSrc ? slide.mobileMode : slide.desktopMode;
+      if(!src) return `<div class="mv-hero-slide ${index === 0 ? 'active' : ''}" data-mv-hero-slide="${index}"></div>`;
+      const content = mode === 'video' || (mode === 'file' && isVideoSource(src))
+        ? `<video autoplay muted loop playsinline preload="metadata"><source src="${esc(src)}" type="${videoMime(src)}"></video>`
+        : `<img src="${esc(src)}" alt="" loading="${index === 0 ? 'eager' : 'lazy'}">`;
+      return `<div class="mv-hero-slide has-custom ${index === 0 ? 'active' : ''}" data-mv-hero-slide="${index}">${content}</div>`;
+    }).join('');
+
+    dots.hidden = slides.length <= 1;
+    dots.innerHTML = slides.length > 1 ? slides.map((_, index) =>
+      `<button type="button" class="${index === 0 ? 'active' : ''}" data-mv-hero-dot="${index}" aria-label="Баннер ${index + 1} из ${slides.length}" aria-pressed="${index === 0 ? 'true' : 'false'}"></button>`
+    ).join('') : '';
+
+    const showSlide = index => {
+      $$('.mv-hero-slide', mediaRoot).forEach((node, i) => node.classList.toggle('active', i === index));
+      $$('[data-mv-hero-dot]', dots).forEach((node, i) => {
+        node.classList.toggle('active', i === index);
+        node.setAttribute('aria-pressed', i === index ? 'true' : 'false');
+      });
+      if(cta) cta.href = slides[index]?.href || 'catalog.html';
+    };
+    dots.onclick = event => {
+      const button = event.target.closest('[data-mv-hero-dot]');
+      if(button) showSlide(Number(button.dataset.mvHeroDot));
+    };
+    showSlide(0);
+  }
+
   function renderHeroMedia(site){
     const hero = $('.hero');
     const root = $('#heroMedia');
@@ -2012,6 +2138,7 @@
       mobileMode:mobileMedia.mode || 'image',
       mobileSrc:mobileMedia.src || ''
     })];
+    renderMobileHero(activeSlides);
     const mobileEnabled = activeSlides.some(slide => slide.mobileEnabled === true);
     if(hero){
       hero.dataset.align = site.heroAlign || 'right';
@@ -2203,10 +2330,28 @@
       section.dataset.tone = paper ? 'paper' : 'white';
     });
   }
-	  function goalCard(goal){
+	  const FIGMA_MOBILE_GOALS = [
+	    {label:'Набор мышечной массы', icon:'dumbbell'},
+	    {label:'Снижение веса', icon:'flame'},
+	    {label:'Выносливость', icon:'activity'},
+	    {label:'Здоровье и иммунитет', icon:'shield'}
+	  ];
+	  function goalCard(goal, index=0){
+	    const mobileGoal = FIGMA_MOBILE_GOALS[index] || FIGMA_MOBILE_GOALS[0];
+	    const desktopIcons = {
+	      mass: '<rect x="3" y="12" width="4" height="8" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><path d="M11 16h10"/><rect x="21" y="9" width="4" height="14" rx="1"/><rect x="25" y="12" width="4" height="8" rx="1"/>',
+	      strength: '<path d="M18 2 8 17h8l-2 13 10-16h-8l2-12Z"/>',
+	      recovery: '<path d="M26 12a11 11 0 0 0-19-5l-3 3m0-7v7h7M6 20a11 11 0 0 0 19 5l3-3m0 7v-7h-7"/>',
+	      joints: '<path d="M12 3c-2 3-2 6-1 8l3 3-2 4c-1 3-1 7 1 11m7-26c2 3 2 6 1 8l-3 3 2 4c1 3 1 7-1 11M11 11h10M12 18h8"/>',
+	      immunity: '<path d="M16 2 4 7v9c0 8 5 12 12 14 7-2 12-6 12-14V7L16 2Z"/><path d="m10 16 4 4 8-9"/>',
+	      energy: '<path d="M16 5a6 6 0 0 0-10 5 6 6 0 0 0 0 10 6 6 0 0 0 10 5V5Zm0 0a6 6 0 0 1 10 5 6 6 0 0 1 0 10 6 6 0 0 1-10 5V5Zm-6 7 3 2-3 3m12-5-3 2 3 3M16 11v9"/>'
+	    };
+	    const iconKey = desktopIcons[goal.id] ? goal.id : ['mass','strength','recovery','joints','immunity','energy'][index % 6];
 	    return `<a class="goal-card" href="${esc(goal.href || 'catalog.html')}">
-	      <h3>${esc(goal.title)}</h3>
-	      <p>${esc(goal.text)}</p>
+	      <svg class="figma-goal-icon" aria-hidden="true"><use href="assets/home-mobile-icons.svg#${esc(mobileGoal.icon)}"></use></svg>
+	      <span class="desktop-goal-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none">${desktopIcons[iconKey]}</svg></span>
+	      <h3><span class="goal-default-label">${esc(goal.title)}</span><span class="goal-mobile-label">${esc(mobileGoal.label)}</span></h3>
+	      <p>${esc(goal.text)}</p><span class="figma-goal-arrow" aria-hidden="true">›</span>
 	    </a>`;
 	  }
 	  function renderGoals(){
@@ -2395,6 +2540,78 @@
     setupHomeMarquee(root, itemSelector);
   }
 
+  function mobileProductCard(product){
+    const id = esc(product.id);
+    const href = `product.html?id=${id}`;
+    const wish = getWishlist().includes(Number(product.id));
+    const inCart = cartContainsProduct(product.id);
+    const out = Number(product.stock || 0) <= 0;
+    const option = defaultPackage(product);
+    return `<article class="mv-product-card" data-product-id="${id}">
+      <div class="mv-card-photo">
+        <a href="${href}"><img src="${esc(firstImage(product))}" alt="${esc(product.name)}" loading="lazy" data-product-image></a>
+        ${product.badge ? `<span class="mv-card-badge" style="--badge-bg:${badgeColor(product)}">${esc(product.badge)}</span>` : ''}
+        <button class="mv-card-wishlist ${wish ? 'active' : ''}" type="button" data-action="wishlist" data-id="${id}" aria-label="${wish ? 'Убрать из избранного' : 'Добавить в избранное'}" aria-pressed="${wish}">${wish ? '♥' : '♡'}</button>
+      </div>
+      <div class="mv-card-info">
+        <h3><a href="${href}">${esc(product.name)}</a></h3>
+        <div class="mv-card-specs"><span>${esc(formTypeLabel(product.formType))}</span>${option?.label ? `<span>${esc(option.label)}</span>` : ''}</div>
+        <div class="mv-card-bottom"><div class="mv-card-price"><strong>${money(product.price)}</strong>${Number(product.oldPrice || 0) > Number(product.price || 0) ? `<del>${money(product.oldPrice)}</del>` : ''}</div><button class="mv-card-cart ${inCart ? 'cart-state-active' : ''}" type="button" data-action="cart" data-id="${id}" aria-pressed="${inCart}" ${out ? 'disabled aria-label="Нет в наличии"' : ''}><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#cart"></use></svg><span class="cart-button-label">${out ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}</span></button></div>
+      </div>
+    </article>`;
+  }
+  function renderMobileHome(site, products, blocks){
+    const root = $('.mv-home');
+    if(!root) return;
+    const config = site.mobileHome || {};
+    const setText = (selector, value) => { const node = $(selector, root); if(node) node.textContent = value || ''; };
+    const setSection = (selector, visible) => { const node = $(selector, root); if(node) node.hidden = !visible; };
+    setText('.mv-hero-kicker', config.heroEyebrow);
+    setText('.mv-hero h1', config.heroTitle);
+    setText('.mv-hero p', config.heroText);
+    const heroCopy = [$('.mv-hero-kicker', root), $('.mv-hero h1', root), $('.mv-hero p', root)];
+    heroCopy.forEach(node => { if(node) node.hidden = site.heroCopyMobile === false || !node.textContent.trim(); });
+    const heroCta = $('.mv-hero-cta', root);
+    if(heroCta){
+      heroCta.innerHTML = `${esc(config.heroButtonText || '')} <svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#cart"></use></svg>`;
+      heroCta.hidden = site.heroActionsMobile === false || !String(config.heroButtonText || '').trim();
+    }
+    const benefits = (config.benefits || []).filter(item => item.enabled !== false && (item.title || item.text));
+    setSection('.mv-benefits', config.benefitsVisible !== false && benefits.length > 0);
+    const benefitRoot = $('.mv-benefits', root);
+    if(benefitRoot) benefitRoot.innerHTML = benefits.map(item => `<a href="${esc(item.href || 'about.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(item.icon, 'star')}"></use></svg><strong>${esc(item.title)}</strong><span>${esc(item.text)}</span></a>`).join('');
+    const categories = getCategories().filter(item => item?.id && item?.name);
+    setSection('.mv-categories', blocks.categories?.visible !== false && categories.length > 0);
+    const categoryRoot = $('.mv-categories', root);
+    if(categoryRoot) categoryRoot.innerHTML = categories.map((item, index) => `<a class="${index === 0 ? 'active' : ''}" href="catalog.html?category=${encodeURIComponent(item.id)}">${esc(item.name)}</a>`).join('');
+    const featured = products.filter(item => item.popular);
+    setSection('.mv-products', blocks.featured?.visible !== false && featured.length > 0);
+    setText('.mv-products .mv-section-head h2', config.productsTitle);
+    const productLink = $('.mv-products .mv-section-head > a', root);
+    if(productLink){ productLink.textContent = config.productsLinkText || ''; productLink.href = blocks.featured?.buttonUrl || 'catalog.html?sort=popular'; productLink.hidden = !config.productsLinkText; }
+    const productRoot = $('.mv-product-rail', root);
+    if(productRoot) productRoot.innerHTML = featured.map(mobileProductCard).join('');
+    const goals = storefrontGoals();
+    setSection('.mv-goals', blocks.goals?.visible !== false && goals.length > 0);
+    setText('.mv-goals-copy > span', config.goalsEyebrow);
+    setText('.mv-goals-copy h2', config.goalsTitle);
+    const goalRoot = $('.mv-goal-list', root);
+    if(goalRoot) goalRoot.innerHTML = goals.map(goal => `<a href="${esc(goal.href || 'catalog.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(goal.icon, 'star')}"></use></svg><strong>${esc(goal.title)}</strong><span>›</span></a>`).join('');
+    const brandList = brands();
+    setSection('.mv-brands', blocks.brands?.visible !== false && brandList.length > 0);
+    setText('.mv-brands .mv-section-head h2', config.brandsTitle);
+    const brandLink = $('.mv-brands .mv-section-head > a', root);
+    if(brandLink){ brandLink.textContent = config.brandsLinkText || ''; brandLink.href = blocks.brands?.buttonUrl || 'brands.html'; brandLink.hidden = !config.brandsLinkText; }
+    const brandRoot = $('.mv-brand-rail', root);
+    if(brandRoot){ brandRoot.innerHTML = brandList.map(brand => brandCardHtml(brand, site)).join(''); bindBrandLogoFallbacks(brandRoot); }
+    const trust = (config.trust || []).filter(item => item.enabled !== false && (item.title || item.text));
+    setSection('.mv-trust', blocks.trust?.visible !== false && trust.length > 0);
+    setText('.mv-trust > h2', config.trustTitle);
+    const trustRoot = $('.mv-trust-list', root);
+    if(trustRoot) trustRoot.innerHTML = trust.map(item => `<article><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(item.icon, 'shield')}"></use></svg><div><h3>${esc(item.title)}</h3><p>${esc(item.text)}</p></div></article>`).join('');
+    syncCartButtons();
+  }
+
   function renderHome(){
     const site = getSite();
     const products = getProducts();
@@ -2497,22 +2714,82 @@
     const gallerySection = $('#homeGallerySection');
     const galleryRail = $('#homeGallery');
     const galleryTitle = $('#homeGalleryTitle');
+    const galleryDots = $('#homeGalleryDots');
     const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
     if(gallerySection && galleryRail){
       gallerySection.hidden = false;
       if(galleryTitle) galleryTitle.textContent = site.homeGalleryTitle || 'Наш магазин';
+      const storyTitle = $('#homeGalleryStoryTitle');
+      const storyText = $('#homeGalleryStoryText');
+      const storyButton = $('#homeGalleryStoryButton');
+      if(storyTitle) storyTitle.textContent = site.homeGalleryStoryTitle || '';
+      if(storyText) storyText.textContent = site.homeGalleryStoryText || '';
+      if(storyButton){
+        const label = site.homeGalleryStoryButtonText || '';
+        const href = site.homeGalleryStoryButtonUrl || '';
+        let protocol = '';
+        try{ protocol = href ? new URL(href, location.href).protocol : ''; }catch(error){ /* Invalid admin URL: hide the link. */ }
+        storyButton.hidden = !label || !['http:', 'https:'].includes(protocol);
+        if(!storyButton.hidden){ storyButton.textContent = label; storyButton.href = href; }
+      }
       galleryRail.innerHTML = galleryItems.length ? galleryItems.map((item, index) => `
         <figure class="home-gallery-item">
-          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" decoding="async">
+          <img src="${esc(item.src)}" alt="${esc(item.alt || `Фото ByVit ${index + 1}`)}" decoding="async" draggable="false">
+          ${item.caption ? `<figcaption class="home-gallery-caption">${esc(item.caption)}</figcaption>` : ''}
           <span class="home-gallery-placeholder" hidden>Фото временно недоступно</span>
         </figure>`).join('') : `
         <figure class="home-gallery-item is-placeholder">
           <span class="home-gallery-placeholder">Добавьте фото через админку</span>
         </figure>`;
       galleryRail.classList.toggle('is-single', galleryItems.length <= 1);
+      galleryRail.scrollLeft = 0;
+      const galleryStep = () => {
+        const cards = $$('.home-gallery-item', galleryRail);
+        return cards[1]?.offsetLeft - cards[0]?.offsetLeft || galleryRail.clientWidth;
+      };
+      const galleryIndex = () => Math.min(galleryItems.length - 1, Math.max(0, Math.round(galleryRail.scrollLeft / galleryStep())));
+      const showGalleryImage = index => galleryRail.scrollTo({left:index * galleryStep(), behavior:'smooth'});
+      if(galleryDots){
+        galleryDots.hidden = galleryItems.length <= 1;
+        galleryDots.innerHTML = galleryItems.map((_,index) => `<button type="button" data-gallery-index="${index}" aria-label="Показать фото ${index + 1}" aria-pressed="${index === 0}"></button>`).join('');
+        galleryDots.onclick = event => {
+          const dot = event.target.closest('[data-gallery-index]');
+          if(dot) showGalleryImage(Number(dot.dataset.galleryIndex));
+        };
+      }
+      galleryRail.onscroll = () => $$('[data-gallery-index]', galleryDots || document).forEach((dot,index) => dot.setAttribute('aria-pressed', String(index === galleryIndex())));
+      galleryRail.onkeydown = event => {
+        if(galleryItems.length <= 1 || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        showGalleryImage(Math.min(galleryItems.length - 1, Math.max(0, galleryIndex() + (event.key === 'ArrowRight' ? 1 : -1))));
+      };
+      let dragStartX = 0;
+      let dragStartScroll = 0;
+      galleryRail.onpointerdown = event => {
+        if(event.pointerType === 'touch' || event.button !== 0 || galleryItems.length <= 1) return;
+        dragStartX = event.clientX;
+        dragStartScroll = galleryRail.scrollLeft;
+        galleryRail.style.scrollSnapType = 'none';
+        galleryRail.classList.add('is-dragging');
+        galleryRail.setPointerCapture(event.pointerId);
+      };
+      galleryRail.onpointermove = event => {
+        if(!galleryRail.hasPointerCapture(event.pointerId)) return;
+        galleryRail.scrollLeft = dragStartScroll + dragStartX - event.clientX;
+      };
+      const finishGalleryDrag = event => {
+        if(!galleryRail.hasPointerCapture(event.pointerId)) return;
+        galleryRail.releasePointerCapture(event.pointerId);
+        galleryRail.style.scrollSnapType = '';
+        galleryRail.classList.remove('is-dragging');
+        showGalleryImage(galleryIndex());
+      };
+      galleryRail.onpointerup = finishGalleryDrag;
+      galleryRail.onpointercancel = finishGalleryDrag;
       bindGalleryImageFallbacks(gallerySection, galleryRail);
       $('[data-home-block="trust"]')?.insertAdjacentElement('afterend', gallerySection);
     }
+    renderMobileHome(site, products, blocks);
     document.body.classList.add('home-ready');
   }
 
@@ -2758,13 +3035,55 @@
 	    });
     }
     updateCatalogFilterState();
+    $('#catalogPagination')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-catalog-page]');
+      if(!button) return;
+      const page = Number(button.dataset.catalogPage);
+      const params = new URLSearchParams(location.search);
+      if(page > 1) params.set('page', String(page));
+      else params.delete('page');
+      history.pushState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+      renderCatalogProducts();
+      $('#catalogResultNote')?.scrollIntoView({block:'start', behavior:'smooth'});
+    });
+    window.addEventListener('popstate', () => {
+      const current = new URLSearchParams(location.search);
+      if(searchEl) searchEl.value = current.get('q') || current.get('tag') || '';
+      if(sortEl) sortEl.value = current.get('sort') || 'default';
+      renderCatalogFilterMenus(current);
+      updateCatalogFilterState();
+      renderCatalogProducts();
+    });
     renderCatalogProducts();
   }
   function renderCatalogProducts(){
     const list = filterProducts();
+    const pageSize = 30;
+    const pageCount = Math.max(1, Math.ceil(list.length / pageSize));
+    const params = new URLSearchParams(location.search);
+    const rawPage = params.get('page') || '1';
+    const requestedPage = /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
+    const page = Math.min(Math.max(requestedPage, 1), pageCount);
+    if(page !== requestedPage){
+      if(page > 1) params.set('page', String(page));
+      else params.delete('page');
+      history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+    }
     const note = $('#catalogResultNote');
-    if(note) note.textContent = `${list.length} товар(ов)`;
-    renderGrid($('#catalogProducts'), list);
+    if(note) note.textContent = `${list.length} товар(ов)${pageCount > 1 ? ` · страница ${page} из ${pageCount}` : ''}`;
+    renderGrid($('#catalogProducts'), list.slice((page - 1) * pageSize, page * pageSize));
+    const pagination = $('#catalogPagination');
+    if(!pagination) return;
+    pagination.hidden = pageCount <= 1;
+    if(pageCount <= 1){ pagination.innerHTML = ''; return; }
+    const pages = new Set([1, pageCount, page - 1, page, page + 1].filter(value => value >= 1 && value <= pageCount));
+    let previous = 0;
+    const numbers = [...pages].sort((a,b) => a - b).map(value => {
+      const gap = value - previous > 1 ? '<span class="catalog-page-gap" aria-hidden="true">…</span>' : '';
+      previous = value;
+      return `${gap}<button type="button" data-catalog-page="${value}" ${value === page ? 'aria-current="page"' : ''} aria-label="Страница ${value}">${value}</button>`;
+    }).join('');
+    pagination.innerHTML = `<button type="button" data-catalog-page="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Предыдущая страница">←</button>${numbers}<button type="button" data-catalog-page="${page + 1}" ${page === pageCount ? 'disabled' : ''} aria-label="Следующая страница">→</button>`;
   }
 
   function renderSale(){ renderGrid($('#saleList'), getProducts().filter(p => p.oldPrice)); }
@@ -2908,8 +3227,9 @@
     const packageChoices = hasLinkedPackageVariants
       ? packageVariants.map(variant => `<button class="chip ${String(variant.id) === String(product.id) ? 'active' : ''}" data-package-product-id="${esc(variant.id)}">${esc(productPackageLabel(variant))}</button>`).join('')
       : (product.packageOptions || [firstOption]).map((option,index) => `<button class="chip ${index===0?'active':''}" data-package-id="${esc(option.id)}" data-price="${esc(option.price)}">${esc(option.label)}</button>`).join('');
-    const firstFlavor = product.flavors?.[0] || '';
     const outOfStock = Number(product.stock || 0) <= 0;
+    const wishlistActive = getWishlist().includes(Number(product.id));
+    const compareActive = getCompare().includes(Number(product.id));
     const stockContact = outOfStock ? renderStockContact(getSite()) : '';
     const relatedProducts = recommendedProducts(product, 4);
     const recentlyViewedProducts = getRecentProductIds()
@@ -2945,8 +3265,8 @@
           <div class="option-block"><strong>Фасовка</strong><div class="option-list" id="packageOptions">${packageChoices}</div></div>
           ${product.flavors?.length ? `<div class="option-block"><strong>Вкус</strong><div class="option-list" id="flavorOptions">${product.flavors.map((f,i)=>`<button class="chip ${i===0?'active':''}" data-flavor="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>` : ''}
           <div class="product-fulfillment"><span>Получение</span><strong>Ориентировочно: самовывоз сегодня · доставка 1–3 дня</strong></div>
-          <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button class="btn btn-primary" data-product-add="${esc(product.id)}" ${outOfStock ? 'disabled aria-disabled="true"' : ''}>${outOfStock ? 'Нет в наличии' : 'Добавить в корзину'}</button></div>
-          <div class="hero-actions" style="margin:0"><button class="btn btn-light" data-action="wishlist" data-id="${esc(product.id)}">♡ Избранное</button><button class="btn btn-light" data-action="compare" data-id="${esc(product.id)}">⇄ Сравнить</button></div>
+          <div class="qty-row"><div class="qty-stepper"><button data-qty-minus>-</button><input id="productQty" value="1" inputmode="numeric"><button data-qty-plus>+</button></div><button type="button" class="btn btn-primary" data-product-add="${esc(product.id)}" aria-pressed="false" ${outOfStock ? 'disabled aria-disabled="true"' : ''}>${outOfStock ? 'Нет в наличии' : 'Добавить в корзину'}</button></div>
+          <div class="hero-actions" style="margin:0"><button class="btn btn-light product-panel-action ${wishlistActive ? 'active' : ''}" data-action="wishlist" data-id="${esc(product.id)}" aria-label="${wishlistActive ? 'Убрать из избранного' : 'Добавить в избранное'}" aria-pressed="${wishlistActive}">${headerActionIcon('wishlist', 'product-panel-action-icon')}<span>${wishlistActive ? 'В избранном' : 'Избранное'}</span></button><button class="btn btn-light product-panel-action ${compareActive ? 'active' : ''}" data-action="compare" data-id="${esc(product.id)}" aria-label="${compareActive ? 'Убрать из сравнения' : 'Добавить к сравнению'}" aria-pressed="${compareActive}">${headerActionIcon('compare', 'product-panel-action-icon')}<span>${compareActive ? 'В сравнении' : 'Сравнить'}</span></button></div>
         </aside>
       </div>
       <div class="tabs">
@@ -2988,17 +3308,23 @@
       $$('#packageOptions .chip').forEach(item=>item.classList.remove('active'));
       option.classList.add('active');
       $('#productPrice').textContent=money(option.dataset.price);
+      syncCartButtons();
     });
-    $('#flavorOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-flavor]'); if(!b)return; $$('#flavorOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); });
+    $('#flavorOptions')?.addEventListener('click', e=>{ const b=e.target.closest('[data-flavor]'); if(!b)return; $$('#flavorOptions .chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); syncCartButtons(); });
     $('[data-qty-minus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Math.max(1,Number(i.value||1)-1); });
     $('[data-qty-plus]')?.addEventListener('click',()=>{ const i=$('#productQty'); i.value=Number(i.value||1)+1; });
     $('[data-product-add]')?.addEventListener('click',()=>{
-      const pack = hasLinkedPackageVariants ? firstOption.id : ($('#packageOptions .chip.active')?.dataset.packageId || firstOption.id);
-      const flavor = $('#flavorOptions .chip.active')?.dataset.flavor || firstFlavor;
-      addToCart(product.id, pack, flavor, Math.max(1,Number($('#productQty')?.value || 1)));
+      const {optionId, flavor, key} = productDetailCartSelection(product);
+      if(getCart().some(item => item.key === key)){
+        saveCart(getCart().filter(item => item.key !== key));
+        toast('Товар удалён из корзины');
+      }else{
+        addToCart(product.id, optionId, flavor, Math.max(1,Number($('#productQty')?.value || 1)));
+      }
     });
     renderGrid($('#similarProducts'), relatedProducts);
     renderGrid($('#recentProducts'), recentlyViewedProducts);
+    syncCartButtons();
   }
 
   function cartTotals(){
@@ -3263,7 +3589,8 @@
           : (promoDiscount ? `<span class="cart-price-badge cart-price-badge-promo">${esc(promoBadge)}</span>` : '');
         const comparePrice = isSale ? oldLinePrice : (promoDiscount ? currentLinePrice : 0);
         const discountNote = promoDiscount ? `<small class="cart-promo-note">Скидка по промокоду: −${money(promoDiscount)}</small>` : '';
-        return `<div class="cart-item ${isSale ? 'has-sale-price' : ''} ${promoDiscount ? 'has-promo-price' : ''}" data-key="${esc(item.key)}"><img class="cart-item-img" src="${esc(firstImage(p))}" alt="${esc(p.name || '')}"><div class="cart-item-main"><div class="cart-item-info">${pricingBadge}<h3>${esc(p.name || 'Товар')}</h3><small>${optionText}</small></div><div class="cart-item-controls"><div class="cart-item-pricing"><div class="cart-price-values"><strong class="price cart-item-price">${money(finalLinePrice)}</strong>${comparePrice ? `<del class="cart-item-old-price">${money(comparePrice)}</del>` : ''}</div>${discountNote}</div><div class="qty-stepper cart-qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div><button class="btn btn-light small cart-remove" data-cart-remove="${esc(item.key)}">Удалить</button></div></div></div>`;
+        const productHref = `product.html?id=${encodeURIComponent(item.productId)}`;
+        return `<div class="cart-item ${isSale ? 'has-sale-price' : ''} ${promoDiscount ? 'has-promo-price' : ''}" data-key="${esc(item.key)}" data-product-href="${esc(productHref)}"><a class="cart-item-product-link" href="${esc(productHref)}" aria-label="Открыть ${esc(p.name || 'товар')}"><img class="cart-item-img" src="${esc(firstImage(p))}" alt=""></a><div class="cart-item-main"><div class="cart-item-info">${pricingBadge}<h3><a href="${esc(productHref)}">${esc(p.name || 'Товар')}</a></h3><small>${optionText}</small></div><div class="cart-item-controls"><div class="cart-item-pricing"><div class="cart-price-values"><strong class="price cart-item-price">${money(finalLinePrice)}</strong>${comparePrice ? `<del class="cart-item-old-price">${money(comparePrice)}</del>` : ''}</div>${discountNote}</div><div class="qty-stepper cart-qty-stepper"><button data-cart-minus="${esc(item.key)}">-</button><input value="${esc(item.qty)}" readonly><button data-cart-plus="${esc(item.key)}">+</button></div><button class="btn btn-light small cart-remove" data-cart-remove="${esc(item.key)}" aria-label="Удалить ${esc(p.name || 'товар')} из корзины"><svg class="cart-remove-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 6.5h15M9 6.5V4.7c0-.7.6-1.2 1.3-1.2h3.4c.7 0 1.3.5 1.3 1.2v1.8M6.4 6.5l.7 12.7c0 .8.7 1.3 1.5 1.3h6.8c.8 0 1.5-.5 1.5-1.3l.7-12.7M10 10v6.7M14 10v6.7"/></svg><span class="cart-remove-label">Удалить</span></button></div></div></div>`;
       }).join('');
     }
     renderSummary();
@@ -3694,7 +4021,8 @@
     const data = {
       id:String(item.id || `gallery-${Date.now()}-${index}`),
       src:String(item.src || '').trim(),
-      alt:String(item.alt || '').trim()
+      alt:String(item.alt || '').trim(),
+      caption:String(item.caption || '').trim()
     };
     return `<article class="admin-block-editor home-gallery-editor" data-home-gallery-key="${esc(data.id)}">
       <div class="admin-block-head">
@@ -3706,6 +4034,7 @@
       </div>
       <input data-home-gallery-src type="hidden" value="${esc(data.src)}">
       <input data-home-gallery-alt value="${esc(data.alt)}" placeholder="Краткое описание фото">
+      <input data-home-gallery-caption value="${esc(data.caption)}" placeholder="Подпись на фото в мобильной версии" aria-label="Подпись на фото ${index + 1} в мобильной версии">
       <label class="admin-file-field">
         <span>Загрузить или заменить фото</span>
         <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
@@ -3717,7 +4046,8 @@
     return $$('[data-home-gallery-key]', root || document).slice(0, MAX_HOME_GALLERY_IMAGES).map((block, index) => ({
       id:block.dataset.homeGalleryKey || `gallery-${index + 1}`,
       src:$('[data-home-gallery-src]', block)?.value.trim() || '',
-      alt:$('[data-home-gallery-alt]', block)?.value.trim() || ''
+      alt:$('[data-home-gallery-alt]', block)?.value.trim() || '',
+      caption:$('[data-home-gallery-caption]', block)?.value.trim() || ''
     })).filter(item => item.src);
   }
   function updateHomeGalleryPreview(block){
@@ -3770,6 +4100,7 @@
         <input data-goal-title value="${esc(goal.title || '')}" placeholder="Название цели">
         <input data-goal-href value="${esc(goal.href || 'catalog.html')}" placeholder="Ссылка">
       </div>
+      <label class="admin-input-field"><span>Иконка мобильной карточки</span><select data-goal-icon>${[['dumbbell','Гантель'],['activity','Пульс'],['leaf','Лист'],['shield','Щит'],['flame','Огонь'],['star','Звезда'],['truck','Доставка'],['tag','Ценник'],['headphones','Поддержка']].map(([value,label]) => `<option value="${value}" ${goal.icon === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       <textarea data-goal-text placeholder="Описание">${esc(goal.text || '')}</textarea>
       <button class="btn btn-danger small" data-goal-delete type="button">Удалить цель</button>
     </article>`;
@@ -3925,6 +4256,7 @@
       title:$('[data-goal-title]', card)?.value.trim() || '',
       text:$('[data-goal-text]', card)?.value.trim() || '',
       href:$('[data-goal-href]', card)?.value.trim() || 'catalog.html',
+      icon:$('[data-goal-icon]', card)?.value || 'star',
       enabled:$('[data-goal-enabled]', card)?.checked !== false
     })).filter(item => item.title || item.text);
   }
@@ -4635,8 +4967,46 @@
     if(srcWrap) srcWrap.hidden = false;
     if(uploadWrap) uploadWrap.hidden = false;
   }
+  function mobileHomeItemEditor(item, index, kind){
+    const label = kind === 'benefits' ? 'Преимущество' : 'Карточка';
+    return `<article class="admin-block-editor" data-mobile-home-item="${kind}" data-mobile-home-index="${index}">
+      <div class="admin-block-head"><h5>${label} ${index + 1}</h5><label class="mini-toggle"><input data-mobile-item-field="enabled" type="checkbox" ${item.enabled !== false ? 'checked' : ''}> Включено</label></div>
+      <div class="field-row"><input data-mobile-item-field="title" value="${esc(item.title || '')}" placeholder="Заголовок"><input data-mobile-item-field="text" value="${esc(item.text || '')}" placeholder="Подпись"></div>
+      <div class="field-row"><select data-mobile-item-field="icon" aria-label="Иконка">${[['truck','Доставка'],['shield','Щит'],['leaf','Лист'],['star','Звезда'],['tag','Ценник'],['headphones','Поддержка'],['dumbbell','Гантель'],['flame','Огонь'],['activity','Пульс']].map(([icon,title]) => `<option value="${icon}" ${item.icon === icon ? 'selected' : ''}>${title}</option>`).join('')}</select>${kind === 'benefits' ? `<input data-mobile-item-field="href" value="${esc(item.href || '')}" placeholder="Ссылка">` : ''}</div>
+    </article>`;
+  }
+  function renderAdminMobileHome(site){
+    const config = site.mobileHome || {};
+    $$('[data-mobile-home-field]').forEach(input => {
+      const value = config[input.dataset.mobileHomeField];
+      if(input.type === 'checkbox') input.checked = value !== false;
+      else input.value = value ?? '';
+    });
+    const benefits = $('#adminMobileBenefits');
+    if(benefits) benefits.innerHTML = (config.benefits || []).map((item,index) => mobileHomeItemEditor(item,index,'benefits')).join('');
+    const trust = $('#adminMobileTrust');
+    if(trust) trust.innerHTML = (config.trust || []).map((item,index) => mobileHomeItemEditor(item,index,'trust')).join('');
+  }
+  function collectAdminMobileHome(site){
+    const config = {...(site.mobileHome || {})};
+    $$('[data-mobile-home-field]').forEach(input => {
+      config[input.dataset.mobileHomeField] = input.type === 'checkbox' ? input.checked : input.value.trim();
+    });
+    ['benefits','trust'].forEach(kind => {
+      config[kind] = $$(`[data-mobile-home-item="${kind}"]`).map(card => {
+        const original = config[kind]?.[Number(card.dataset.mobileHomeIndex)] || {};
+        const item = {...original};
+        $$('[data-mobile-item-field]', card).forEach(input => {
+          item[input.dataset.mobileItemField] = input.type === 'checkbox' ? input.checked : input.value.trim();
+        });
+        return item;
+      });
+    });
+    return config;
+  }
   function renderAdminSite(){
     const site = getSite();
+    renderAdminMobileHome(site);
     const map = {
       siteHeroEyebrow:'heroEyebrow',
       siteHeroTitle:'heroTitle',
@@ -4761,6 +5131,10 @@
 	    if(galleryRoot){
 	      const galleryTitle = $('#adminHomeGalleryTitle');
 	      if(galleryTitle) galleryTitle.value = site.homeGalleryTitle || 'Наш магазин';
+	      for(const [id,field] of [['adminHomeGalleryStoryTitle','homeGalleryStoryTitle'],['adminHomeGalleryStoryText','homeGalleryStoryText'],['adminHomeGalleryStoryButtonText','homeGalleryStoryButtonText'],['adminHomeGalleryStoryButtonUrl','homeGalleryStoryButtonUrl']]){
+	        const input = $(`#${id}`);
+	        if(input) input.value = site[field] || '';
+	      }
 	      const gallery = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
 	      galleryRoot.innerHTML = gallery.length
 	        ? gallery.map(homeGalleryEditor).join('')
@@ -4791,9 +5165,10 @@
       pickupRoot.innerHTML = (site.pickupStores || DEFAULT_PICKUP_STORES).map(pickupStoreEditor).join('');
     }
   }
-  function saveAdminSite(event){
+  async function saveAdminSite(event){
     event.preventDefault();
     const site = getSite();
+    site.mobileHome = collectAdminMobileHome(site);
     if($('#siteHeroEyebrow')) site.heroEyebrow = $('#siteHeroEyebrow').value;
     if($('#siteHeroTitle')) site.heroTitle = $('#siteHeroTitle').value;
     if($('#siteHeroText')) site.heroText = $('#siteHeroText').value;
@@ -4844,11 +5219,27 @@
 	    });
     site.homeGallery = collectHomeGallery();
     site.homeGalleryTitle = $('#adminHomeGalleryTitle')?.value.trim() || 'Наш магазин';
+    for(const [id,field] of [['adminHomeGalleryStoryTitle','homeGalleryStoryTitle'],['adminHomeGalleryStoryText','homeGalleryStoryText'],['adminHomeGalleryStoryButtonText','homeGalleryStoryButtonText'],['adminHomeGalleryStoryButtonUrl','homeGalleryStoryButtonUrl']]){
+      const input = $(`#${id}`);
+      if(input) site[field] = input.value.trim();
+    }
     if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
     if($('#sitePhone')) site.phone = $('#sitePhone').value;
     site.pickupStores = collectPickupStores();
     site.deliveryMethods = collectDeliveryMethods();
-    saveSite(site); applyHeader(); renderAdminSite(); toast('Настройки сохранены');
+    saveSite(site);
+    if(serverAvailable && isAdminSession() && serverState){
+      clearTimeout(persistTimer);
+      try{
+        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)});
+        await flushPendingMediaDeletes();
+      }catch(error){
+        console.warn('Не удалось сохранить главную', error);
+        toast('Не удалось сохранить настройки на сервере');
+        return;
+      }
+    }
+    applyHeader(); renderAdminSite(); toast('Настройки сохранены');
   }
   function saveAdminBrands(event){
     event.preventDefault();
@@ -4983,6 +5374,8 @@
     if(enabled) enabled.checked = quick.enabled !== false;
     const buttonText = $('#quickContactButtonText');
     if(buttonText) buttonText.value = quick.buttonText || 'Связаться';
+    const buttonColor = $('#quickContactButtonColor');
+    if(buttonColor) buttonColor.value = quick.buttonColor || '#123d30';
     const opacity = $('#quickContactOpacity');
     if(opacity) opacity.value = quick.opacity ?? 1;
     const opacityValue = $('#quickContactOpacityValue');
@@ -5000,6 +5393,7 @@
     site.quickContact = {
       enabled:$('#quickContactEnabled')?.checked !== false,
       buttonText:$('#quickContactButtonText')?.value.trim() || 'Связаться',
+      buttonColor:$('#quickContactButtonColor')?.value || '#123d30',
       opacity:Number($('#quickContactOpacity')?.value || 1),
       position:{x:'',y:''},
       items:linesToFooterContacts($('#quickContactItems')?.value || '')
@@ -5622,6 +6016,11 @@
       const plus = event.target.closest('[data-cart-plus]'); if(plus){ changeCart(plus.dataset.cartPlus,1); return; }
       const minus = event.target.closest('[data-cart-minus]'); if(minus){ changeCart(minus.dataset.cartMinus,-1); return; }
       const remove = event.target.closest('[data-cart-remove]'); if(remove){ removeCart(remove.dataset.cartRemove); return; }
+      const cartItem = event.target.closest('#cartList .cart-item[data-product-href]');
+      if(cartItem && !event.target.closest('a, button, input, .cart-item-controls')){
+        location.href = cartItem.dataset.productHref;
+        return;
+      }
       const adminEdit = event.target.closest('[data-admin-edit]'); if(adminEdit){ if(adminEdit.hasAttribute('data-moysklad-edit')) adminSwitch('products'); editProduct(adminEdit.dataset.adminEdit); return; }
       const adminDelete = event.target.closest('[data-admin-delete]'); if(adminDelete){ deleteProduct(adminDelete.dataset.adminDelete); return; }
       const selectAll = event.target.closest('[data-admin-select-all]'); if(selectAll){ $$('[data-admin-product-select]').forEach(input => { input.checked = selectAll.checked; }); return; }

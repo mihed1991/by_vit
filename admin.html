@@ -8,9 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=127">
-  <script src="js/data.js?v=68" defer></script>
-  <script src="js/app.js?v=112" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=186">
+  <script src="js/data.js?v=76" defer></script>
+  <script src="js/app.js?v=136" defer></script>
 </head>
 
 <body data-page="admin">
@@ -20,8 +20,7 @@
           class="mono">BYVIT / STORE / 2026</span></div>
     </div>
     <div class="container header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark has-image"><img class="brand-mark-img"
-            src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+      <a class="brand" href="index.html" aria-label="ByVit — спортивное питание и добавки"><span class="brand-mark" hidden></span><span class="brand-name has-image"><span class="brand-lockup"><img class="brand-wordmark-img" src="assets/byvit-header-wordmark.svg" alt=""><img class="brand-tagline-img" src="assets/byvit-header-tagline.svg" alt=""></span></span></a>
       <nav class="main-nav"><a data-nav href="index.html">Главная</a><a data-nav href="catalog.html">Каталог</a><a
           data-nav href="brands.html">Бренды</a><a data-nav href="sale.html">Акции</a><a data-nav
           href="delivery.html">Доставка</a><a data-nav href="stores.html">Магазины</a></nav>
@@ -319,6 +318,7 @@
                       <span>Картинка/видео баннера</span>
                       <input id="siteHeroMediaSrc" placeholder="Ссылка на файл или загруженное изображение">
                       <small data-hero-src-hint>Видео: MP4/WebM. Изображение: JPG/PNG/WebP/SVG.</small>
+                      <small>Для десктопного изображения: соотношение 2,5:1, например 2560 × 1024 px. При ширине экрана 1440 px видимая область баннера — примерно 1440 × 572 px.</small>
                     </label>
                     <div class="field-row">
                       <label class="range-field" data-hero-control="brightness">
@@ -378,6 +378,7 @@
                       <span>Медиа мобильного баннера</span>
                       <input id="siteMobileHeroMediaSrc" placeholder="Ссылка или загруженное изображение/видео">
                       <small>JPG, PNG, WebP, SVG, MP4 или WebM.</small>
+                      <small>Для мобильного изображения: соотношение 1,85:1, например 1200 × 650 px. При ширине экрана 390 px видимая область баннера — 390 × 207 px.</small>
                     </label>
                     <label class="toggle-row" data-mobile-hero-control="upload">
                       <span><strong>Загрузить медиа</strong><br><small>Файл загрузится в переносимое хранилище
@@ -398,6 +399,18 @@
                       <span>Тёмная затушёвка <strong id="mobileHeroOverlayValue">0%</strong></span>
                       <input id="siteMobileHeroOverlay" type="range" min="0" max="0.7" step="0.01">
                     </label>
+                    <h4>Текст и блоки мобильной главной</h4>
+                    <p class="admin-hint">Товары, цены и значки берутся из карточек товаров; категории, цели и логотипы брендов — из соответствующих разделов админки. Здесь редактируются мобильные подписи и преимущества. Включение секций — в «Блоках главной» ниже.</p>
+                    <div class="field-row"><input data-mobile-home-field="heroEyebrow" placeholder="Надпись баннера"><input data-mobile-home-field="heroTitle" placeholder="Заголовок баннера"></div>
+                    <textarea data-mobile-home-field="heroText" placeholder="Описание баннера"></textarea>
+                    <input data-mobile-home-field="heroButtonText" placeholder="Текст кнопки баннера">
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="benefitsVisible"> Показывать преимущества под баннером</label>
+                    <div class="admin-blocks" id="adminMobileBenefits"></div>
+                    <div class="field-row"><input data-mobile-home-field="productsTitle" placeholder="Заголовок товаров"><input data-mobile-home-field="productsLinkText" placeholder="Ссылка на каталог"></div>
+                    <div class="field-row"><input data-mobile-home-field="goalsEyebrow" placeholder="Надпись над целями"><input data-mobile-home-field="goalsTitle" placeholder="Заголовок целей"></div>
+                    <div class="field-row"><input data-mobile-home-field="brandsTitle" placeholder="Заголовок брендов"><input data-mobile-home-field="brandsLinkText" placeholder="Ссылка на бренды"></div>
+                    <input data-mobile-home-field="trustTitle" placeholder="Заголовок преимуществ ByVit">
+                    <div class="admin-blocks" id="adminMobileTrust"></div>
                   </div>
 
                   <div class="admin-form-section admin-home-wide">
@@ -407,12 +420,17 @@
 
                   <div class="admin-form-section admin-home-wide">
                     <h4>Фотоблок после брендов</h4>
-                    <p class="admin-hint">До 6 фотографий. На десктопе одновременно видны две, на телефоне — одна.
-                      Остальные пролистываются горизонтально.</p>
+                    <p class="admin-hint">На десктопе текст располагается слева, а фотографии листаются справа. До 6 фото; рекомендуем кадр около 6:5 с главным объектом ближе к центру. На телефоне сохраняется фотогалерея с подписями на снимках.</p>
                     <label class="admin-input-field">
-                      <span>Название блока</span>
+                      <span>Надпись над текстом</span>
                       <input id="adminHomeGalleryTitle" value="Наш магазин" placeholder="Наш магазин">
                     </label>
+                    <label class="admin-input-field"><span>Заголовок слева</span><input id="adminHomeGalleryStoryTitle" placeholder="ByVit — спортивное питание и добавки"></label>
+                    <label class="admin-input-field"><span>Описание слева</span><textarea id="adminHomeGalleryStoryText" rows="5" placeholder="Расскажите о магазине"></textarea></label>
+                    <div class="field-row">
+                      <label class="admin-input-field"><span>Текст кнопки</span><input id="adminHomeGalleryStoryButtonText" placeholder="Подробнее"></label>
+                      <label class="admin-input-field"><span>Ссылка кнопки</span><input id="adminHomeGalleryStoryButtonUrl" placeholder="stores.html"></label>
+                    </div>
                     <div class="admin-blocks home-gallery-admin-list" id="adminHomeGallery"></div>
                     <button class="btn btn-light" data-home-gallery-add type="button">Добавить фото</button>
                   </div>
@@ -505,8 +523,9 @@
                           страницах</small></span>
                       <input id="quickContactEnabled" type="checkbox">
                     </label>
-                    <div class="field-row">
+                    <div class="field-row quick-contact-controls">
                       <input id="quickContactButtonText" placeholder="Текст кнопки">
+                      <label class="quick-contact-color-field"><span>Цвет кнопки</span><input id="quickContactButtonColor" type="color" value="#123d30"></label>
                       <label class="range-field compact-range">
                         <span>Прозрачность <strong id="quickContactOpacityValue">100%</strong></span>
                         <input id="quickContactOpacity" type="range" min="0.25" max="1" step="0.01">
@@ -762,7 +781,7 @@
                     <label class="admin-input-field">
                       <span>Изображение значка</span>
                       <input id="headerLogoImage" placeholder="Ссылка или загруженный файл для квадрата">
-                      <small>Если поле заполнено, картинка заменит текст в зелёном квадрате.</small>
+                      <small>Стандартный значок отключён. Изображение или свой текст включат его снова.</small>
                     </label>
                     <label class="toggle-row">
                       <span><strong>Файл значка</strong><br><small>JPG, PNG, WebP или SVG. Подстроится под размер
@@ -774,7 +793,7 @@
                     <label class="admin-input-field">
                       <span>Изображение названия</span>
                       <input id="headerBrandImage" placeholder="Ссылка или загруженный файл вместо текстового названия">
-                      <small>Если поле пустое, показывается текст названия магазина.</small>
+                      <small>Если поле пустое, используется фирменная надпись BYVIT с подписью.</small>
                     </label>
                     <label class="toggle-row">
                       <span><strong>Файл названия</strong><br><small>Можно загрузить горизонтальный логотип для десктопа
@@ -865,8 +884,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
-        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark has-image"><img
-                class="brand-mark-img" src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+<div><a class="footer-wordmark" href="index.html" aria-label="ByVit — спортивное питание и добавки"><img class="footer-wordmark-name" src="assets/byvit-header-wordmark.svg" alt=""><img class="footer-wordmark-subtitle" src="assets/byvit-header-tagline.svg" alt=""></a>
           <p style="margin-top:18px;max-width:380px">Спортивное питание и БАДы в строгом минималистичном интерфейсе,
             потому что товар должен продаваться, а не кричать зелёным маркером.</p>
         </div>

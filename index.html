@@ -8,9 +8,9 @@
   <meta name="description"
     content="Купить спортивное питание в Минске. Цены. Онлайн-консультация специалиста. ✔ своя дисконтная программа, доставка по Беларуси! Магазин спортивного питания ByVit — современный магазин спортивного питания и БАДов.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=6">
-  <link rel="stylesheet" href="css/style.css?v=127">
-  <script src="js/data.js?v=68" defer></script>
-  <script src="js/app.js?v=112" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=190">
+  <script src="js/data.js?v=76" defer></script>
+  <script src="js/app.js?v=139" defer></script>
 </head>
 
 <body data-page="home">
@@ -20,8 +20,7 @@
           class="mono">BYVIT / STORE / 2026</span></div>
     </div>
     <div class="container header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark has-image"><img class="brand-mark-img"
-            src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+      <a class="brand" href="index.html" aria-label="ByVit — спортивное питание и добавки"><span class="brand-mark" hidden></span><span class="brand-name has-image"><span class="brand-lockup"><img class="brand-wordmark-img" src="assets/byvit-header-wordmark.svg" alt=""><img class="brand-tagline-img" src="assets/byvit-header-tagline.svg" alt=""></span></span></a>
       <nav class="main-nav"><a data-nav href="index.html">Главная</a><a data-nav href="catalog.html">Каталог</a><a
           data-nav href="brands.html">Бренды</a><a data-nav href="sale.html">Акции</a><a data-nav
           href="delivery.html">Доставка</a><a data-nav href="stores.html">Магазины</a></nav>
@@ -50,11 +49,57 @@
 
 
   <main>
+    <div class="mv-home" aria-label="Мобильная главная страница">
+      <section class="mv-hero">
+        <div class="mv-hero-media" aria-hidden="true"></div>
+        <span class="mv-hero-kicker"></span>
+        <h1></h1>
+        <p></p>
+        <a class="mv-hero-cta" href="catalog.html"></a>
+        <div class="mv-hero-dots" role="group" aria-label="Баннеры" hidden></div>
+      </section>
+
+      <section class="mv-benefits" aria-label="Преимущества магазина">
+      </section>
+
+      <nav class="mv-categories" aria-label="Категории товаров"></nav>
+
+      <section class="mv-products">
+        <div class="mv-section-head">
+          <h2></h2>
+          <a href="catalog.html?sort=popular"></a>
+        </div>
+        <div class="mv-product-rail"></div>
+      </section>
+
+      <section class="mv-goals">
+        <div class="mv-goals-copy"><span></span><h2></h2></div>
+        <div class="mv-goal-list"></div>
+      </section>
+
+      <section class="mv-brands">
+        <div class="mv-section-head"><h2></h2><a href="brands.html"></a></div>
+        <div class="mv-brand-rail"></div>
+      </section>
+
+      <section class="mv-trust">
+        <h2></h2>
+        <div class="mv-trust-list"></div>
+      </section>
+    </div>
+
     <section class="hero">
       <div class="hero-media" id="heroMedia">
         <video autoplay muted loop playsinline preload="metadata" poster="assets/hero-fallback.svg">
           <source src="assets/hero-default.mp4" type="video/mp4">
         </video>
+      </div>
+      <div class="figma-mobile-hero" aria-hidden="true">
+        <span class="figma-mobile-hero-kicker">Больше, чем добавки ───</span>
+        <h2>Результаты<br>начинаются здесь</h2>
+        <p>Оригинальные добавки<br>для твоих целей.</p>
+        <a class="figma-mobile-hero-button" href="catalog.html" tabindex="-1">К покупкам <span>→</span></a>
+        <div class="figma-mobile-hero-dots"><i></i><i></i><i></i><i></i></div>
       </div>
       <div class="container hero-content">
         <span class="eyebrow" id="heroEyebrow">Premium supplements</span>
@@ -64,6 +109,12 @@
         <div class="hero-actions"><a class="btn btn-primary" href="catalog.html">Перейти в каталог</a><a
             class="btn btn-outline" href="sale.html">Смотреть акции</a></div>
       </div>
+    </section>
+    <section class="figma-mobile-benefits" aria-label="Преимущества магазина">
+      <a href="delivery.html"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#truck"></use></svg><strong>Доставка</strong><span>по Беларуси</span></a>
+      <a href="about.html"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#shield"></use></svg><strong>Оригинальные</strong><span>товары</span></a>
+      <a href="faq.html"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#leaf"></use></svg><strong>Экспертная</strong><span>поддержка</span></a>
+      <a href="about.html"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#star"></use></svg><strong>Тысячи</strong><span>довольных клиентов</span></a>
     </section>
     <section class="section paper" data-home-block="categories">
       <div class="container">
@@ -75,6 +126,10 @@
     </section>
     <section class="section" data-home-block="sale">
       <div class="container">
+        <div class="figma-mobile-section-title">
+          <h2>Популярные товары</h2>
+          <a href="catalog.html?sort=popular">Смотреть все →</a>
+        </div>
         <div class="section-head home-products-head">
           <div><span class="eyebrow" data-block-eyebrow>Акции</span></div>
           <a class="home-section-link" href="sale.html" data-block-button>Все акции</a>
@@ -99,6 +154,10 @@
     </section>
     <section class="section" data-home-block="goals">
       <div class="container">
+        <div class="figma-mobile-goal-heading">
+          <span>── Твои цели — наши решения</span>
+          <h2>Подбери добавки<br>под свою цель</h2>
+        </div>
         <div class="section-head">
           <div><span class="eyebrow" data-block-eyebrow>Цели</span></div>
           <a class="home-section-link" href="catalog.html" data-block-button>Открыть каталог</a>
@@ -108,8 +167,13 @@
     </section>
     <section class="section" data-home-block="brands">
       <div class="container">
+        <div class="figma-mobile-section-title">
+          <h2>Популярные бренды</h2>
+          <a href="brands.html">Все бренды →</a>
+        </div>
         <div class="section-head">
           <div><span class="eyebrow" data-block-eyebrow>Бренды</span></div>
+          <a class="home-section-link" href="brands.html" data-block-button>Все бренды</a>
         </div>
         <div class="brand-grid" id="homeBrands"></div>
       </div>
@@ -122,24 +186,28 @@
         <div class="trust-list" id="homeTrust">
           <article class="trust-item">
             <div>
+              <div class="desktop-trust-top" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 2 5 7v9c0 7 4 12 11 14 7-2 11-7 11-14V7L16 2Z"/><path d="m11 16 4 4 7-9"/></svg></div>
               <h3 id="trustFeatureOneTitle">Понятный товар</h3>
               <p id="trustFeatureOneText">Бренд, страна, состав, фасовка и остаток указаны в карточке.</p>
             </div>
           </article>
           <article class="trust-item">
             <div>
+              <div class="desktop-trust-top" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M8 3h12l5 5v20H8V3Z"/><path d="M20 3v6h5M12 13h9M12 18h5"/><circle cx="22" cy="22" r="4"/><path d="m25 25 3 3"/></svg></div>
               <h3 id="trustFeatureTwoTitle">Удобное получение</h3>
               <p id="trustFeatureTwoText">Самовывоз, курьер, Европочта или почта по Беларуси.</p>
             </div>
           </article>
           <article class="trust-item">
             <div>
+              <div class="desktop-trust-top" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M3 9h16v14H3V9Zm16 5h5l5 5v4H19v-9Z"/><circle cx="9" cy="24" r="3"/><circle cx="24" cy="24" r="3"/></svg></div>
               <h3 id="trustFeatureThreeTitle">Подтверждение заказа</h3>
               <p id="trustFeatureThreeText">Магазин уточняет детали заказа и способ оплаты до отправки.</p>
             </div>
           </article>
           <article class="trust-item">
             <div>
+              <div class="desktop-trust-top" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M5 18v-4a11 11 0 0 1 22 0v4M5 17h4v8H7a2 2 0 0 1-2-2v-6Zm22 0h-4v8h2a2 2 0 0 0 2-2v-6ZM11 24c2 3 5 4 9 3"/><path d="M13 14h1m5 0h1m-6 5c2 2 4 2 6 0"/></svg></div>
               <h3 id="trustFeatureFourTitle">Быстрый заказ</h3>
               <p id="trustFeatureFourText">Корзина, промокод и подтверждение собраны в одном сценарии.</p>
             </div>
@@ -149,10 +217,22 @@
     </section>
     <section class="section home-gallery-section" id="homeGallerySection">
       <div class="container">
-        <div class="section-head home-gallery-head">
-          <div><span class="eyebrow" id="homeGalleryTitle">Наш магазин</span></div>
+        <div class="home-gallery-layout">
+          <div class="home-gallery-copy">
+            <div class="section-head home-gallery-head">
+              <span class="eyebrow" id="homeGalleryTitle">Наш магазин</span>
+            </div>
+            <div class="home-gallery-story">
+              <h2 id="homeGalleryStoryTitle"></h2>
+              <p id="homeGalleryStoryText"></p>
+              <a class="btn btn-primary" id="homeGalleryStoryButton" href="stores.html"></a>
+            </div>
+          </div>
+          <div class="home-gallery-media">
+            <div class="home-gallery-rail" id="homeGallery" role="region" aria-label="Фотогалерея ByVit" tabindex="0"></div>
+            <div class="home-gallery-dots" id="homeGalleryDots" role="group" aria-label="Выбор фотографии" hidden></div>
+          </div>
         </div>
-        <div class="home-gallery-rail" id="homeGallery" aria-label="Фотогалерея ByVit"></div>
       </div>
     </section>
   </main>
@@ -161,8 +241,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
-        <div><a class="brand" href="index.html" style="color:#fff"><span class="brand-mark has-image"><img
-                class="brand-mark-img" src="assets/favicon.svg" alt=""></span><span class="brand-name">ByVit</span></a>
+<div><a class="footer-wordmark" href="index.html" aria-label="ByVit — спортивное питание и добавки"><img class="footer-wordmark-name" src="assets/byvit-header-wordmark.svg" alt=""><img class="footer-wordmark-subtitle" src="assets/byvit-header-tagline.svg" alt=""></a>
           <p style="margin-top:18px;max-width:380px">Спортивное питание и БАДы в строгом минималистичном интерфейсе,
             потому что товар должен продаваться, а не кричать зелёным маркером.</p>
         </div>
