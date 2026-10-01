@@ -16926,6 +16926,36 @@ body[data-page="product"] [data-product-add].cart-state-active {
   height: auto;
 }
 
+.site-header .brand-desktop-logo {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5297 / 945;
+  overflow: hidden;
+}
+
+/* Frame the artwork inside the supplied PNG's transparent margins. */
+.site-header .brand-desktop-logo img {
+  position: absolute;
+  left: calc(-100% * 1446 / 5297);
+  top: calc(-100% * 1039 / 945);
+  display: block;
+  width: calc(100% * 8189 / 5297);
+  max-width: none;
+  height: auto;
+}
+
+@media (min-width: 761px) {
+  .site-header .has-desktop-artwork > .brand-desktop-logo {
+    display: block;
+  }
+
+  .site-header .has-desktop-artwork > .brand-wordmark-img,
+  .site-header .has-desktop-artwork > .brand-tagline-img {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .site-header .brand .brand-name {
     display: inline-flex;

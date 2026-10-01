@@ -96,7 +96,9 @@ async function main() {
     assert.equal(await page.locator('.site-header .brand-mark').isVisible(), false, 'Default header icon must be hidden');
     assert.equal(await page.locator('.site-header .brand-wordmark-img').getAttribute('src'), 'assets/byvit-header-wordmark.svg');
     assert.equal(await page.locator('.site-header .brand-tagline-img').getAttribute('src'), 'assets/byvit-header-tagline.svg');
-    assert.equal(await page.locator('.site-header .brand-tagline-img').isVisible(), true);
+    assert.equal(await page.locator('.site-header .brand-tagline-img').isVisible(), false);
+    assert.equal(await page.locator('.site-header .brand-desktop-logo img').getAttribute('src'), 'assets/byvit-desktop-logo.png');
+    await page.locator('.site-header .brand-desktop-logo img').evaluate(image => image.decode());
     const desktopLockup = await page.locator('.site-header .brand-lockup').evaluate(node => ({width:node.getBoundingClientRect().width, gap:getComputedStyle(node).gap}));
     assert.ok(Math.abs(desktopLockup.width - 211.2) < 1);
     assert.equal(desktopLockup.gap, '10px');
