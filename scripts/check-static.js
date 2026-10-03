@@ -21,7 +21,7 @@ async function main(){
   for(const file of fs.readdirSync(dist).filter(file => file.endsWith('.html'))){
     const html = fs.readFileSync(path.join(dist,file),'utf8');
     for(const rel of ['icon','apple-touch-icon']) assert.match(html,new RegExp(`rel="${rel}"[^>]+href="assets/[^"?]+\\.[a-f0-9]{12}\\.png"`));
-    assert.ok(!/rel="icon"[^>]+type="image\/svg\+xml"/.test(html), 'Legacy SVG must not override the supplied PNG favicon');
+    assert.ok(html.includes(`type="image/svg+xml" sizes="any" href="${manifest['assets/favicon.svg']}"`), 'Published pages must advertise the supplied SVG favicon');
     assert.match(html,/src="js\/app\.[a-f0-9]{12}\.js"/);
     assert.match(html,/href="css\/style\.[a-f0-9]{12}\.css"/);
     assert.ok(!html.includes('src="js/app.js?'), 'Published app script must have a content-addressed URL');
@@ -64,7 +64,7 @@ async function main(){
     assert.equal(await page.locator('#featuredProducts .product-card h3').first().textContent(),'100% Whey Protein');
     const retained = await page.evaluate(keys => Object.fromEntries(keys.map(key => [key,localStorage.getItem(key)])),Object.keys(legacy));
     assert.deepEqual(retained,legacy,'Refreshing published data must not erase saved settings, cart, wishlist or comparison');
-    for(const [selector,size] of [['link[rel="icon"][type="image/png"]',48],['link[rel="apple-touch-icon"]',180]]){
+    for(const [selector,size] of [['link[rel="icon"][type="image/svg+xml"]',1000],['link[rel="icon"][type="image/png"]',48],['link[rel="apple-touch-icon"]',180]]){
       const href = await page.locator(selector).getAttribute('href');
       const dimensions = await page.evaluate(async href => {
         const image = new Image(); image.src = href; await image.decode();

@@ -95,11 +95,12 @@ async function main() {
     await page.locator('body.home-ready').waitFor();
     assert.equal(await page.title(), 'Спортивное питание и добавки с доставкой по Беларуси - BYVIT');
     assert.equal(await page.locator('meta[property="og:title"]').getAttribute('content'), await page.title());
-    assert.equal(await page.locator('link[rel="icon"][type="image/svg+xml"]').count(), 0, 'Legacy SVG must not override the supplied PNG favicon');
+    assert.equal(await page.locator('link[rel="icon"][type="image/svg+xml"]').getAttribute('href'), 'assets/favicon.svg?v=12');
+    assert.equal(await page.locator('link[rel="icon"][type="image/svg+xml"]').getAttribute('sizes'), 'any');
     assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('sizes'), '48x48');
-    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon-48.png?v=11');
+    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon-48.png?v=12');
     assert.equal(await page.locator('link[rel="apple-touch-icon"]').getAttribute('sizes'), '180x180');
-    assert.equal(await page.locator('link[rel="apple-touch-icon"]').getAttribute('href'), 'assets/apple-touch-icon.png?v=11');
+    assert.equal(await page.locator('link[rel="apple-touch-icon"]').getAttribute('href'), 'assets/apple-touch-icon.png?v=12');
     await page.locator('.hero').waitFor();
     assert.equal(await page.locator('.site-header .brand-mark').isVisible(), false, 'Default header icon must be hidden');
     assert.equal(await page.locator('.site-header .brand-wordmark-img').getAttribute('src'), 'assets/byvit-header-wordmark.svg');
