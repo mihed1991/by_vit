@@ -122,6 +122,20 @@ async function main() {
     assert.equal(await page.locator('a[href="admin.html"]').count(), 0, 'Public homepage must not expose an admin link');
     const homeBlockOrder = await page.locator('main > [data-home-block]').evaluateAll(nodes => nodes.map(node => node.dataset.homeBlock));
     assert.deepEqual(homeBlockOrder, ['categories', 'sale', 'goals', 'brands', 'trust']);
+    for(const width of [1440, 1200, 1000]){
+      await page.setViewportSize({width, height:900});
+      const sizes = [];
+      for(const tab of ['sale', 'featured']){
+        await page.locator(`[data-home-product-tab="${tab}"]`).click();
+        sizes.push(await page.locator(`#${tab === 'sale' ? 'sale' : 'featured'}Products .product-card`).first().evaluate(card => {
+          const box = card.getBoundingClientRect();
+          return {width:box.width, height:box.height};
+        }));
+      }
+      assert.ok(Math.abs(sizes[0].width - sizes[1].width) < 1 && Math.abs(sizes[0].height - sizes[1].height) < 1, `Home product tabs must have matching card sizes at ${width}px: ${JSON.stringify(sizes)}`);
+    }
+    await page.setViewportSize({width:1440, height:900});
+    await page.locator('[data-home-product-tab="sale"]').click();
     assert.equal(await page.locator('[data-home-block="trust"]').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 255, 255)');
     await page.locator('#homeGoals .goal-card').first().waitFor();
     assert.equal(await page.locator('#homeGoals .goal-card').count(), 6);
@@ -469,6 +483,7 @@ async function main() {
     assert.ok(Math.abs(stickyState.top) < 1, `Mobile header must remain visible while scrolling: ${JSON.stringify(stickyState)}`);
     await mobilePage.evaluate(() => window.scrollTo(0, 0));
     assert.equal(await mobilePage.locator('.footer-wordmark').evaluate(node => node.getBoundingClientRect().width), mobileLockup.width);
+    assert.equal(await mobilePage.locator('.footer-wordmark').isVisible(), false, 'Mobile footer logo must be hidden without collapsing its spacing');
     assert.equal(await mobilePage.locator('.footer-wordmark-subtitle').isVisible(), false);
     if(qaScreenshotDir) await mobilePage.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-mobile.png') });
     assert.equal(await mobilePage.locator('.mv-hero h1').textContent(), 'Тест мобильного баннера');
@@ -477,6 +492,8 @@ async function main() {
     assert.deepEqual(await mobilePage.locator('.mv-product-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.productId)), ['1','2']);
     const homeCardSize = await mobilePage.locator('.mv-product-card').first().evaluate(card => ({width:card.getBoundingClientRect().width, height:card.getBoundingClientRect().height}));
     assert.equal(await mobilePage.locator('.mv-goal-list a').count(), 6);
+    assert.match(await mobilePage.locator('.mv-goal-list a[href*="category=joints"] use').getAttribute('href'), /#joints$/);
+    assert.match(await mobilePage.locator('.mv-goal-list a[href*="category=vitamins"] use').getAttribute('href'), /#shield$/);
     assert.deepEqual(await mobilePage.locator('.mobile-bottom-nav a > span:nth-child(2)').allTextContents(), ['Главная', 'Каталог', 'Акции', 'Корзина', 'Магазины']);
     assert.equal(await mobilePage.locator('.mobile-bottom-nav a[href="sale.html"] .bottom-nav-icon').textContent(), '%');
     assert.equal(await mobilePage.locator('.mobile-bottom-nav a:first-child .bottom-nav-icon').evaluate(icon => getComputedStyle(icon).fontSize), '24px');

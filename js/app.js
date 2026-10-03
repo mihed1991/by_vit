@@ -706,7 +706,9 @@
       title:String(item.title || '').trim(),
       text:String(item.text || '').trim(),
       href:String(item.href || 'catalog.html').trim(),
-      icon:mobileHomeIcon(item.icon, defaults.goals?.find(goal => goal.id === item.id)?.icon || 'star'),
+      icon:item.id === 'joints' && (!item.icon || item.icon === 'shield')
+        ? 'joints'
+        : mobileHomeIcon(item.icon, defaults.goals?.find(goal => goal.id === item.id)?.icon || 'star'),
       enabled:item.enabled !== false
     })).filter(item => item.title || item.text);
   }
@@ -738,7 +740,7 @@
       normalizeBrandImageValue(value)
     ]).filter(([brand, image]) => brand && image.src));
   }
-  const MOBILE_HOME_ICONS = new Set(['truck','shield','leaf','star','tag','headphones','dumbbell','flame','activity']);
+  const MOBILE_HOME_ICONS = new Set(['truck','shield','joints','leaf','star','tag','headphones','dumbbell','flame','activity']);
   function mobileHomeIcon(value, fallback){ return MOBILE_HOME_ICONS.has(value) ? value : fallback; }
   function normalizeMobileHome(site, defaults){
     const base = defaults.mobileHome || {};
@@ -2626,7 +2628,7 @@
     setText('.mv-goals-copy > span', config.goalsEyebrow);
     setText('.mv-goals-copy h2', config.goalsTitle);
     const goalRoot = $('.mv-goal-list', root);
-    if(goalRoot) goalRoot.innerHTML = goals.map(goal => `<a href="${esc(goal.href || 'catalog.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(goal.icon, 'star')}"></use></svg><strong>${esc(goal.title)}</strong><span>›</span></a>`).join('');
+    if(goalRoot) goalRoot.innerHTML = goals.map(goal => `<a href="${esc(goal.href || 'catalog.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg?v=2#${mobileHomeIcon(goal.icon, 'star')}"></use></svg><strong>${esc(goal.title)}</strong><span>›</span></a>`).join('');
     const brandList = brands();
     setSection('.mv-brands', blocks.brands?.visible !== false && brandList.length > 0);
     setText('.mv-brands .mv-section-head h2', config.brandsTitle);
@@ -4130,7 +4132,7 @@
         <input data-goal-title value="${esc(goal.title || '')}" placeholder="Название цели">
         <input data-goal-href value="${esc(goal.href || 'catalog.html')}" placeholder="Ссылка">
       </div>
-      <label class="admin-input-field"><span>Иконка мобильной карточки</span><select data-goal-icon>${[['dumbbell','Гантель'],['activity','Пульс'],['leaf','Лист'],['shield','Щит'],['flame','Огонь'],['star','Звезда'],['truck','Доставка'],['tag','Ценник'],['headphones','Поддержка']].map(([value,label]) => `<option value="${value}" ${goal.icon === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <label class="admin-input-field"><span>Иконка мобильной карточки</span><select data-goal-icon>${[['dumbbell','Гантель'],['activity','Пульс'],['leaf','Лист'],['joints','Сустав'],['shield','Щит'],['flame','Огонь'],['star','Звезда'],['truck','Доставка'],['tag','Ценник'],['headphones','Поддержка']].map(([value,label]) => `<option value="${value}" ${goal.icon === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       <textarea data-goal-text placeholder="Описание">${esc(goal.text || '')}</textarea>
       <button class="btn btn-danger small" data-goal-delete type="button">Удалить цель</button>
     </article>`;
