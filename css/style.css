@@ -16954,6 +16954,25 @@ body[data-page="product"] [data-product-add].cart-state-active {
   height: auto;
 }
 
+.site-header .brand-mobile-logo {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5297 / 498;
+  overflow: hidden;
+}
+
+/* Frame the supplied mobile PNG without shrinking the wordmark into its margins. */
+.site-header .brand-mobile-logo img {
+  position: absolute;
+  left: calc(-100% * 1446 / 5297);
+  top: calc(-100% * 1263 / 498);
+  display: block;
+  width: calc(100% * 8189 / 5297);
+  max-width: none;
+  height: auto;
+}
+
 @media (min-width: 761px) {
   .site-header .has-desktop-artwork > .brand-desktop-logo {
     display: block;
@@ -16977,6 +16996,16 @@ body[data-page="product"] [data-product-add].cart-state-active {
     max-width: 105.6px;
     flex: 0 0 105.6px;
     gap: 0;
+    height: 11.18px;
+    justify-content: center;
+  }
+
+  .site-header .has-desktop-artwork > .brand-mobile-logo {
+    display: block;
+  }
+
+  .site-header .has-desktop-artwork > .brand-wordmark-img {
+    display: none;
   }
 
   .site-header .brand-tagline-img {

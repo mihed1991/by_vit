@@ -22,6 +22,7 @@
   const DEFAULT_HEADER_WORDMARK = 'assets/byvit-header-wordmark.svg';
   const DEFAULT_HEADER_TAGLINE = 'assets/byvit-header-tagline.svg';
   const DEFAULT_DESKTOP_HEADER_LOGO = 'assets/byvit-desktop-logo.png';
+  const DEFAULT_MOBILE_HEADER_LOGO = 'assets/byvit-mobile-logo.png';
   const FORM_TYPES = {
     powder:'Порошок',
     liquid:'Жидкость',
@@ -1538,7 +1539,7 @@
     const src = String(header.brandImage || DEFAULT_HEADER_WORDMARK).trim();
     const name = header.storeName || 'ByVit';
     if(src === DEFAULT_HEADER_WORDMARK){
-      return `<span class="brand-lockup has-desktop-artwork"><span class="brand-desktop-logo"><img src="${DEFAULT_DESKTOP_HEADER_LOGO}" alt=""></span><img class="brand-wordmark-img" src="${DEFAULT_HEADER_WORDMARK}" alt=""><img class="brand-tagline-img" src="${DEFAULT_HEADER_TAGLINE}" alt=""></span>`;
+      return `<span class="brand-lockup has-desktop-artwork"><span class="brand-desktop-logo"><img src="${DEFAULT_DESKTOP_HEADER_LOGO}" alt=""></span><span class="brand-mobile-logo"><img src="${DEFAULT_MOBILE_HEADER_LOGO}" width="8189" height="3024" alt=""></span><img class="brand-wordmark-img" src="${DEFAULT_HEADER_WORDMARK}" alt=""><img class="brand-tagline-img" src="${DEFAULT_HEADER_TAGLINE}" alt=""></span>`;
     }
     return src ? `<img class="brand-name-img" src="${esc(src)}" alt="">` : esc(name);
   }

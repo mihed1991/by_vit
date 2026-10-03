@@ -472,10 +472,13 @@ async function main() {
     assert.equal(await mobilePage.locator('#homeGoals .desktop-goal-icon').first().evaluate(node => getComputedStyle(node).display), 'none');
     assert.equal(await mobilePage.locator('#homeTrust .desktop-trust-top').first().evaluate(node => getComputedStyle(node).display), 'none');
     assert.equal(await mobilePage.locator('.site-header .brand-mark').isVisible(), false);
-    assert.equal(await mobilePage.locator('.site-header .brand-wordmark-img').isVisible(), true);
+    assert.equal(await mobilePage.locator('.site-header .brand-wordmark-img').isVisible(), false);
+    assert.equal(await mobilePage.locator('.site-header .brand-mobile-logo').isVisible(), true);
+    assert.equal(await mobilePage.locator('.site-header .brand-mobile-logo img').getAttribute('src'), 'assets/byvit-mobile-logo.png');
     assert.equal(await mobilePage.locator('.site-header .brand-tagline-img').isVisible(), false);
     const mobileLockup = await mobilePage.locator('.site-header .brand-lockup').evaluate(node => ({width:node.getBoundingClientRect().width, display:getComputedStyle(node).display}));
     assert.ok(Math.abs(mobileLockup.width - 105.6) < 1 && mobileLockup.display === 'flex');
+    assert.ok(Math.abs(await mobilePage.locator('.site-header .brand-lockup').evaluate(node => node.getBoundingClientRect().height) - 11.18) < 1, 'Mobile logo must retain its previous footprint');
     const headerControls = await mobilePage.locator('.site-header .burger, .site-header .brand, .site-header .header-search-trigger, .site-header .header-contact-trigger').evaluateAll(nodes => nodes.map(node => ({left:node.getBoundingClientRect().left, center:node.getBoundingClientRect().left + node.getBoundingClientRect().width / 2, visible:getComputedStyle(node).display !== 'none'})));
     assert.equal(headerControls.length, 4);
     assert.ok(headerControls.every(item => item.visible));
