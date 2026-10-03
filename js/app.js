@@ -747,6 +747,19 @@
     const base = defaults.mobileHome || {};
     const source = site?.mobileHome || {};
     const result = {...base, ...source};
+    // Seed independent mobile settings from legacy shared values without changing the storefront.
+    for(const [field, block] of Object.entries({categoriesVisible:'categories', productsVisible:'featured', goalsVisible:'goals', brandsVisible:'brands', trustVisible:'trust'})){
+      result[field] = source[field] ?? site.homeBlocks?.[block]?.visible ?? true;
+    }
+    result.heroButtonUrl = source.heroButtonUrl ?? (site.heroSlides?.[0]?.href || site.heroHref || 'catalog.html');
+    result.productsLinkUrl = source.productsLinkUrl ?? site.homeBlocks?.featured?.buttonUrl ?? 'catalog.html?sort=popular';
+    result.brandsLinkUrl = source.brandsLinkUrl ?? site.homeBlocks?.brands?.buttonUrl ?? 'brands.html';
+    const store = source.store || {};
+    result.store = {visible:store.visible !== false};
+    for(const [field, legacy] of Object.entries({title:'homeGalleryTitle', storyTitle:'homeGalleryStoryTitle', storyText:'homeGalleryStoryText', buttonText:'homeGalleryStoryButtonText', buttonUrl:'homeGalleryStoryButtonUrl'})){
+      result.store[field] = String(store[field] ?? site[legacy] ?? defaults[legacy] ?? '').trim();
+    }
+    result.store.items = normalizeHomeGallery({homeGallery:store.items ?? site.homeGallery}, defaults);
     ['benefits','trust'].forEach(key => {
       const initial = base[key] || [];
       result[key] = initial.map((fallback, index) => {
@@ -924,7 +937,7 @@
     merged.homeLayoutVersion = Math.max(3, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
-    merged.mobileHome = normalizeMobileHome(site, defaults);
+    merged.mobileHome = normalizeMobileHome(merged, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
     merged.pickupStores = normalizePickupStores(site, defaults);
@@ -956,6 +969,12 @@
     merged.heroCopyMobile = merged.heroCopyMobile !== false;
     merged.heroActionsMobile = merged.heroActionsMobile !== false;
     merged.heroSlides = normalizeHeroSlides(heroSource, defaults, merged.mobileHeroMedia);
+    const mobileSlides = site?.mobileHome?.heroSlides;
+    merged.mobileHome.heroSlides = (Array.isArray(mobileSlides) ? mobileSlides : merged.heroSlides.slice(1).map(slide => ({
+      ...slide, mobileEnabled:true,
+      mobileMode:slide.mobileEnabled ? slide.mobileMode : slide.desktopMode,
+      mobileSrc:slide.mobileEnabled ? slide.mobileSrc : slide.desktopSrc
+    }))).slice(0,3).map((slide,index) => normalizeHeroSlide(slide,index + 1));
     return merged;
   }
   function migrateLegacyWheyVariants(products){
@@ -2171,7 +2190,10 @@
       mobileMode:mobileMedia.mode || 'image',
       mobileSrc:mobileMedia.src || ''
     })];
-    renderMobileHero(activeSlides);
+    renderMobileHero([
+      normalizeHeroSlide({id:'mobile-hero-1', enabled:true, href:site.mobileHome.heroButtonUrl, mobileEnabled:mobileMedia.enabled, mobileMode:mobileMedia.mode, mobileSrc:mobileMedia.src}),
+      ...(site.mobileHome.heroSlides || []).filter(slide => slide.enabled !== false && slide.mobileEnabled !== false && slide.mobileSrc)
+    ]);
     const mobileEnabled = activeSlides.some(slide => slide.mobileEnabled === true);
     if(hero){
       hero.dataset.align = site.heroAlign || 'right';
@@ -2593,7 +2615,7 @@
       </div>
     </article>`;
   }
-  function renderMobileHome(site, products, blocks){
+  function renderMobileHome(site, products){
     const root = $('.mv-home');
     if(!root) return;
     const config = site.mobileHome || {};
@@ -2606,6 +2628,7 @@
     heroCopy.forEach(node => { if(node) node.hidden = site.heroCopyMobile === false || !node.textContent.trim(); });
     const heroCta = $('.mv-hero-cta', root);
     if(heroCta){
+      heroCta.href = config.heroButtonUrl || 'catalog.html';
       heroCta.innerHTML = `${esc(config.heroButtonText || '')} <svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#cart"></use></svg>`;
       heroCta.hidden = site.heroActionsMobile === false || !String(config.heroButtonText || '').trim();
     }
@@ -2614,31 +2637,31 @@
     const benefitRoot = $('.mv-benefits', root);
     if(benefitRoot) benefitRoot.innerHTML = benefits.map(item => `<a href="${esc(item.href || 'about.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(item.icon, 'star')}"></use></svg><strong>${esc(item.title)}</strong><span>${esc(item.text)}</span></a>`).join('');
     const categories = getCategories().filter(item => item?.id && item?.name);
-    setSection('.mv-categories', blocks.categories?.visible !== false && categories.length > 0);
+    setSection('.mv-categories', config.categoriesVisible !== false && categories.length > 0);
     const categoryRoot = $('.mv-categories', root);
     if(categoryRoot) categoryRoot.innerHTML = categories.map((item, index) => `<a class="${index === 0 ? 'active' : ''}" href="catalog.html?category=${encodeURIComponent(item.id)}">${esc(item.name)}</a>`).join('');
     const featured = products.filter(item => item.popular);
-    setSection('.mv-products', blocks.featured?.visible !== false && featured.length > 0);
+    setSection('.mv-products', config.productsVisible !== false && featured.length > 0);
     setText('.mv-products .mv-section-head h2', config.productsTitle);
     const productLink = $('.mv-products .mv-section-head > a', root);
-    if(productLink){ productLink.textContent = config.productsLinkText || ''; productLink.href = blocks.featured?.buttonUrl || 'catalog.html?sort=popular'; productLink.hidden = !config.productsLinkText; }
+    if(productLink){ productLink.textContent = config.productsLinkText || ''; productLink.href = config.productsLinkUrl || 'catalog.html?sort=popular'; productLink.hidden = !config.productsLinkText; }
     const productRoot = $('.mv-product-rail', root);
     if(productRoot) productRoot.innerHTML = featured.map(mobileProductCard).join('');
     const goals = storefrontGoals();
-    setSection('.mv-goals', blocks.goals?.visible !== false && goals.length > 0);
+    setSection('.mv-goals', config.goalsVisible !== false && goals.length > 0);
     setText('.mv-goals-copy > span', config.goalsEyebrow);
     setText('.mv-goals-copy h2', config.goalsTitle);
     const goalRoot = $('.mv-goal-list', root);
     if(goalRoot) goalRoot.innerHTML = goals.map(goal => `<a href="${esc(goal.href || 'catalog.html')}"><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg?v=2#${mobileHomeIcon(goal.icon, 'star')}"></use></svg><strong>${esc(goal.title)}</strong><span>›</span></a>`).join('');
     const brandList = brands();
-    setSection('.mv-brands', blocks.brands?.visible !== false && brandList.length > 0);
+    setSection('.mv-brands', config.brandsVisible !== false && brandList.length > 0);
     setText('.mv-brands .mv-section-head h2', config.brandsTitle);
     const brandLink = $('.mv-brands .mv-section-head > a', root);
-    if(brandLink){ brandLink.textContent = config.brandsLinkText || ''; brandLink.href = blocks.brands?.buttonUrl || 'brands.html'; brandLink.hidden = !config.brandsLinkText; }
+    if(brandLink){ brandLink.textContent = config.brandsLinkText || ''; brandLink.href = config.brandsLinkUrl || 'brands.html'; brandLink.hidden = !config.brandsLinkText; }
     const brandRoot = $('.mv-brand-rail', root);
     if(brandRoot){ brandRoot.innerHTML = brandList.map(brand => brandCardHtml(brand, site)).join(''); bindBrandLogoFallbacks(brandRoot); }
     const trust = (config.trust || []).filter(item => item.enabled !== false && (item.title || item.text));
-    setSection('.mv-trust', blocks.trust?.visible !== false && trust.length > 0);
+    setSection('.mv-trust', config.trustVisible !== false && trust.length > 0);
     setText('.mv-trust > h2', config.trustTitle);
     const trustRoot = $('.mv-trust-list', root);
     if(trustRoot) trustRoot.innerHTML = trust.map(item => `<article><svg aria-hidden="true"><use href="assets/home-mobile-icons.svg#${mobileHomeIcon(item.icon, 'shield')}"></use></svg><div><h3>${esc(item.title)}</h3><p>${esc(item.text)}</p></div></article>`).join('');
@@ -2744,25 +2767,40 @@
       bindBrandLogoFallbacks(brandRail);
     }
     orderHomeSections(blocks);
+    renderHomeGallery(site);
+    renderMobileHome(site, products);
+    document.body.classList.add('home-ready');
+  }
+
+  const homeViewport = window.matchMedia('(max-width:760px)');
+  homeViewport.addEventListener('change', () => {
+    if(document.body.dataset.page === 'home') renderHomeGallery(getSite());
+  });
+  function renderHomeGallery(site){
+    const store = homeViewport.matches ? site.mobileHome.store : {
+      visible:site.homeGalleryVisible !== false, items:site.homeGallery, title:site.homeGalleryTitle,
+      storyTitle:site.homeGalleryStoryTitle, storyText:site.homeGalleryStoryText,
+      buttonText:site.homeGalleryStoryButtonText, buttonUrl:site.homeGalleryStoryButtonUrl
+    };
     const gallerySection = $('#homeGallerySection');
     const galleryRail = $('#homeGallery');
     const galleryTitle = $('#homeGalleryTitle');
     const galleryDots = $('#homeGalleryDots');
-    const galleryItems = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
+    const galleryItems = (store.items || []).slice(0, MAX_HOME_GALLERY_IMAGES);
     if(gallerySection && galleryRail){
-      gallerySection.hidden = false;
-      if(galleryTitle) galleryTitle.textContent = site.homeGalleryTitle || 'Наш магазин';
+      gallerySection.hidden = store.visible === false;
+      if(galleryTitle) galleryTitle.textContent = store.title || 'Наш магазин';
       const storyTitle = $('#homeGalleryStoryTitle');
       const storyText = $('#homeGalleryStoryText');
       const storyButton = $('#homeGalleryStoryButton');
       if(storyTitle){
-        const title = site.homeGalleryStoryTitle || '';
+        const title = store.storyTitle || '';
         storyTitle.innerHTML = `<span class="home-gallery-title-sizing">${esc(title)}</span><svg class="home-gallery-title-logo" viewBox="1446 1039 5297 945" preserveAspectRatio="xMinYMid meet" aria-hidden="true" focusable="false"><image href="assets/byvit-store-logo.png" width="8189" height="3024"/></svg>`;
       }
-      if(storyText) storyText.textContent = site.homeGalleryStoryText || '';
+      if(storyText) storyText.textContent = store.storyText || '';
       if(storyButton){
-        const label = site.homeGalleryStoryButtonText || '';
-        const href = site.homeGalleryStoryButtonUrl || '';
+        const label = store.buttonText || '';
+        const href = store.buttonUrl || '';
         let protocol = '';
         try{ protocol = href ? new URL(href, location.href).protocol : ''; }catch(error){ /* Invalid admin URL: hide the link. */ }
         storyButton.hidden = !label || !['http:', 'https:'].includes(protocol);
@@ -2825,8 +2863,6 @@
       bindGalleryImageFallbacks(gallerySection, galleryRail);
       $('[data-home-block="trust"]')?.insertAdjacentElement('afterend', gallerySection);
     }
-    renderMobileHome(site, products, blocks);
-    document.body.classList.add('home-ready');
   }
 
   function filterProducts(){
@@ -3985,13 +4021,13 @@
       input.value = '';
     }
   }
-  function heroSlideEditor(slide={}, index=0){
+  function heroSlideEditor(slide={}, index=0, mobile=false){
     const data = normalizeHeroSlide(slide, index);
     const modeLabel = value => ({video:'Видео',image:'Изображение',file:'Файл'}[value] || value);
     return `<details class="admin-block-editor hero-slide-editor" data-hero-slide-key="${esc(data.id)}">
       <summary class="hero-slide-summary">
         <span>Баннер ${index + 1}</span>
-        <small>${esc(modeLabel(data.desktopMode))}${data.mobileEnabled ? ` / моб: ${esc(modeLabel(data.mobileMode))}` : ''}</small>
+        <small>${esc(modeLabel(mobile ? data.mobileMode : data.desktopMode))}</small>
       </summary>
       <div class="admin-block-head">
         <h4>Настройка баннера</h4>
@@ -4002,7 +4038,7 @@
         <input data-hero-slide-field="href" value="${esc(data.href)}" placeholder="catalog.html, sale.html или https://...">
       </label>
       <div class="hero-slide-columns">
-        <div class="hero-slide-mode">
+        <div class="hero-slide-mode" ${mobile ? 'hidden' : ''}>
           <h5>Десктоп</h5>
       <div class="field-row">
         <label class="admin-input-field">
@@ -4023,10 +4059,10 @@
         <input data-hero-slide-upload="desktop" type="file" accept="image/*,video/mp4,video/webm">
       </label>
         </div>
-        <div class="hero-slide-mode">
+        <div class="hero-slide-mode" ${mobile ? '' : 'hidden'}>
           <h5>Мобильная версия</h5>
       <label class="toggle-row">
-        <span><strong>Отдельное медиа для телефона</strong><br><small>Если выключено, телефон использует десктопный баннер</small></span>
+        <span><strong>Показывать медиа</strong><br><small>Только для мобильной главной страницы</small></span>
         <input data-hero-slide-field="mobileEnabled" type="checkbox" ${data.mobileEnabled ? 'checked' : ''}>
       </label>
       <div class="field-row">
@@ -4070,15 +4106,15 @@
       </div>
       <input data-home-gallery-src type="hidden" value="${esc(data.src)}">
       <input data-home-gallery-alt value="${esc(data.alt)}" placeholder="Краткое описание фото">
-      <input data-home-gallery-caption value="${esc(data.caption)}" placeholder="Подпись на фото в мобильной версии" aria-label="Подпись на фото ${index + 1} в мобильной версии">
+      <input data-home-gallery-caption value="${esc(data.caption)}" placeholder="Подпись на фото" aria-label="Подпись на фото ${index + 1}">
       <label class="admin-file-field">
         <span>Загрузить или заменить фото</span>
         <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
       </label>
     </article>`;
   }
-  function collectHomeGallery(){
-    const root = $('#adminHomeGallery');
+  function collectHomeGallery(selector='#adminHomeGallery'){
+    const root = $(selector);
     return $$('[data-home-gallery-key]', root || document).slice(0, MAX_HOME_GALLERY_IMAGES).map((block, index) => ({
       id:block.dataset.homeGalleryKey || `gallery-${index + 1}`,
       src:$('[data-home-gallery-src]', block)?.value.trim() || '',
@@ -4258,8 +4294,8 @@
       <button class="btn btn-danger small" data-content-delete type="button">Удалить</button>
     </article>`;
   }
-  function collectHeroSlides(){
-    return $$('[data-hero-slide-key]').slice(0,4).map((card, index) => ({
+  function collectHeroSlides(selector='#adminHeroSlides'){
+    return $$('[data-hero-slide-key]', $(selector)).slice(0,3).map((card, index) => ({
       id:card.dataset.heroSlideKey || `hero-${index + 1}`,
       enabled:$('[data-hero-slide-field="enabled"]', card)?.checked !== false,
       href:$('[data-hero-slide-field="href"]', card)?.value.trim() || '',
@@ -4273,17 +4309,13 @@
   function primaryHeroSlideFromAdmin(site){
     const existing = normalizeHeroSlide(site.heroSlides?.[0] || {}, 0);
     const desktopMode = $('#siteHeroMediaMode')?.value || existing.desktopMode || 'video';
-    const mobileMode = $('#siteMobileHeroMode')?.value || existing.mobileMode || 'image';
     return normalizeHeroSlide({
       ...existing,
       id:existing.id || 'hero-1',
       enabled:true,
       href:$('#siteHeroHref')?.value.trim() || '',
       desktopMode,
-      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-default.webp',
-      mobileEnabled:$('#siteMobileHeroEnabled')?.checked === true,
-      mobileMode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
-      mobileSrc:$('#siteMobileHeroMediaSrc')?.value.trim() || ''
+      desktopSrc:$('#siteHeroMediaSrc')?.value.trim() || existing.desktopSrc || 'assets/hero-default.webp'
     }, 0);
   }
   function collectGoals(){
@@ -4835,6 +4867,10 @@
     if(!serverAvailable || !isAdminSession() || !pendingMediaDeletes.size) return;
     const sources = Array.from(pendingMediaDeletes);
     await Promise.all(sources.map(async source => {
+      // Legacy shared photos can now be referenced by either version, including unsaved drafts.
+      const usedInState = JSON.stringify(serverState).includes(JSON.stringify(source));
+      const usedInDraft = $$('input:not([type="file"])', $('#adminPanel') || document).some(input => input.value === source);
+      if(usedInState || usedInDraft) return;
       try{
         await fetchJson('/api/admin/uploads', {method:'DELETE', body:JSON.stringify({url:source})});
         pendingMediaDeletes.delete(source);
@@ -5022,9 +5058,28 @@
     if(benefits) benefits.innerHTML = (config.benefits || []).map((item,index) => mobileHomeItemEditor(item,index,'benefits')).join('');
     const trust = $('#adminMobileTrust');
     if(trust) trust.innerHTML = (config.trust || []).map((item,index) => mobileHomeItemEditor(item,index,'trust')).join('');
+    const slides = $('#adminMobileHeroSlides');
+    if(slides) slides.innerHTML = (config.heroSlides || []).map((slide,index) => heroSlideEditor(slide,index + 1,true)).join('');
+    $$('[data-mobile-store-field]').forEach(input => {
+      const value = config.store?.[input.dataset.mobileStoreField];
+      if(input.type === 'checkbox') input.checked = value !== false;
+      else input.value = value ?? '';
+    });
+    const gallery = $('#adminMobileHomeGallery');
+    if(gallery){
+      const items = config.store?.items || [];
+      gallery.innerHTML = items.length ? items.map(homeGalleryEditor).join('') : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
+      $$('[data-home-gallery-key]', gallery).forEach(updateHomeGalleryPreview);
+      $('[data-home-gallery-add="mobile"]').disabled = items.length >= MAX_HOME_GALLERY_IMAGES;
+    }
   }
   function collectAdminMobileHome(site){
     const config = {...(site.mobileHome || {})};
+    config.heroSlides = collectHeroSlides('#adminMobileHeroSlides');
+    config.store = {...config.store, items:collectHomeGallery('#adminMobileHomeGallery')};
+    $$('[data-mobile-store-field]').forEach(input => {
+      config.store[input.dataset.mobileStoreField] = input.type === 'checkbox' ? input.checked : input.value.trim();
+    });
     $$('[data-mobile-home-field]').forEach(input => {
       config[input.dataset.mobileHomeField] = input.type === 'checkbox' ? input.checked : input.value.trim();
     });
@@ -5040,8 +5095,28 @@
     });
     return config;
   }
+  function selectAdminHomeVersion(mode){
+    const form = $('#adminSiteForm');
+    if(!form) return;
+    form.dataset.homeMode = mode;
+    $$('[data-admin-home-tab]').forEach(tab => {
+      const active = tab.dataset.adminHomeTab === mode;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    $$('[data-admin-home-panel]').forEach(panel => {
+      const active = panel.dataset.adminHomePanel === mode;
+      panel.hidden = !active;
+      // Inactive drafts must not participate in native form validation.
+      $$('input, select, textarea', panel).forEach(input => { input.disabled = !active || Boolean(input.closest('.is-uploading')); });
+    });
+    $('button[type="submit"]', form).textContent = mode === 'mobile' ? 'Сохранить мобильную версию' : 'Сохранить десктоп';
+  }
   function renderAdminSite(){
     const site = getSite();
+    $$('input[placeholder], textarea[placeholder], select', $('#adminSiteForm') || document).forEach(input => {
+      if(!input.closest('label') && !input.hasAttribute('aria-label')) input.setAttribute('aria-label', input.placeholder || input.id);
+    });
     renderAdminMobileHome(site);
     const map = {
       siteHeroEyebrow:'heroEyebrow',
@@ -5163,6 +5238,7 @@
 	        </article>`;
 	      }).join('');
 	    }
+	    if($('#adminHomeGalleryVisible')) $('#adminHomeGalleryVisible').checked = site.homeGalleryVisible !== false;
 	    const galleryRoot = $('#adminHomeGallery');
 	    if(galleryRoot){
 	      const galleryTitle = $('#adminHomeGalleryTitle');
@@ -5200,82 +5276,95 @@
     if(pickupRoot){
       pickupRoot.innerHTML = (site.pickupStores || DEFAULT_PICKUP_STORES).map(pickupStoreEditor).join('');
     }
+    selectAdminHomeVersion($('#adminSiteForm')?.dataset.homeMode || 'desktop');
   }
   async function saveAdminSite(event){
     event.preventDefault();
+    const submit = $('button[type="submit"]', event.currentTarget);
+    if(submit?.disabled) return;
     const site = getSite();
-    site.mobileHome = collectAdminMobileHome(site);
-    if($('#siteHeroEyebrow')) site.heroEyebrow = $('#siteHeroEyebrow').value;
-    if($('#siteHeroTitle')) site.heroTitle = $('#siteHeroTitle').value;
-    if($('#siteHeroText')) site.heroText = $('#siteHeroText').value;
-    if($('#siteHeroTitleSize')) site.heroTitleSize = Number($('#siteHeroTitleSize').value || 44);
-    if($('#siteHeroTextSize')) site.heroTextSize = Number($('#siteHeroTextSize').value || 16);
-    if($('#siteHeroHref')) site.heroHref = $('#siteHeroHref').value.trim();
-    if($('#siteHeroEyebrowColor')) site.heroEyebrowColor = colorValue($('#siteHeroEyebrowColor').value, DEFAULT_HERO_COLORS.eyebrow);
-    if($('#siteHeroTitleColor')) site.heroTitleColor = colorValue($('#siteHeroTitleColor').value, DEFAULT_HERO_COLORS.title);
-    if($('#siteHeroTextColor')) site.heroTextColor = colorValue($('#siteHeroTextColor').value, DEFAULT_HERO_COLORS.text);
-    if($('#siteHeroAlign')) site.heroAlign = $('#siteHeroAlign').value;
-    if($('#siteHeroCopyDesktop')) site.heroCopyDesktop = $('#siteHeroCopyDesktop').checked === true;
-    if($('#siteHeroActionsDesktop')) site.heroActionsDesktop = $('#siteHeroActionsDesktop').checked === true;
-    if($('#siteHeroCopyMobile')) site.heroCopyMobile = $('#siteHeroCopyMobile').checked === true;
-    if($('#siteHeroActionsMobile')) site.heroActionsMobile = $('#siteHeroActionsMobile').checked === true;
-    if($('#siteHeroMediaMode')) site.heroMediaMode = $('#siteHeroMediaMode').value;
-    if($('#siteHeroMediaSrc')) site.heroMediaSrc = $('#siteHeroMediaSrc').value || site.heroMediaSrc;
-    if($('#siteHeroOpacity')) site.heroMediaOpacity = Number($('#siteHeroOpacity').value || .78);
-    if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
-    if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
-    if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
-    if($('#siteMobileHeroMode')){
-      const mobileMode = $('#siteMobileHeroMode').value;
+    const delivery = event.currentTarget.id === 'adminDeliveryForm';
+    const mobile = !delivery && event.currentTarget.dataset.homeMode === 'mobile';
+    if(mobile){
+      site.mobileHome = collectAdminMobileHome(site);
+      site.heroCopyMobile = $('#siteHeroCopyMobile').checked;
+      site.heroActionsMobile = $('#siteHeroActionsMobile').checked;
       site.mobileHeroMedia = {
-        enabled:$('#siteMobileHeroEnabled')?.checked === true,
-        mode:['image','video'].includes(mobileMode) ? mobileMode : 'image',
-        src:$('#siteMobileHeroMediaSrc')?.value.trim() || '',
-        opacity:Number($('#siteMobileHeroOpacity')?.value || .28),
-        veil:Number($('#siteMobileHeroVeil')?.value || .9),
-        overlay:Number($('#siteMobileHeroOverlay')?.value || 0)
+        enabled:$('#siteMobileHeroEnabled').checked,
+        mode:$('#siteMobileHeroMode').value,
+        src:$('#siteMobileHeroMediaSrc').value.trim(),
+        opacity:Number($('#siteMobileHeroOpacity').value),
+        veil:Number($('#siteMobileHeroVeil').value),
+        overlay:Number($('#siteMobileHeroOverlay').value)
       };
-    }
-    const primarySlide = primaryHeroSlideFromAdmin(site);
-    site.heroMediaMode = primarySlide.desktopMode;
-    site.heroMediaSrc = primarySlide.desktopSrc;
-    site.heroHref = primarySlide.href;
-    site.heroSlides = [primarySlide, ...collectHeroSlides()].slice(0,4);
-	    site.homeBlocks = site.homeBlocks || {};
-	    $$('[data-home-block-key]').forEach(card => {
-	      const key = card.dataset.homeBlockKey;
-	      const block = site.homeBlocks[key] || {};
-	      $$('[data-block-field]', card).forEach(input => {
-	        const field = input.dataset.blockField;
-	        if(field === 'visible') block.visible = input.checked;
-	        else if(field === 'titleSize' || field === 'textSize' || field === 'order') block[field] = Number(input.value || DEFAULT_HOME_BLOCKS[key]?.[field] || 16);
-	        else block[field] = input.value;
-	      });
-	      site.homeBlocks[key] = block;
-	    });
-    site.homeGallery = collectHomeGallery();
-    site.homeGalleryTitle = $('#adminHomeGalleryTitle')?.value.trim() || 'Наш магазин';
-    for(const [id,field] of [['adminHomeGalleryStoryTitle','homeGalleryStoryTitle'],['adminHomeGalleryStoryText','homeGalleryStoryText'],['adminHomeGalleryStoryButtonText','homeGalleryStoryButtonText'],['adminHomeGalleryStoryButtonUrl','homeGalleryStoryButtonUrl']]){
-      const input = $(`#${id}`);
-      if(input) site[field] = input.value.trim();
-    }
-    if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
-    if($('#sitePhone')) site.phone = $('#sitePhone').value;
-    site.pickupStores = collectPickupStores();
-    site.deliveryMethods = collectDeliveryMethods();
-    saveSite(site);
-    if(serverAvailable && isAdminSession() && serverState){
-      clearTimeout(persistTimer);
-      try{
-        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)});
-        await flushPendingMediaDeletes();
-      }catch(error){
-        console.warn('Не удалось сохранить главную', error);
-        toast('Не удалось сохранить настройки на сервере');
-        return;
+    }else if(!delivery){
+      if($('#siteHeroEyebrow')) site.heroEyebrow = $('#siteHeroEyebrow').value;
+      if($('#siteHeroTitle')) site.heroTitle = $('#siteHeroTitle').value;
+      if($('#siteHeroText')) site.heroText = $('#siteHeroText').value;
+      if($('#siteHeroTitleSize')) site.heroTitleSize = Number($('#siteHeroTitleSize').value || 44);
+      if($('#siteHeroTextSize')) site.heroTextSize = Number($('#siteHeroTextSize').value || 16);
+      if($('#siteHeroHref')) site.heroHref = $('#siteHeroHref').value.trim();
+      if($('#siteHeroEyebrowColor')) site.heroEyebrowColor = colorValue($('#siteHeroEyebrowColor').value, DEFAULT_HERO_COLORS.eyebrow);
+      if($('#siteHeroTitleColor')) site.heroTitleColor = colorValue($('#siteHeroTitleColor').value, DEFAULT_HERO_COLORS.title);
+      if($('#siteHeroTextColor')) site.heroTextColor = colorValue($('#siteHeroTextColor').value, DEFAULT_HERO_COLORS.text);
+      if($('#siteHeroAlign')) site.heroAlign = $('#siteHeroAlign').value;
+      if($('#siteHeroCopyDesktop')) site.heroCopyDesktop = $('#siteHeroCopyDesktop').checked === true;
+      if($('#siteHeroActionsDesktop')) site.heroActionsDesktop = $('#siteHeroActionsDesktop').checked === true;
+      if($('#siteHeroMediaMode')) site.heroMediaMode = $('#siteHeroMediaMode').value;
+      if($('#siteHeroMediaSrc')) site.heroMediaSrc = $('#siteHeroMediaSrc').value || site.heroMediaSrc;
+      if($('#siteHeroOpacity')) site.heroMediaOpacity = Number($('#siteHeroOpacity').value || .78);
+      if($('#siteHeroVeil')) site.heroVeilOpacity = Number($('#siteHeroVeil').value || 0);
+      if($('#siteHeroOverlay')) site.heroOverlayOpacity = Number($('#siteHeroOverlay').value || 0);
+      if($('#siteAnnouncement')) site.announcement = $('#siteAnnouncement').value;
+      const primarySlide = primaryHeroSlideFromAdmin(site);
+      site.heroMediaMode = primarySlide.desktopMode;
+      site.heroMediaSrc = primarySlide.desktopSrc;
+      site.heroHref = primarySlide.href;
+      site.heroSlides = [primarySlide, ...collectHeroSlides()].slice(0,4);
+      site.homeBlocks = site.homeBlocks || {};
+      $$('[data-home-block-key]').forEach(card => {
+        const key = card.dataset.homeBlockKey;
+        const block = site.homeBlocks[key] || {};
+        $$('[data-block-field]', card).forEach(input => {
+          const field = input.dataset.blockField;
+          if(field === 'visible') block.visible = input.checked;
+          else if(field === 'titleSize' || field === 'textSize' || field === 'order') block[field] = Number(input.value || DEFAULT_HOME_BLOCKS[key]?.[field] || 16);
+          else block[field] = input.value;
+        });
+        site.homeBlocks[key] = block;
+      });
+      site.homeGallery = collectHomeGallery();
+      site.homeGalleryVisible = $('#adminHomeGalleryVisible').checked;
+      site.homeGalleryTitle = $('#adminHomeGalleryTitle')?.value.trim() || 'Наш магазин';
+      for(const [id,field] of [['adminHomeGalleryStoryTitle','homeGalleryStoryTitle'],['adminHomeGalleryStoryText','homeGalleryStoryText'],['adminHomeGalleryStoryButtonText','homeGalleryStoryButtonText'],['adminHomeGalleryStoryButtonUrl','homeGalleryStoryButtonUrl']]){
+        const input = $(`#${id}`);
+        if(input) site[field] = input.value.trim();
       }
     }
-    applyHeader(); renderAdminSite(); toast('Настройки сохранены');
+    if(delivery){
+      if($('#sitePickup')) site.pickupAddress = $('#sitePickup').value;
+      if($('#sitePhone')) site.phone = $('#sitePhone').value;
+      site.pickupStores = collectPickupStores();
+      site.deliveryMethods = collectDeliveryMethods();
+    }
+    const label = submit?.textContent;
+    if(submit){ submit.disabled = true; submit.textContent = 'Сохранение…'; submit.setAttribute('aria-busy', 'true'); }
+    try{
+      saveSite(site);
+      if(serverAvailable && isAdminSession() && serverState){
+        clearTimeout(persistTimer);
+        await fetchJson('/api/admin/state', {method:'PUT', body:JSON.stringify(serverState)});
+        await flushPendingMediaDeletes();
+      }
+      // Do not rebuild the form: the other version can still have an unsaved draft.
+      applyHeader(); toast(delivery ? 'Доставка сохранена' : mobile ? 'Мобильная главная сохранена' : 'Десктопная главная сохранена');
+    }catch(error){
+      console.warn('Не удалось сохранить настройки', error);
+      toast('Не удалось сохранить настройки на сервере');
+    }finally{
+      if(submit){ submit.disabled = false; submit.removeAttribute('aria-busy'); submit.textContent = label; }
+      if(!delivery) selectAdminHomeVersion($('#adminSiteForm').dataset.homeMode);
+    }
   }
   function saveAdminBrands(event){
     event.preventDefault();
@@ -6061,11 +6150,21 @@
       const adminDelete = event.target.closest('[data-admin-delete]'); if(adminDelete){ deleteProduct(adminDelete.dataset.adminDelete); return; }
       const selectAll = event.target.closest('[data-admin-select-all]'); if(selectAll){ $$('[data-admin-product-select]').forEach(input => { input.checked = selectAll.checked; }); return; }
       const bulkDelete = event.target.closest('[data-admin-bulk-delete]'); if(bulkDelete){ bulkDeleteProducts(); return; }
-	      const heroSlideAdd = event.target.closest('[data-hero-slide-add]'); if(heroSlideAdd){ const root = $('#adminHeroSlides'); const extraCount = root ? $$('[data-hero-slide-key]', root).length : 0; if(root && extraCount < 3) root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',mobileEnabled:false,mobileMode:'image',mobileSrc:''}, extraCount + 1)); else toast('Максимум 4 баннера'); return; }
+      const heroSlideAdd = event.target.closest('[data-hero-slide-add]');
+      if(heroSlideAdd){
+        const mobile = heroSlideAdd.dataset.heroSlideAdd === 'mobile';
+        const root = $(mobile ? '#adminMobileHeroSlides' : '#adminHeroSlides');
+        const count = root ? $$('[data-hero-slide-key]', root).length : 0;
+        if(root && count < 3){
+          $('.admin-empty-note', root)?.remove();
+          root.insertAdjacentHTML('beforeend', heroSlideEditor({id:`hero-${Date.now()}`,enabled:true,desktopMode:'image',desktopSrc:'',mobileEnabled:mobile,mobileMode:'image',mobileSrc:''}, count + 1, mobile));
+        }else toast('Максимум 4 баннера');
+        return;
+      }
 	      const heroSlideDelete = event.target.closest('[data-hero-slide-delete]'); if(heroSlideDelete){ const block = heroSlideDelete.closest('[data-hero-slide-key]'); deleteUploadedSource($('[data-hero-slide-field="desktopSrc"]', block)?.value); deleteUploadedSource($('[data-hero-slide-field="mobileSrc"]', block)?.value); block?.remove(); return; }
 	      const galleryAdd = event.target.closest('[data-home-gallery-add]');
 	      if(galleryAdd){
-	        const root = $('#adminHomeGallery');
+	        const root = $(galleryAdd.dataset.homeGalleryAdd === 'mobile' ? '#adminMobileHomeGallery' : '#adminHomeGallery');
 	        const count = root ? $$('[data-home-gallery-key]', root).length : 0;
 	        if(!root) return;
 	        if(count >= MAX_HOME_GALLERY_IMAGES){ toast('Максимум 6 фотографий'); return; }
@@ -6081,7 +6180,7 @@
 	        deleteUploadedSource($('[data-home-gallery-src]', block)?.value);
 	        block?.remove();
 	        if(root && !$$('[data-home-gallery-key]', root).length) root.innerHTML = '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
-	        const addButton = $('[data-home-gallery-add]');
+	        const addButton = $('[data-home-gallery-add]', root?.parentElement || document);
 	        if(addButton) addButton.disabled = false;
 	        return;
 	      }
@@ -6202,6 +6301,16 @@
     $('#siteMobileHeroVeil')?.addEventListener('input', e=>{ const node = $('#mobileHeroVeilValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#siteMobileHeroOverlay')?.addEventListener('input', e=>{ const node = $('#mobileHeroOverlayValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
     $('#quickContactOpacity')?.addEventListener('input', e=>{ const node = $('#quickContactOpacityValue'); if(node) node.textContent = `${Math.round(Number(e.target.value || 0) * 100)}%`; });
+    $$('[data-admin-home-tab]').forEach(tab => {
+      tab.addEventListener('click', () => selectAdminHomeVersion(tab.dataset.adminHomeTab));
+      tab.addEventListener('keydown', event => {
+        if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+        event.preventDefault();
+        const mode = event.key === 'Home' ? 'desktop' : event.key === 'End' ? 'mobile' : tab.dataset.adminHomeTab === 'desktop' ? 'mobile' : 'desktop';
+        selectAdminHomeVersion(mode);
+        $(`[data-admin-home-tab="${mode}"]`).focus();
+      });
+    });
     $('#adminSiteForm')?.addEventListener('submit', saveAdminSite);
     $('#adminBrandsForm')?.addEventListener('submit', saveAdminBrands);
     $('#adminDeliveryForm')?.addEventListener('submit', saveAdminSite);

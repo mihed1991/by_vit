@@ -7390,6 +7390,59 @@ body[data-page="admin"] .admin-home-form>button[type="submit"] {
   order: 99;
 }
 
+body[data-page="admin"] .admin-home-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+
+body[data-page="admin"] .admin-home-tabs button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  background: var(--color-surface);
+  color: var(--green);
+  cursor: pointer;
+}
+
+body[data-page="admin"] .admin-home-tabs [aria-selected="true"] {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--color-surface);
+}
+
+body[data-page="admin"] .admin-home-tabs button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+
+body[data-page="admin"] .admin-home-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+body[data-page="admin"] .admin-home-panel[hidden],
+body[data-page="home"] #homeGallerySection[hidden] {
+  display: none !important;
+}
+
+body[data-page="admin"] .admin-home-panel .hero-slide-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-page="admin"] .admin-home-panel .hero-slide-mode[hidden] {
+  display: none !important;
+}
+
+@media (min-width:980px) {
+  body[data-page="admin"] #adminHomeDesktopPanel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
 body[data-page="admin"] .hero-slide-editor {
   padding: 0;
   overflow: hidden;

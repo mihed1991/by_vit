@@ -354,10 +354,76 @@ async function main() {
     assert.match(adminState.orders[0].customer.address, /Отделение №1: г\. Минск/);
     assert.match(await page.locator('[data-hero-control="src"]').textContent(), /2560 × 1024 px/);
     assert.match(await page.locator('[data-mobile-hero-control="src"]').textContent(), /1200 × 650 px/);
+    assert.equal(await page.locator('#adminHomeDesktopPanel').isVisible(), true);
+    assert.equal(await page.locator('#adminHomeMobilePanel').isVisible(), false);
+    const desktopTitleBefore = await page.locator('#siteHeroTitle').inputValue();
+    await page.locator('#siteHeroTitle').fill('Несохранённый десктоп');
+    const desktopSizeBefore = await page.locator('#siteHeroTitleSize').inputValue();
+    await page.locator('#siteHeroTitleSize').fill('20');
+    await page.locator('#adminHomeDesktopPanel [data-hero-slide-add]').click();
+    await page.locator('#adminHeroSlides summary').last().click();
+    await page.locator('#adminHeroSlides [data-hero-slide-field="desktopSrc"]').last().fill('assets/hero-default.webp');
+    await page.locator('#adminHomeDesktopTab').focus();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('#adminHomeMobileTab').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.locator('#adminHomeDesktopPanel').isVisible(), false);
+    assert.equal(await page.locator('#adminHomeMobilePanel').isVisible(), true);
+    assert.equal(await page.locator('#siteHeroTitleSize').isDisabled(), true, 'Invalid inactive drafts must not block another version’s save');
     await page.locator('[data-mobile-home-field="heroTitle"]').fill('Тест мобильного баннера');
+    await page.locator('[data-hero-slide-add="mobile"]').click();
+    await page.locator('#adminMobileHeroSlides summary').last().click();
+    await page.locator('#adminMobileHeroSlides [data-hero-slide-field="mobileSrc"]').last().fill('assets/home-mobile-hero.jpg');
+    await page.locator('#adminMobileHeroSlides [data-hero-slide-field="href"]').last().fill('sale.html');
+    await page.locator('[data-home-gallery-add="mobile"]').click();
+    await page.locator('#adminMobileHomeGallery [data-home-gallery-upload]').setInputFiles(path.join(root,'assets','home-mobile-hero.jpg'));
+    await page.waitForFunction(() => document.querySelector('#adminMobileHomeGallery [data-home-gallery-src]')?.value.startsWith('/uploads/'));
     await page.locator('[data-mobile-home-item="trust"]').first().locator('[data-mobile-item-field="title"]').fill('Тестовое преимущество');
     await page.locator('#adminSiteForm button[type="submit"]').click();
     await page.waitForFunction(async () => (await (await fetch('/api/state')).json()).site.mobileHome?.heroTitle === 'Тест мобильного баннера');
+    const mobileSave = await (await page.request.get('/api/admin/state')).json();
+    assert.equal(mobileSave.site.heroTitle, desktopTitleBefore, 'Mobile save must not capture a desktop draft');
+    const sliderContent = slides => slides.map(({id, enabled, href='', desktopMode, desktopSrc, mobileEnabled, mobileMode, mobileSrc}) => ({id, enabled, href, desktopMode, desktopSrc, mobileEnabled, mobileMode, mobileSrc}));
+    assert.deepEqual(sliderContent(mobileSave.site.heroSlides), sliderContent(adminState.site.heroSlides), 'Mobile save must not modify the desktop slider');
+    const mobileSnapshot = structuredClone(mobileSave.site.mobileHome);
+    assert.equal(mobileSnapshot.store.storyTitle, mobileSave.site.homeGalleryStoryTitle, 'Legacy shared store copy must seed mobile settings');
+    assert.equal(mobileSnapshot.store.items.length, 1, 'Mobile gallery upload must save to its own collection');
+    assert.equal(mobileSave.site.homeGallery.length, 0, 'Mobile gallery upload must not modify desktop photos');
+    assert.equal(mobileSnapshot.heroSlides.length, 1);
+    await page.locator('[data-mobile-home-field="heroTitle"]').fill('Несохранённый мобильный');
+    await page.locator('#adminHomeDesktopTab').click();
+    assert.equal(await page.locator('#siteHeroTitle').inputValue(), 'Несохранённый десктоп', 'Saving mobile must retain the desktop draft');
+    await page.locator('#siteHeroTitle').fill(desktopTitleBefore);
+    await page.locator('#siteHeroTitleSize').fill(desktopSizeBefore);
+    await page.locator('[data-home-block-key="goals"] [data-block-field="visible"]').uncheck();
+    await page.locator('#adminSiteForm button[type="submit"]').click();
+    await page.waitForFunction(async () => (await (await fetch('/api/state')).json()).site.homeBlocks.goals.visible === false);
+    const desktopSave = await (await page.request.get('/api/admin/state')).json();
+    assert.equal(desktopSave.site.heroSlides.length, 2, 'Desktop draft slider must save separately');
+    assert.deepEqual(desktopSave.site.mobileHome, mobileSnapshot, 'Desktop save must not change saved mobile settings');
+    await page.locator('#adminHomeMobileTab').click();
+    assert.equal(await page.locator('[data-mobile-home-field="heroTitle"]').inputValue(), 'Несохранённый мобильный');
+    assert.equal(await page.locator('[data-mobile-home-field="goalsVisible"]').isChecked(), true, 'Desktop visibility must not control mobile');
+    if(qaScreenshotDir){
+      await page.evaluate(() => window.scrollTo(0,0));
+      await page.screenshot({path:path.join(qaScreenshotDir, 'admin-home-mobile.png')});
+    }
+    await page.locator('#adminHomeDesktopTab').click();
+    if(qaScreenshotDir){
+      await page.evaluate(() => window.scrollTo(0,0));
+      await page.screenshot({path:path.join(qaScreenshotDir, 'admin-home-desktop.png')});
+    }
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('#adminPanel').waitFor({state:'visible'});
+    await page.locator('#adminHomeMobileTab').click();
+    assert.equal(await page.locator('[data-mobile-home-field="heroTitle"]').inputValue(), 'Тест мобильного баннера', 'Saved mobile settings must survive reload');
+    await page.setViewportSize({width:390,height:844});
+    const adminDimensions = await page.evaluate(() => ({width:document.documentElement.clientWidth, scrollWidth:document.documentElement.scrollWidth}));
+    assert.ok(adminDimensions.scrollWidth <= adminDimensions.width + 1, 'Mobile admin tabs and panels must not overflow');
+    if(qaScreenshotDir){
+      await page.evaluate(() => window.scrollTo(0,0));
+      await page.screenshot({path:path.join(qaScreenshotDir, 'admin-home-phone.png')});
+    }
+    await page.setViewportSize({width:1440,height:900});
     await page.locator('[data-admin-tab="quick-contact"]').click();
     await page.locator('#admin-quick-contact.active').waitFor();
     await page.locator('#stockContactPhone').fill('+375 29 111-22-33');
@@ -495,6 +561,10 @@ async function main() {
     assert.ok(Math.abs(await mobilePage.locator('.footer-wordmark').evaluate(node => node.getBoundingClientRect().height) - 11.18) < 1);
     if(qaScreenshotDir) await mobilePage.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-mobile.png') });
     assert.equal(await mobilePage.locator('.mv-hero h1').textContent(), 'Тест мобильного баннера');
+    assert.equal(await mobilePage.locator('[data-mv-hero-dot]').count(), 2);
+    await mobilePage.locator('[data-mv-hero-dot="1"]').click();
+    assert.equal(await mobilePage.locator('.mv-hero-cta').getAttribute('href'), 'sale.html');
+    await mobilePage.locator('[data-mv-hero-dot="0"]').click();
     assert.equal(await mobilePage.locator('.mv-trust-list article h3').first().textContent(), 'Тестовое преимущество');
     assert.equal(await mobilePage.locator('.mv-trust-list article').first().evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 255, 255)');
     assert.deepEqual(await mobilePage.locator('.mv-product-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.productId)), ['1','2']);
@@ -715,6 +785,12 @@ async function main() {
       {id:'qa-gallery-1', src:'assets/home-mobile-hero.jpg', alt:'Фото 1', caption:'Подпись первого фото'},
       {id:'qa-gallery-2', src:'assets/home-mobile-hero.jpg', alt:'Фото 2', caption:'Подпись второго фото'}
     ];
+    expandedState.site.mobileHome.store = {
+      ...expandedState.site.mobileHome.store,
+      storyTitle:'BYVIT — МОБИЛЬНЫЙ МАГАЗИН',
+      storyText:'Описание магазина только для телефона.',
+      items:structuredClone(expandedState.site.homeGallery)
+    };
     const expandedSave = await updatePage.request.put('/api/admin/state', {data:expandedState});
     assert.equal(expandedSave.status(), 200, 'Expanded catalog and gallery data must save');
     await updatePage.reload({waitUntil:'domcontentloaded'});
@@ -785,10 +861,10 @@ async function main() {
     await galleryMobilePage.goto('/index.html', {waitUntil:'domcontentloaded'});
     await galleryMobilePage.locator('.home-gallery-item').first().waitFor();
     assert.equal(await galleryMobilePage.locator('.home-gallery-story').isVisible(), true, 'Mobile store story must appear below its photo');
-    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МОБИЛЬНЫЙ МАГАЗИН');
     assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle .home-gallery-title-logo').isVisible(), true);
     assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle image').getAttribute('href'), 'assets/byvit-store-logo.png');
-    assert.match(await galleryMobilePage.locator('#homeGalleryStoryText').textContent(), /Поможем с выбором/);
+    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryText').textContent(), 'Описание магазина только для телефона.');
     const galleryMobileLayout = await galleryMobilePage.locator('.home-gallery-head, .home-gallery-media, .home-gallery-story').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
     assert.ok(galleryMobileLayout[0].bottom <= galleryMobileLayout[2].top && galleryMobileLayout[2].bottom <= galleryMobileLayout[1].top, 'Mobile store block must read title, photo, then story');
     const mobilePhoto = await galleryMobilePage.locator('.home-gallery-item').first().boundingBox();

@@ -8,9 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админка | ByVit</title>
   <link rel="icon" type="image/svg+xml" sizes="48x48" href="assets/favicon.svg?v=9">
-  <link rel="stylesheet" href="css/style.css?v=197">
+  <link rel="stylesheet" href="css/style.css?v=198">
   <script src="js/data.js?v=78" defer></script>
-  <script src="js/app.js?v=147" defer></script>
+  <script src="js/app.js?v=148" defer></script>
 </head>
 
 <body data-page="admin">
@@ -255,11 +255,15 @@
             <section class="admin-section active" id="admin-site">
               <article class="admin-card">
                 <h3>Главная страница</h3>
-                <p class="admin-hint">Настройки разделены на общие, десктопные и мобильные, чтобы быстрее находить
-                  нужное поле.</p>
-                <form class="admin-form admin-home-form" id="adminSiteForm">
+                <p class="admin-hint">Выберите версию главной страницы. Каждая вкладка сохраняется отдельно; настройки другой версии не меняются. Товары, категории, цели и бренды редактируются в общих разделах.</p>
+                <div class="admin-home-tabs" role="tablist" aria-label="Версия главной страницы">
+                  <button type="button" id="adminHomeDesktopTab" role="tab" data-admin-home-tab="desktop" aria-selected="true" aria-controls="adminHomeDesktopPanel">Десктоп</button>
+                  <button type="button" id="adminHomeMobileTab" role="tab" data-admin-home-tab="mobile" aria-selected="false" aria-controls="adminHomeMobilePanel" tabindex="-1">Мобильная версия</button>
+                </div>
+                <form class="admin-form admin-home-form" id="adminSiteForm" data-home-mode="desktop">
+                  <div class="admin-home-panel" id="adminHomeDesktopPanel" role="tabpanel" aria-labelledby="adminHomeDesktopTab" data-admin-home-panel="desktop">
                   <div class="admin-form-section admin-home-common admin-home-wide">
-                    <h4>Общее hero</h4>
+                    <h4>Текст десктопного hero</h4>
                     <input id="siteHeroEyebrow" placeholder="Надпись над заголовком">
                     <input id="siteHeroTitle" placeholder="Заголовок hero">
                     <textarea id="siteHeroText" placeholder="Текст hero"></textarea>
@@ -290,7 +294,7 @@
                     <input id="siteAnnouncement" placeholder="Текст верхней плашки">
                   </div>
 
-                  <div class="admin-form-section admin-home-desktop">
+                  <div class="admin-form-section admin-home-desktop admin-home-wide">
                     <h4>Десктопная версия</h4>
                     <div class="field-row">
                       <label class="toggle-row">
@@ -345,12 +349,36 @@
 
                   <div class="admin-form-section admin-home-wide">
                     <h4>Дополнительные баннеры hero</h4>
-                    <p class="admin-hint">Основной баннер редактируется в блоках «Десктопная версия» и «Мобильная
-                      версия». Здесь можно добавить ещё до 3 баннеров.</p>
+                    <p class="admin-hint">Здесь можно добавить до 3 дополнительных десктопных баннеров. Мобильный баннер настраивается в своей вкладке.</p>
                     <div class="admin-blocks hero-slide-admin-list" id="adminHeroSlides"></div>
                     <button class="btn btn-light" data-hero-slide-add type="button">Добавить баннер</button>
                   </div>
 
+                  <div class="admin-form-section admin-home-wide">
+                    <h4>Блоки десктопной главной</h4>
+                    <div class="admin-blocks" id="adminHomeBlocks"></div>
+                  </div>
+
+                  <div class="admin-form-section admin-home-wide">
+                    <h4>Фотоблок после брендов</h4>
+                    <label class="mini-toggle"><input id="adminHomeGalleryVisible" type="checkbox"> Показывать десктопный фотоблок</label>
+                    <p class="admin-hint">На десктопе текст располагается слева, а фотографии листаются справа. До 6 фото; рекомендуем кадр около 6:5 с главным объектом ближе к центру. Мобильный фотоблок настраивается отдельно.</p>
+                    <label class="admin-input-field">
+                      <span>Надпись над текстом</span>
+                      <input id="adminHomeGalleryTitle" value="Наш магазин" placeholder="Наш магазин">
+                    </label>
+                    <label class="admin-input-field"><span>Заголовок слева</span><input id="adminHomeGalleryStoryTitle" placeholder="ByVit — спортивное питание и добавки"></label>
+                    <label class="admin-input-field"><span>Описание слева</span><textarea id="adminHomeGalleryStoryText" rows="5" placeholder="Расскажите о магазине"></textarea></label>
+                    <div class="field-row">
+                      <label class="admin-input-field"><span>Текст кнопки</span><input id="adminHomeGalleryStoryButtonText" placeholder="Подробнее"></label>
+                      <label class="admin-input-field"><span>Ссылка кнопки</span><input id="adminHomeGalleryStoryButtonUrl" placeholder="stores.html"></label>
+                    </div>
+                    <div class="admin-blocks home-gallery-admin-list" id="adminHomeGallery"></div>
+                    <button class="btn btn-light" data-home-gallery-add type="button">Добавить фото</button>
+                  </div>
+
+                  </div>
+                  <div class="admin-home-panel" id="adminHomeMobilePanel" role="tabpanel" aria-labelledby="adminHomeMobileTab" data-admin-home-panel="mobile" hidden>
                   <div class="admin-form-section mobile-home-admin admin-home-mobile">
                     <h4>Мобильная версия</h4>
                     <div class="field-row">
@@ -364,8 +392,7 @@
                       </label>
                     </div>
                     <label class="toggle-row">
-                      <span><strong>Отдельный баннер для мобильной версии</strong><br><small>Используется только на
-                          телефоне. Десктопный баннер не меняется.</small></span>
+                      <span><strong>Использовать загруженный мобильный баннер</strong><br><small>Если выключено, используется стандартный мобильный баннер. Десктопный баннер не меняется.</small></span>
                       <input id="siteMobileHeroEnabled" type="checkbox">
                     </label>
                     <div class="field-row">
@@ -399,43 +426,46 @@
                       <span>Тёмная затушёвка <strong id="mobileHeroOverlayValue">0%</strong></span>
                       <input id="siteMobileHeroOverlay" type="range" min="0" max="0.7" step="0.01">
                     </label>
+                    <h4>Дополнительные мобильные баннеры</h4>
+                    <p class="admin-hint">До 3 баннеров помимо основного. Не меняют десктопный слайдер.</p>
+                    <div class="admin-blocks hero-slide-admin-list" id="adminMobileHeroSlides"></div>
+                    <button class="btn btn-light" data-hero-slide-add="mobile" type="button">Добавить мобильный баннер</button>
                     <h4>Текст и блоки мобильной главной</h4>
-                    <p class="admin-hint">Товары, цены и значки берутся из карточек товаров; категории, цели и логотипы брендов — из соответствующих разделов админки. Здесь редактируются мобильные подписи и преимущества. Включение секций — в «Блоках главной» ниже.</p>
+                    <p class="admin-hint">Товары, цены и значки берутся из карточек товаров; категории, цели и логотипы брендов — из соответствующих разделов админки. Здесь редактируются мобильные подписи и преимущества. Переключатели ниже управляют только мобильной версией.</p>
                     <div class="field-row"><input data-mobile-home-field="heroEyebrow" placeholder="Надпись баннера"><input data-mobile-home-field="heroTitle" placeholder="Заголовок баннера"></div>
                     <textarea data-mobile-home-field="heroText" placeholder="Описание баннера"></textarea>
-                    <input data-mobile-home-field="heroButtonText" placeholder="Текст кнопки баннера">
+                    <div class="field-row"><input data-mobile-home-field="heroButtonText" placeholder="Текст кнопки баннера"><input data-mobile-home-field="heroButtonUrl" placeholder="Ссылка кнопки баннера" aria-label="Ссылка кнопки мобильного баннера"></div>
+                    <h4>Видимость мобильных секций</h4>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="categoriesVisible"> Категории</label>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="productsVisible"> Популярные товары</label>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="goalsVisible"> Цели</label>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="brandsVisible"> Бренды</label>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="trustVisible"> Почему ByVit</label>
                     <label class="mini-toggle"><input type="checkbox" data-mobile-home-field="benefitsVisible"> Показывать преимущества под баннером</label>
                     <div class="admin-blocks" id="adminMobileBenefits"></div>
                     <div class="field-row"><input data-mobile-home-field="productsTitle" placeholder="Заголовок товаров"><input data-mobile-home-field="productsLinkText" placeholder="Ссылка на каталог"></div>
+                    <label class="admin-input-field"><span>Ссылка на все товары</span><input data-mobile-home-field="productsLinkUrl" placeholder="catalog.html?sort=popular"></label>
                     <div class="field-row"><input data-mobile-home-field="goalsEyebrow" placeholder="Надпись над целями"><input data-mobile-home-field="goalsTitle" placeholder="Заголовок целей"></div>
                     <div class="field-row"><input data-mobile-home-field="brandsTitle" placeholder="Заголовок брендов"><input data-mobile-home-field="brandsLinkText" placeholder="Ссылка на бренды"></div>
+                    <label class="admin-input-field"><span>Ссылка на все бренды</span><input data-mobile-home-field="brandsLinkUrl" placeholder="brands.html"></label>
                     <input data-mobile-home-field="trustTitle" placeholder="Заголовок преимуществ ByVit">
                     <div class="admin-blocks" id="adminMobileTrust"></div>
                   </div>
 
-                  <div class="admin-form-section admin-home-wide">
-                    <h4>Блоки главной</h4>
-                    <div class="admin-blocks" id="adminHomeBlocks"></div>
+                  <div class="admin-form-section">
+                    <h4>Мобильный фотоблок «Наш магазин»</h4>
+                    <p class="admin-hint">Отдельные фотографии, подписи и описание для телефона. До 6 фото. Десктопный фотоблок не меняется.</p>
+                    <label class="mini-toggle"><input type="checkbox" data-mobile-store-field="visible"> Показывать фотоблок</label>
+                    <label class="admin-input-field"><span>Надпись над блоком</span><input data-mobile-store-field="title"></label>
+                    <label class="admin-input-field"><span>Заголовок</span><input data-mobile-store-field="storyTitle"></label>
+                    <label class="admin-input-field"><span>Описание</span><textarea data-mobile-store-field="storyText" rows="5"></textarea></label>
+                    <label class="admin-input-field"><span>Текст кнопки</span><input data-mobile-store-field="buttonText"></label>
+                    <label class="admin-input-field"><span>Ссылка кнопки</span><input data-mobile-store-field="buttonUrl"></label>
+                    <div class="admin-blocks home-gallery-admin-list" id="adminMobileHomeGallery"></div>
+                    <button class="btn btn-light" data-home-gallery-add="mobile" type="button">Добавить фото</button>
                   </div>
-
-                  <div class="admin-form-section admin-home-wide">
-                    <h4>Фотоблок после брендов</h4>
-                    <p class="admin-hint">На десктопе текст располагается слева, а фотографии листаются справа. До 6 фото; рекомендуем кадр около 6:5 с главным объектом ближе к центру. На телефоне сохраняется фотогалерея с подписями на снимках.</p>
-                    <label class="admin-input-field">
-                      <span>Надпись над текстом</span>
-                      <input id="adminHomeGalleryTitle" value="Наш магазин" placeholder="Наш магазин">
-                    </label>
-                    <label class="admin-input-field"><span>Заголовок слева</span><input id="adminHomeGalleryStoryTitle" placeholder="ByVit — спортивное питание и добавки"></label>
-                    <label class="admin-input-field"><span>Описание слева</span><textarea id="adminHomeGalleryStoryText" rows="5" placeholder="Расскажите о магазине"></textarea></label>
-                    <div class="field-row">
-                      <label class="admin-input-field"><span>Текст кнопки</span><input id="adminHomeGalleryStoryButtonText" placeholder="Подробнее"></label>
-                      <label class="admin-input-field"><span>Ссылка кнопки</span><input id="adminHomeGalleryStoryButtonUrl" placeholder="stores.html"></label>
-                    </div>
-                    <div class="admin-blocks home-gallery-admin-list" id="adminHomeGallery"></div>
-                    <button class="btn btn-light" data-home-gallery-add type="button">Добавить фото</button>
                   </div>
-
-                  <button class="btn btn-primary" type="submit">Сохранить главную</button>
+                  <button class="btn btn-primary" type="submit">Сохранить десктоп</button>
                 </form>
               </article>
             </section>
