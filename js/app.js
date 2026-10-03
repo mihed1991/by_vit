@@ -2755,7 +2755,10 @@
       const storyTitle = $('#homeGalleryStoryTitle');
       const storyText = $('#homeGalleryStoryText');
       const storyButton = $('#homeGalleryStoryButton');
-      if(storyTitle) storyTitle.textContent = site.homeGalleryStoryTitle || '';
+      if(storyTitle){
+        const title = site.homeGalleryStoryTitle || '';
+        storyTitle.innerHTML = `<span class="home-gallery-title-sizing">${esc(title)}</span><svg class="home-gallery-title-logo" viewBox="1446 1039 5297 945" preserveAspectRatio="xMinYMid meet" aria-hidden="true" focusable="false"><image href="assets/byvit-store-logo.png" width="8189" height="3024"/></svg>`;
+      }
       if(storyText) storyText.textContent = site.homeGalleryStoryText || '';
       if(storyButton){
         const label = site.homeGalleryStoryButtonText || '';

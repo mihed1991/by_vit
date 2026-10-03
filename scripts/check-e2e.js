@@ -727,6 +727,8 @@ async function main() {
     await updatePage.waitForFunction(() => document.querySelector('#homeGalleryStoryTitle')?.textContent === 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
     assert.equal(await updatePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
     assert.equal(await updatePage.locator('#homeGalleryStoryTitle').evaluate(node => getComputedStyle(node).textTransform), 'none');
+    assert.equal(await updatePage.locator('#homeGalleryStoryTitle .home-gallery-title-logo').isVisible(), true);
+    assert.equal(await updatePage.locator('#homeGalleryStoryTitle image').getAttribute('href'), 'assets/byvit-store-logo.png');
     assert.match(await updatePage.locator('#homeGalleryStoryText').textContent(), /Поможем с выбором/);
     assert.equal(await updatePage.locator('#homeGalleryStoryButton').textContent(), 'О магазинах');
     assert.equal(await updatePage.locator('#homeGalleryStoryButton').getAttribute('href'), 'stores.html');
@@ -784,6 +786,8 @@ async function main() {
     await galleryMobilePage.locator('.home-gallery-item').first().waitFor();
     assert.equal(await galleryMobilePage.locator('.home-gallery-story').isVisible(), true, 'Mobile store story must appear below its photo');
     assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle').textContent(), 'BYVIT — МАГАЗИН СПОРТИВНОГО ПИТАНИЯ');
+    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle .home-gallery-title-logo').isVisible(), true);
+    assert.equal(await galleryMobilePage.locator('#homeGalleryStoryTitle image').getAttribute('href'), 'assets/byvit-store-logo.png');
     assert.match(await galleryMobilePage.locator('#homeGalleryStoryText').textContent(), /Поможем с выбором/);
     const galleryMobileLayout = await galleryMobilePage.locator('.home-gallery-head, .home-gallery-media, .home-gallery-story').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
     assert.ok(galleryMobileLayout[0].bottom <= galleryMobileLayout[2].top && galleryMobileLayout[2].bottom <= galleryMobileLayout[1].top, 'Mobile store block must read title, photo, then story');

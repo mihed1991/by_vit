@@ -16663,6 +16663,25 @@ body[data-page="home"] .home-gallery-story p {
   text-transform: none;
 }
 
+/* Retain the heading's responsive footprint while displaying the supplied logo. */
+body[data-page="home"] #homeGalleryStoryTitle {
+  position: relative;
+}
+
+body[data-page="home"] .home-gallery-title-sizing {
+  opacity: 0;
+}
+
+body[data-page="home"] .home-gallery-title-logo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 body[data-page="admin"] .quick-contact-controls {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
