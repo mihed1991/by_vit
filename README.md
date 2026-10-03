@@ -43,6 +43,10 @@ Do not commit `.env`, `data/store.json`, uploads, database volumes, or exported 
 
 In Administration → Главная, use the Десктоп and Мобильная версия tabs. Each save affects only the selected version and retains unsaved edits in the other tab. Hero copy/media/slides, section visibility/links, and the store photo block are independent; products, categories, goals, and brands remain shared catalog data. Existing shared settings seed the mobile configuration on first save, preserving the current storefront. The mobile storefront breakpoint remains 760px. Administration requires the Node.js server and is not published to GitHub Pages.
 
+## Published resource refresh
+
+The static build fingerprints bundled media, styles and scripts with their content hashes, including SVG icon fragments and CSS backgrounds. The original paths remain available for existing links. GitHub Pages reads the published site/catalog defaults instead of old browser-local admin data; stored settings are retained, and cart, wishlist and comparison storage is unaffected. Server administration continues to use API data normally. PNG favicon (48×48) and Apple Touch Icon (180×180) accompany the supplied SVG artwork. Regenerate the PNGs with `node scripts/generate-icons.js` after replacing the SVG; run `npm run check:static` to verify the release with stale browser data.
+
 ## Europost offices
 
 When Europost is selected at checkout, the server loads the official office directory and exposes a compact searchable list to the storefront. The result is cached for 12 hours in the persistent data directory; a stale cache remains available if the external API is temporarily unavailable. `EUROPOST_CACHE_TTL_MS` and `EUROPOST_TIMEOUT_MS` can be adjusted in `.env`.

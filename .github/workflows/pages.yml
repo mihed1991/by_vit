@@ -45,7 +45,10 @@ jobs:
       - name: Verify desktop and mobile journeys
         run: npm run check:e2e
 
-      - name: Configure GitHub Pages
+      - name: Verify published cache and browser data
+        run: npm run check:static
+
+      - name: Configure GitHub Pages environment
         uses: actions/configure-pages@v5
 
       - name: Upload artifact

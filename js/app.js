@@ -160,6 +160,9 @@
   function read(key, fallback){
     const stateKey = SERVER_KEY_MAP[key];
     if(serverState && stateKey) return clone(serverState[stateKey] ?? fallback);
+    // Pages is a published preview, not a browser-local admin database.
+    // Keep old local data intact, but never let it override a newer release.
+    if(window.BYVIT_STATIC === true && (key === KEYS.site || key === KEYS.products)) return clone(fallback);
     try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : clone(fallback); }
     catch(e){ return clone(fallback); }
   }
@@ -1005,7 +1008,7 @@
   }
   function getProducts(){
     const products = read(KEYS.products, getDefaults().products);
-    if(serverState) return products;
+    if(serverState || window.BYVIT_STATIC === true) return products;
     const migrated = migrateLegacyWheyVariants(products);
     if(migrated.changed){
       try{ localStorage.setItem(KEYS.products, JSON.stringify(migrated.products)); }

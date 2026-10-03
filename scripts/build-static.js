@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const crypto = require('crypto');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
@@ -19,6 +20,42 @@ const pages = [
   'stores.html',
   'wishlist.html'
 ];
+const assetManifest = {};
+
+function fingerprintFile(relative, body=fs.readFileSync(path.join(root,relative))){
+  const extension = path.extname(relative);
+  const digest = crypto.createHash('sha256').update(body).digest('hex').slice(0,12);
+  const versioned = `${relative.slice(0,-extension.length)}.${digest}${extension}`;
+  fs.writeFileSync(path.join(output,versioned),body);
+  assetManifest[relative] = versioned;
+  return versioned;
+}
+
+function filesIn(directory){
+  return fs.readdirSync(path.join(root,directory),{withFileTypes:true}).flatMap(entry => {
+    const relative = `${directory}/${entry.name}`;
+    return entry.isDirectory() ? filesIn(relative) : [relative];
+  });
+}
+
+function versionReferences(source){
+  // Local bundled media only; retain SVG fragments and leave external/upload/data URLs intact.
+  return source.replace(/(?<![\w:/])((?:\.\.\/|\.\/)?assets\/[\w./-]+\.(?:png|jpe?g|webp|gif|svg|ico|mp4|webm|woff2?))(?:\?v=[\w.-]+)?/g, (full,reference) => {
+    const prefix = reference.startsWith('../') ? '../' : reference.startsWith('./') ? './' : '';
+    const key = reference.slice(prefix.length);
+    return assetManifest[key] ? prefix + assetManifest[key] : full;
+  });
+}
+
+function prepareResources(){
+  filesIn('assets').forEach(file => fingerprintFile(file));
+  for(const file of [...filesIn('css'),...filesIn('js')]){
+    if(!/\.(?:css|js)$/.test(file)) continue;
+    const compiled = versionReferences(fs.readFileSync(path.join(root,file),'utf8'));
+    fs.writeFileSync(path.join(output,file),compiled);
+    fingerprintFile(file,compiled);
+  }
+}
 
 function copyDirectory(name) {
   fs.cpSync(path.join(root, name), path.join(output, name), { recursive: true });
@@ -32,7 +69,7 @@ function pageMetadata(source, file) {
   const title = source.match(/<title>([\s\S]*?)<\/title>/i)?.[1]?.trim() || 'ByVit';
   const description = source.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)?.[1]?.trim() || '';
   const pageUrl = new URL(file === 'index.html' ? './' : file, publicUrl).href;
-  const imageUrl = new URL('assets/hero-share.jpg', publicUrl).href;
+  const imageUrl = new URL(assetManifest['assets/hero-share.jpg'] || 'assets/hero-share.jpg', publicUrl).href;
   return [
     `<link rel="canonical" href="${escapeHtml(pageUrl)}">`,
     '<meta property="og:type" content="website">',
@@ -63,7 +100,8 @@ function prepareHtml(file) {
   );
   if (withStaticMode === publicSource) throw new Error(`Static mode was not injected into ${file}`);
   const html = withStaticMode.replace(/\s*<\/head>/i, `\n  ${pageMetadata(withStaticMode, file)}\n</head>`);
-  fs.writeFileSync(path.join(output, file), html);
+  const versioned = versionReferences(html).replace(/((?:css|js)\/[\w./-]+\.(?:css|js))(?:\?v=[\w.-]+)?/g, (full,reference) => assetManifest[reference] || full);
+  fs.writeFileSync(path.join(output, file), versioned);
 }
 
 function defaultProducts() {
@@ -90,10 +128,12 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
 ['assets', 'css', 'js'].forEach(copyDirectory);
+prepareResources();
 pages.forEach(prepareHtml);
 writeSeoFiles();
 
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
+fs.writeFileSync(path.join(output, 'asset-manifest.json'), JSON.stringify(assetManifest,null,2));
 fs.writeFileSync(path.join(output, '404.html'), fs.readFileSync(path.join(output, 'index.html')));
 
 console.log(`Static storefront built in ${output}`);

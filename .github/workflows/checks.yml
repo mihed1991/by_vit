@@ -51,7 +51,10 @@ jobs:
           BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/
         run: npm run build:static
 
-      - name: Verify public artifact
+      - name: Verify published cache and browser data
+        run: npm run check:static
+
+      - name: Verify public artifact boundaries
         run: |
           test -f dist/index.html
           test -f dist/robots.txt

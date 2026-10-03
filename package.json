@@ -9,6 +9,7 @@
     "check": "node --check server.js && node --check js/app.js && node --check js/data.js && node scripts/check-storage.js && node scripts/check-media.js && node scripts/check-backup.js && node scripts/check-moysklad.js && node scripts/check-api.js",
     "check:api": "node scripts/check-api.js",
     "check:e2e": "node scripts/check-e2e.js",
+    "check:static": "node scripts/check-static.js",
     "check:production": "NODE_ENV=production node scripts/check-production.js",
     "backup:data": "node scripts/backup-data.js",
     "restore:data": "node scripts/restore-data.js",
