@@ -102,11 +102,11 @@ async function main() {
     const desktopLockup = await page.locator('.site-header .brand-lockup').evaluate(node => ({width:node.getBoundingClientRect().width, gap:getComputedStyle(node).gap}));
     assert.ok(Math.abs(desktopLockup.width - 211.2) < 1);
     assert.equal(desktopLockup.gap, '10px');
-    const footerLockup = await page.locator('.footer-wordmark').evaluate(node => ({width:node.getBoundingClientRect().width, gap:getComputedStyle(node).gap, name:node.querySelector('.footer-wordmark-name')?.getAttribute('src'), subtitle:node.querySelector('.footer-wordmark-subtitle')?.getAttribute('src')}));
+    const footerLockup = await page.locator('.footer-wordmark').evaluate(node => ({width:node.getBoundingClientRect().width, height:node.getBoundingClientRect().height, image:node.querySelector('.footer-wordmark-image')?.getAttribute('src'), filter:getComputedStyle(node.querySelector('.footer-wordmark-image')).filter}));
     assert.ok(Math.abs(footerLockup.width - desktopLockup.width * .5) < 1, 'Desktop footer logo must be half the header size');
-    assert.equal(footerLockup.gap, '5px');
-    assert.equal(footerLockup.name, 'assets/byvit-header-wordmark.svg');
-    assert.equal(footerLockup.subtitle, 'assets/byvit-header-tagline.svg');
+    assert.ok(Math.abs(footerLockup.height - 19.78) < 1, 'Desktop footer logo must retain its original footprint');
+    assert.equal(footerLockup.image, 'assets/byvit-footer-logo.png');
+    assert.equal(footerLockup.filter, 'none', 'Footer artwork must retain its supplied beige color');
     if(qaScreenshotDir) await page.locator('.footer').screenshot({path:path.join(qaScreenshotDir, 'footer-desktop.png')});
     await page.setViewportSize({ width:1200, height:814 });
     const desktopHeaderFit = await page.evaluate(() => document.querySelector('.site-header .brand').getBoundingClientRect().right < document.querySelector('.site-header .main-nav').getBoundingClientRect().left);
@@ -484,7 +484,7 @@ async function main() {
     await mobilePage.evaluate(() => window.scrollTo(0, 0));
     assert.equal(await mobilePage.locator('.footer-wordmark').evaluate(node => node.getBoundingClientRect().width), mobileLockup.width);
     assert.equal(await mobilePage.locator('.footer-wordmark').isVisible(), false, 'Mobile footer logo must be hidden without collapsing its spacing');
-    assert.equal(await mobilePage.locator('.footer-wordmark-subtitle').isVisible(), false);
+    assert.ok(Math.abs(await mobilePage.locator('.footer-wordmark').evaluate(node => node.getBoundingClientRect().height) - 11.18) < 1);
     if(qaScreenshotDir) await mobilePage.locator('.site-header').screenshot({ path:path.join(qaScreenshotDir, 'header-mobile.png') });
     assert.equal(await mobilePage.locator('.mv-hero h1').textContent(), 'Тест мобильного баннера');
     assert.equal(await mobilePage.locator('.mv-trust-list article h3').first().textContent(), 'Тестовое преимущество');

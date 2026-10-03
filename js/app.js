@@ -1796,7 +1796,7 @@
     footer.innerHTML = `<div class="container">
       <div class="footer-grid">
         <div class="footer-brand-block">
-          <a class="footer-wordmark" href="index.html" aria-label="ByVit — спортивное питание и добавки"><img class="footer-wordmark-name" src="${DEFAULT_HEADER_WORDMARK}" alt=""><img class="footer-wordmark-subtitle" src="${DEFAULT_HEADER_TAGLINE}" alt=""></a>
+          <a class="footer-wordmark" href="index.html" aria-label="ByVit — спортивное питание и добавки"><span class="footer-wordmark-artwork"><img class="footer-wordmark-image" src="assets/byvit-footer-logo.png" width="8189" height="3024" alt="" loading="lazy" decoding="async"></span></a>
         </div>
         ${columns}
         ${footerColumn('Контакты', contactLinks || '<span>Контакты не указаны</span>')}

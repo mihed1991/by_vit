@@ -16499,35 +16499,36 @@ body[data-page="home"] .home-gallery-item img {
   flex-direction: column;
   align-items: flex-start;
   width: 105.6px;
-  gap: 5px;
+  height: 19.78px;
   color: var(--color-surface);
   text-decoration: none;
   white-space: nowrap;
 }
 
-.footer .footer-wordmark-name {
+.footer .footer-wordmark-artwork {
+  position: relative;
   display: block;
   width: 100%;
-  height: auto;
-  filter: brightness(0) invert(1);
+  aspect-ratio: 5297 / 498;
+  overflow: hidden;
 }
 
-.footer .footer-wordmark-subtitle {
+/* Preserve the supplied PNG's color; frame only its non-transparent artwork. */
+.footer .footer-wordmark-image {
+  position: absolute;
+  left: calc(-100% * 1446 / 5297);
+  top: calc(-100% * 1263 / 498);
   display: block;
-  width: 100%;
+  width: calc(100% * 8189 / 5297);
+  max-width: none;
   height: auto;
-  filter: brightness(0) invert(1);
 }
 
 @media (max-width: 760px) {
   .footer .footer-wordmark {
     width: 105.6px;
-    gap: 0;
+    height: 11.18px;
     visibility: hidden;
-  }
-
-  .footer .footer-wordmark-subtitle {
-    display: none;
   }
 }
 
