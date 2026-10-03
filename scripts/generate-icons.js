@@ -1,4 +1,4 @@
-// Rasterize the supplied artwork unchanged; no font substitution or redrawing.
+// Resize the supplied PNG artwork unchanged; no redrawing or color changes.
 const fs = require('fs');
 const path = require('path');
 const {chromium} = require('playwright-core');
@@ -10,7 +10,7 @@ async function main(){
   const browser = await chromium.launch({executablePath, headless:true});
   try{
     const page = await browser.newPage();
-    const source = `data:image/svg+xml;base64,${fs.readFileSync(path.join(root,'assets/favicon.svg')).toString('base64')}`;
+    const source = `data:image/png;base64,${fs.readFileSync(path.join(root,'assets/favicon-source.png')).toString('base64')}`;
     for(const [size, file] of [[48,'favicon-48.png'], [180,'apple-touch-icon.png']]){
       const data = await page.evaluate(async ({source,size}) => {
         const image = new Image();
@@ -18,7 +18,9 @@ async function main(){
         await image.decode();
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = size;
-        canvas.getContext('2d').drawImage(image,0,0,size,size);
+        const context = canvas.getContext('2d');
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image,0,0,size,size);
         return canvas.toDataURL('image/png').split(',')[1];
       }, {source,size});
       fs.writeFileSync(path.join(root,'assets',file),Buffer.from(data,'base64'));

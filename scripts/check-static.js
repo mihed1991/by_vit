@@ -20,7 +20,8 @@ async function main(){
   }
   for(const file of fs.readdirSync(dist).filter(file => file.endsWith('.html'))){
     const html = fs.readFileSync(path.join(dist,file),'utf8');
-    for(const rel of ['icon','apple-touch-icon']) assert.match(html,new RegExp(`rel="${rel}"[^>]+href="assets/[^"?]+\\.[a-f0-9]{12}\\.(?:svg|png)"`));
+    for(const rel of ['icon','apple-touch-icon']) assert.match(html,new RegExp(`rel="${rel}"[^>]+href="assets/[^"?]+\\.[a-f0-9]{12}\\.png"`));
+    assert.ok(!/rel="icon"[^>]+type="image\/svg\+xml"/.test(html), 'Legacy SVG must not override the supplied PNG favicon');
     assert.match(html,/src="js\/app\.[a-f0-9]{12}\.js"/);
     assert.match(html,/href="css\/style\.[a-f0-9]{12}\.css"/);
     assert.ok(!html.includes('src="js/app.js?'), 'Published app script must have a content-addressed URL');
