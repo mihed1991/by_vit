@@ -92,6 +92,10 @@ async function main() {
     page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()); });
 
     await page.goto('/index.html', { waitUntil: 'domcontentloaded' });
+    await page.locator('body.home-ready').waitFor();
+    assert.equal(await page.title(), 'Спортивное питание и добавки с доставкой по Беларуси - BYVIT');
+    assert.equal(await page.locator('meta[property="og:title"]').getAttribute('content'), await page.title());
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), 'assets/favicon.svg?v=8');
     await page.locator('.hero').waitFor();
     assert.equal(await page.locator('.site-header .brand-mark').isVisible(), false, 'Default header icon must be hidden');
     assert.equal(await page.locator('.site-header .brand-wordmark-img').getAttribute('src'), 'assets/byvit-header-wordmark.svg');
