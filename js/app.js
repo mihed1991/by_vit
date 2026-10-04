@@ -4092,7 +4092,8 @@
       </div>
     </details>`;
   }
-  function homeGalleryEditor(item={}, index=0){
+  function homeGalleryEditor(item={}, index=0, viewport='desktop'){
+    const sizeHintId = viewport === 'mobile' ? 'adminMobileHomeGallerySizeHint' : 'adminHomeGallerySizeHint';
     const data = {
       id:String(item.id || `gallery-${Date.now()}-${index}`),
       src:String(item.src || '').trim(),
@@ -4112,7 +4113,7 @@
       <input data-home-gallery-caption value="${esc(data.caption)}" placeholder="Подпись на фото" aria-label="Подпись на фото ${index + 1}">
       <label class="admin-file-field">
         <span>Загрузить или заменить фото</span>
-        <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        <input data-home-gallery-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" aria-describedby="${sizeHintId}">
       </label>
     </article>`;
   }
@@ -5071,7 +5072,7 @@
     const gallery = $('#adminMobileHomeGallery');
     if(gallery){
       const items = config.store?.items || [];
-      gallery.innerHTML = items.length ? items.map(homeGalleryEditor).join('') : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
+      gallery.innerHTML = items.length ? items.map((item, index) => homeGalleryEditor(item, index, 'mobile')).join('') : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
       $$('[data-home-gallery-key]', gallery).forEach(updateHomeGalleryPreview);
       $('[data-home-gallery-add="mobile"]').disabled = items.length >= MAX_HOME_GALLERY_IMAGES;
     }
@@ -5252,7 +5253,7 @@
 	      }
 	      const gallery = (site.homeGallery || []).slice(0, MAX_HOME_GALLERY_IMAGES);
 	      galleryRoot.innerHTML = gallery.length
-	        ? gallery.map(homeGalleryEditor).join('')
+        ? gallery.map((item, index) => homeGalleryEditor(item, index)).join('')
 	        : '<p class="admin-hint admin-empty-note">Фотографии пока не добавлены.</p>';
 	      $$('[data-home-gallery-key]', galleryRoot).forEach(updateHomeGalleryPreview);
 	      const addButton = $('[data-home-gallery-add]');
@@ -6172,7 +6173,7 @@
 	        if(!root) return;
 	        if(count >= MAX_HOME_GALLERY_IMAGES){ toast('Максимум 6 фотографий'); return; }
 	        $('.admin-empty-note', root)?.remove();
-	        root.insertAdjacentHTML('beforeend', homeGalleryEditor({id:`gallery-${Date.now()}`}, count));
+	        root.insertAdjacentHTML('beforeend', homeGalleryEditor({id:`gallery-${Date.now()}`}, count, galleryAdd.dataset.homeGalleryAdd === 'mobile' ? 'mobile' : 'desktop'));
 	        galleryAdd.disabled = count + 1 >= MAX_HOME_GALLERY_IMAGES;
 	        return;
 	      }

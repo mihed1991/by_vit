@@ -360,6 +360,10 @@ async function main() {
     assert.match(await page.locator('[data-mobile-hero-control="src"]').textContent(), /1200 × 650 px/);
     assert.equal(await page.locator('#adminHomeDesktopPanel').isVisible(), true);
     assert.equal(await page.locator('#adminHomeMobilePanel').isVisible(), false);
+    assert.match(await page.locator('#adminHomeGallerySizeHint').textContent(), /1200 × 1000 px \(6:5\)/);
+    assert.match(await page.locator('#adminHomeGallerySizeHint').textContent(), /Высота кадра зависит от текста/);
+    await page.locator('#adminHomeDesktopPanel [data-home-gallery-add]').click();
+    assert.equal(await page.locator('#adminHomeGallery [data-home-gallery-upload]').last().getAttribute('aria-describedby'), 'adminHomeGallerySizeHint');
     const desktopTitleBefore = await page.locator('#siteHeroTitle').inputValue();
     await page.locator('#siteHeroTitle').fill('Несохранённый десктоп');
     const desktopSizeBefore = await page.locator('#siteHeroTitleSize').inputValue();
@@ -372,6 +376,7 @@ async function main() {
     assert.equal(await page.locator('#adminHomeMobileTab').getAttribute('aria-selected'), 'true');
     assert.equal(await page.locator('#adminHomeDesktopPanel').isVisible(), false);
     assert.equal(await page.locator('#adminHomeMobilePanel').isVisible(), true);
+    assert.match(await page.locator('#adminMobileHomeGallerySizeHint').textContent(), /1200 × 675 px \(16:9\)/);
     assert.equal(await page.locator('#siteHeroTitleSize').isDisabled(), true, 'Invalid inactive drafts must not block another version’s save');
     await page.locator('[data-mobile-home-field="heroTitle"]').fill('Тест мобильного баннера');
     await page.locator('[data-hero-slide-add="mobile"]').click();
@@ -379,6 +384,7 @@ async function main() {
     await page.locator('#adminMobileHeroSlides [data-hero-slide-field="mobileSrc"]').last().fill('assets/home-mobile-hero.jpg');
     await page.locator('#adminMobileHeroSlides [data-hero-slide-field="href"]').last().fill('sale.html');
     await page.locator('[data-home-gallery-add="mobile"]').click();
+    assert.equal(await page.locator('#adminMobileHomeGallery [data-home-gallery-upload]').getAttribute('aria-describedby'), 'adminMobileHomeGallerySizeHint');
     await page.locator('#adminMobileHomeGallery [data-home-gallery-upload]').setInputFiles(path.join(root,'assets','home-mobile-hero.jpg'));
     await page.waitForFunction(() => document.querySelector('#adminMobileHomeGallery [data-home-gallery-src]')?.value.startsWith('/uploads/'));
     await page.locator('[data-mobile-home-item="trust"]').first().locator('[data-mobile-item-field="title"]').fill('Тестовое преимущество');

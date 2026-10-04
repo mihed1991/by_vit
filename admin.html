@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=12">
   <link rel="stylesheet" href="css/style.css?v=199">
   <script src="js/data.js?v=78" defer></script>
-  <script src="js/app.js?v=149" defer></script>
+  <script src="js/app.js?v=150" defer></script>
 </head>
 
 <body data-page="admin">
@@ -364,7 +364,7 @@
                   <div class="admin-form-section admin-home-wide">
                     <h4>Фотоблок после брендов</h4>
                     <label class="mini-toggle"><input id="adminHomeGalleryVisible" type="checkbox"> Показывать десктопный фотоблок</label>
-                    <p class="admin-hint">На десктопе текст располагается слева, а фотографии листаются справа. До 6 фото; рекомендуем кадр около 6:5 с главным объектом ближе к центру. Мобильный фотоблок настраивается отдельно.</p>
+                    <p class="admin-hint">На десктопе текст располагается слева, а фотографии листаются справа. До 6 фото. Мобильный фотоблок настраивается отдельно.</p>
                     <label class="admin-input-field">
                       <span>Надпись над текстом</span>
                       <input id="adminHomeGalleryTitle" value="Наш магазин" placeholder="Наш магазин">
@@ -375,6 +375,7 @@
                       <label class="admin-input-field"><span>Текст кнопки</span><input id="adminHomeGalleryStoryButtonText" placeholder="Подробнее"></label>
                       <label class="admin-input-field"><span>Ссылка кнопки</span><input id="adminHomeGalleryStoryButtonUrl" placeholder="stores.html"></label>
                     </div>
+                    <p class="admin-hint" id="adminHomeGallerySizeHint">Рекомендуемый размер для десктопа: 1200 × 1000 px (6:5). Высота кадра зависит от текста слева, поэтому края фото могут обрезаться. Разместите главный объект ближе к центру. Форматы: JPG, PNG, WebP.</p>
                     <div class="admin-blocks home-gallery-admin-list" id="adminHomeGallery"></div>
                     <button class="btn btn-light" data-home-gallery-add type="button">Добавить фото</button>
                   </div>
@@ -463,6 +464,7 @@
                     <label class="admin-input-field"><span>Описание</span><textarea data-mobile-store-field="storyText" rows="5"></textarea></label>
                     <label class="admin-input-field"><span>Текст кнопки</span><input data-mobile-store-field="buttonText"></label>
                     <label class="admin-input-field"><span>Ссылка кнопки</span><input data-mobile-store-field="buttonUrl"></label>
+                    <p class="admin-hint" id="adminMobileHomeGallerySizeHint">Рекомендуемый размер для мобильной версии: 1200 × 675 px (16:9). Кадр горизонтальный; фото других пропорций обрезается по центру. Форматы: JPG, PNG, WebP.</p>
                     <div class="admin-blocks home-gallery-admin-list" id="adminMobileHomeGallery"></div>
                     <button class="btn btn-light" data-home-gallery-add="mobile" type="button">Добавить фото</button>
                   </div>
