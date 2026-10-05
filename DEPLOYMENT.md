@@ -2,6 +2,8 @@
 
 The repository can be prepared and tested locally before a server or domain is purchased. The production runtime is one Node.js container with a persistent data volume. A reverse proxy such as Caddy, Traefik, or nginx terminates HTTPS and forwards traffic to `127.0.0.1:3000`.
 
+The application targets Node.js 24 LTS. The Dockerfile uses `node:24-alpine`; local development and GitHub Actions use `.nvmrc` with the same major version. When upgrading an existing deployment, back up the database and uploaded media first, then run `docker compose up -d --build byvit` to rebuild and recreate only the application service. Do not run `docker compose down -v`: the PostgreSQL and media volumes must be retained.
+
 ## Local preparation
 
 1. Copy `.env.example` to `.env`.

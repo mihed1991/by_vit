@@ -10,6 +10,8 @@ ByVit is a Russian-language sports nutrition storefront with a Node.js API, prot
 
 ## Local verification
 
+Use Node.js 24 LTS. Docker uses `node:24-alpine`, and GitHub Actions reads the same major version from `.nvmrc`. With nvm installed, run `nvm install` and `nvm use` in the project directory before the commands below. The `24.x` engine requirement keeps development and production on the tested LTS major.
+
 ```bash
 npm ci
 npm run check
