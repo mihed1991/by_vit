@@ -82,7 +82,7 @@ const ALLOWED_ORIGINS = new Set(String(process.env.BYVIT_ALLOWED_ORIGINS || '').
 const PUBLIC_HTML_FILES = new Set([
   '/index.html', '/about.html', '/admin.html', '/brands.html', '/cart.html', '/catalog.html',
   '/compare.html', '/delivery.html', '/faq.html', '/product.html', '/sale.html', '/stores.html',
-  '/wishlist.html'
+  '/wishlist.html', '/goals.html', '/goal.html'
 ]);
 const PUBLIC_ASSET_PREFIXES = ['/assets/', '/css/', '/js/'];
 let moyskladSyncTimer = null;
@@ -409,6 +409,19 @@ async function injectServerMetadata(source, pathname, searchParams, req) {
     } else {
       robots = 'noindex, nofollow';
     }
+  } else if (pathname === '/goal.html') {
+    const store = await loadStore();
+    const id = String(searchParams.get('id') || '');
+    const goal = (store.site.goals || []).find(item => String(item.id) === id && item.enabled !== false);
+    if (goal) {
+      canonical.searchParams.set('id', id);
+      title = goal.seoTitle || `${goal.title} — подбор добавок | ByVit`;
+      description = goal.seoDescription || goal.text || `Товары для цели «${goal.title}» в ByVit.`;
+      source = source.replace(/<title>[\s\S]*?<\/title>/i, `<title>${xmlEscape(title)}</title>`)
+        .replace(/<meta\s+name="description"\s+content="[^"]*"\s*>/i, htmlMetadataTag({name:'description',content:description}));
+    } else {
+      robots = 'noindex, nofollow';
+    }
   } else if (pathname === '/index.html') {
     structuredData = {
       '@context': 'https://schema.org',
@@ -459,10 +472,11 @@ async function handleSeoFile(req, res) {
     const store = await loadStore();
     const staticPages = [
       '/', '/catalog.html', '/brands.html', '/sale.html', '/delivery.html',
-      '/stores.html', '/about.html', '/faq.html'
+      '/stores.html', '/about.html', '/faq.html', '/goals.html'
     ];
     const productPages = store.products.map(product => `/product.html?id=${encodeURIComponent(product.id)}`);
-    const entries = [...staticPages, ...productPages].map(pathname =>
+    const goalPages = (store.site.goals || []).filter(goal => goal.enabled !== false).map(goal => `/goal.html?id=${encodeURIComponent(goal.id)}`);
+    const entries = [...staticPages, ...productPages, ...goalPages].map(pathname =>
       `  <url><loc>${xmlEscape(new URL(pathname, origin).href)}</loc></url>`
     ).join('\n');
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;

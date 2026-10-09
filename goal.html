@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description"
-    content="Каталог спортивного питания ByVit: протеины, креатин, аминокислоты, витамины и добавки с фильтрами по брендам и категориям.">
-  <title>Каталог | ByVit</title>
+    content="Тематические подборки товаров из каталога ByVit.">
+  <title>Подборка по цели | ByVit</title>
   <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png?v=12">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=12">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=12">
@@ -15,7 +15,7 @@
   <script src="js/app.js?v=153" defer></script>
 </head>
 
-<body data-page="catalog">
+<body data-page="goal">
   <header class="site-header">
     <div class="header-top">
       <div class="container"><span data-site-announcement>Оригинальные бренды · самовывоз · доставка</span><span
@@ -52,20 +52,20 @@
   <main>
     <section class="page-hero">
       <div class="container">
-        <div class="breadcrumbs"><a href="index.html">Главная</a> / Каталог</div>
-        <h1>Каталог</h1>
-        <p>Поиск, категории, бренды, сортировка и наличие. Вот это уже похоже на магазин, а не на стенд с бумажками.</p>
+        <div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="goals.html">Цели</a></div>
+        <h1>Подборка по цели</h1>
+        <p>Товары из каталога BYVIT для вашей задачи.</p>
       </div>
     </section>
-    <section class="section">
+    <section class="section goal-catalog-section">
       <div class="container">
-        <div class="catalog-layout">
+        <div class="catalog-layout goal-catalog-layout"><aside class="goal-sidebar"><details class="goal-navigation" id="goalNavigation"></details></aside>
           <div class="catalog-main">
             <div class="toolbar">
-              <div class="catalog-search-wrap"><input id="catalogSearch" autocomplete="off"
+              <div class="catalog-search-wrap"><input id="catalogSearch" autocomplete="off" aria-label="Поиск в подборке"
                   placeholder="Поиск по названию, бренду или составу">
                 <div class="catalog-suggest-panel" id="catalogSearchPanel" hidden></div>
-              </div><select id="catalogSort">
+              </div><select id="catalogSort" aria-label="Сортировка товаров">
                 <option value="default">По умолчанию</option>
                 <option value="popular">Сначала популярные</option>
                 <option value="price-asc">Сначала дешевле</option>
@@ -81,6 +81,7 @@
             <nav class="catalog-pagination" id="catalogPagination" aria-label="Страницы каталога" hidden></nav>
           </div>
         </div>
+        <article class="goal-description" id="goalDescription" hidden></article>
       </div>
     </section>
   </main>

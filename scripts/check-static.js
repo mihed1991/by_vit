@@ -83,6 +83,17 @@ async function main(){
       fs.mkdirSync(process.env.BYVIT_E2E_SCREENSHOTS,{recursive:true});
       await page.screenshot({path:path.join(process.env.BYVIT_E2E_SCREENSHOTS,'static-mobile-refresh.png')});
     }
+    await page.goto(`http://127.0.0.1:${server.address().port}/by_vit/goals.html`,{waitUntil:'networkidle'});
+    assert.equal(await page.locator('.goal-selection-card').count(),6);
+    await page.locator('.goal-selection-card[href="goal.html?id=recovery"]').click();
+    await page.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(await page.locator('.page-hero h1').textContent(),'Восстановление');
+    assert.deepEqual(await page.locator('#catalogProducts .product-card').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.productId))),[1,13,3,4,5,10]);
+    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+    assert.ok(canonical.includes('/by_vit/goal.html?id=recovery'), 'Goal canonical must retain the GitHub Pages base path');
+    await page.locator('#catalogSort').selectOption('price-asc');
+    assert.match(page.url(),/id=recovery/);
+    assert.deepEqual(errors,[],'Goal routes and assets must resolve in the published subdirectory');
     await context.close();
     console.log('Static release cache, legacy browser data, PNG icons and mobile media checks passed.');
   }finally{

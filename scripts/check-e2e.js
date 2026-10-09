@@ -76,9 +76,10 @@ async function checkCatalogNavigation(browser, baseURL, screenshots){
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/catalog.html', {waitUntil:'domcontentloaded'});
-  await page.locator('#catalogSmart .catalog-smart-card').first().waitFor();
-  const smart = page.locator('#catalogSmart .catalog-smart-card').first();
+  await page.goto('/catalog.html?category=protein', {waitUntil:'domcontentloaded'});
+  await page.locator('#catalogCategoryContext').waitFor();
+  assert.equal(await page.locator('#catalogSmart').count(), 0);
+  const smart = page.locator('#catalogCategoryContext');
   assert.equal(await smart.locator('.catalog-subcategory-list > a:visible').count(), 3);
   assert.equal(await smart.locator('.catalog-subcategory-rest a:visible').count(), 0);
   await smart.locator('.catalog-subcategory-more > summary').click();
@@ -183,7 +184,7 @@ async function checkCatalogNavigation(browser, baseURL, screenshots){
   await phone.locator('[data-mobile-catalog-open]').click();
   await phone.locator('.mobile-catalog-all').click();
   await phone.waitForURL('**/catalog.html');
-  assert.equal(await phone.locator('#catalogSmart').isVisible(), false, 'Mobile catalog recommendation block must remain hidden');
+  assert.equal(await phone.locator('#catalogSmart').count(), 0, 'The old recommendation matrix must not be recreated');
   await mobile.close();
   assert.deepEqual(errors, [], 'Catalog navigation must not produce browser errors');
 }
@@ -332,13 +333,13 @@ async function main() {
     await page.locator('.product-card').first().waitFor();
     assert.equal(await page.locator('.product-card').count(), 13);
     const catalogSectionOrder = await page.locator('.catalog-main').evaluate(node => {
-      const smart = node.querySelector('#catalogSmart');
+      const products = node.querySelector('#catalogProducts');
       const filters = node.querySelector('#catalogFilters');
       const toolbar = node.querySelector('.toolbar');
       return toolbar.compareDocumentPosition(filters) === Node.DOCUMENT_POSITION_FOLLOWING
-        && filters.compareDocumentPosition(smart) === Node.DOCUMENT_POSITION_FOLLOWING;
+        && filters.compareDocumentPosition(products) === Node.DOCUMENT_POSITION_FOLLOWING;
     });
-    assert.equal(catalogSectionOrder, true, 'Catalog order must be search, filters, then categories');
+    assert.equal(catalogSectionOrder, true, 'Catalog order must be search, filters, then products');
     const catalogFilterLabels = (await page.locator('#catalogFilters summary').allTextContents()).map(label => label.replace(/\s+0$/, '').trim());
     assert.deepEqual(catalogFilterLabels, ['Все фильтры', 'Производитель', 'Вкус']);
     const catalogFilterVisualStyle = await page.locator('#catalogFilters summary').first().evaluate((summary, allProductsLink) => ({
@@ -717,8 +718,8 @@ async function main() {
     assert.deepEqual(await mobilePage.locator('.mv-product-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.productId)), ['1','2']);
     const homeCardSize = await mobilePage.locator('.mv-product-card').first().evaluate(card => ({width:card.getBoundingClientRect().width, height:card.getBoundingClientRect().height}));
     assert.equal(await mobilePage.locator('.mv-goal-list a').count(), 6);
-    assert.match(await mobilePage.locator('.mv-goal-list a[href*="category=joints"] use').getAttribute('href'), /#joints$/);
-    assert.match(await mobilePage.locator('.mv-goal-list a[href*="category=vitamins"] use').getAttribute('href'), /#shield$/);
+    assert.match(await mobilePage.locator('.mv-goal-list a[href*="id=joints"] use').getAttribute('href'), /#joints$/);
+    assert.match(await mobilePage.locator('.mv-goal-list a[href*="id=immunity"] use').getAttribute('href'), /#shield$/);
     assert.deepEqual(await mobilePage.locator('.mobile-bottom-nav a > span:nth-child(2)').allTextContents(), ['Главная', 'Каталог', 'Акции', 'Корзина', 'Магазины']);
     assert.equal(await mobilePage.locator('.mobile-bottom-nav a[href="sale.html"] .bottom-nav-icon').textContent(), '%');
     assert.equal(await mobilePage.locator('.mobile-bottom-nav a:first-child .bottom-nav-icon').evaluate(icon => getComputedStyle(icon).fontSize), '24px');
@@ -758,8 +759,8 @@ async function main() {
     assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'true');
     await mobilePage.waitForFunction(() => getComputedStyle(document.querySelector('[data-mobile-panel]')).opacity === '1');
     const menuLinks = mobilePage.locator('.mobile-menu-primary a');
-    assert.equal(await menuLinks.count(), 10, 'Mobile menu must preserve its existing destinations');
-    assert.deepEqual(await menuLinks.evaluateAll(links => links.map(link => link.getAttribute('href'))), ['index.html','catalog.html','brands.html','sale.html','delivery.html','stores.html','about.html','faq.html','wishlist.html','compare.html']);
+    assert.equal(await menuLinks.count(), 11, 'Mobile menu must retain existing destinations and add Goals');
+    assert.deepEqual(await menuLinks.evaluateAll(links => links.map(link => link.getAttribute('href'))), ['index.html','catalog.html','goals.html','brands.html','sale.html','delivery.html','stores.html','about.html','faq.html','wishlist.html','compare.html']);
     for(const width of [320,375,383,432,820]){
       await mobilePage.setViewportSize({width,height:720});
       const menuRows = await menuLinks.evaluateAll(links => links.map(link => {

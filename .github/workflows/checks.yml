@@ -51,6 +51,9 @@ jobs:
       - name: Run desktop and mobile journeys
         run: npm run check:e2e
 
+      - name: Verify goal selections and admin persistence
+        run: npm run check:goals
+
       - name: Build public storefront
         env:
           BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/

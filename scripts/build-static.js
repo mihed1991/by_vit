@@ -12,6 +12,8 @@ const pages = [
   'brands.html',
   'cart.html',
   'catalog.html',
+  'goals.html',
+  'goal.html',
   'compare.html',
   'delivery.html',
   'faq.html',
@@ -117,7 +119,7 @@ function writeSeoFiles() {
   const robots = `User-agent: *\nAllow: /\nDisallow: /admin.html\nDisallow: /cart.html\nDisallow: /wishlist.html\nDisallow: /compare.html\nSitemap: ${sitemapUrl}\n`;
   fs.writeFileSync(path.join(output, 'robots.txt'), robots);
 
-  const indexablePages = ['index.html', 'catalog.html', 'brands.html', 'sale.html', 'delivery.html', 'stores.html', 'about.html', 'faq.html'];
+  const indexablePages = ['index.html', 'catalog.html', 'goals.html', 'brands.html', 'sale.html', 'delivery.html', 'stores.html', 'about.html', 'faq.html'];
   const paths = indexablePages.map(file => file === 'index.html' ? './' : file);
   defaultProducts().forEach(product => paths.push(`product.html?id=${encodeURIComponent(product.id)}`));
   const urls = paths.map(value => `  <url><loc>${escapeHtml(new URL(value, publicUrl).href)}</loc></url>`).join('\n');
