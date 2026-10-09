@@ -141,18 +141,43 @@ async function main(){
     assert.ok((await page.locator('link[rel="canonical"]').getAttribute('href')).endsWith('/goal.html?id=recovery'));
     assert.equal(await page.locator('#goalDescription p').count(),2);
     assert.equal(await page.locator('#goalDescription script').count(),0);
-    assert.equal(await page.locator('#goalNavigation').getAttribute('open'),'');
+    assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
+    assert.equal(await page.locator('#goalNavigation nav').isVisible(),false);
+    assert.equal(await page.locator('.goal-sidebar').count(),0);
+    const fullWidth=await page.locator('.goal-catalog-layout').evaluate(node=>({layout:node.getBoundingClientRect().width,products:node.querySelector('.catalog-main').getBoundingClientRect().width}));
+    assert.ok(Math.abs(fullWidth.layout-fullWidth.products)<1,'Goal products must use the full content width');
     assert.equal(await page.locator('#catalogSearch, #catalogSearchPanel').count(),0);
     assert.ok(await page.locator('[data-header-search-form]').count()>0);
     await noOverflow(page);
     if(screenshots){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-desktop.png')}); }
+    const productTop=await page.locator('#catalogProducts').evaluate(node=>node.getBoundingClientRect().top);
+    await page.locator('#goalNavigation > summary').click();
+    await page.locator('#goalNavigation nav a').first().waitFor();
+    assert.equal(await page.locator('#goalNavigation [aria-current="page"] .goal-navigation-check').count(),1);
+    assert.equal(await page.locator('#catalogProducts').evaluate(node=>node.getBoundingClientRect().top),productTop,'Opening the selector must not push products down');
+    if(screenshots) await page.screenshot({path:path.join(screenshots,'goal-desktop-selector-open.png')});
+    await page.locator('#goalNavigation [aria-current="page"]').focus();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
+    assert.equal(await page.locator('#goalNavigation > summary').evaluate(node=>node===document.activeElement),true);
+    await page.locator('#goalNavigation > summary').press('Enter');
+    await page.locator('#goalNavigation nav a').first().waitFor();
+    await page.locator('.page-hero h1').click();
+    assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
+    await page.locator('#goalNavigation > summary').click();
+    await page.locator('#goalNavigation a[href="goal.html?id=mass"]').click();
+    await page.waitForURL('**/goal.html?id=mass');
+    await page.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(await page.locator('.page-hero h1').textContent(),'Набор массы');
+    await page.goBack();
+    await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
     const layout = await page.locator('.catalog-main').evaluate(node=>({
       top:node.getBoundingClientRect().top,
       filtersTop:node.querySelector('#catalogFilters').getBoundingClientRect().top,
       filtersMargin:parseFloat(getComputedStyle(node.querySelector('#catalogFilters')).marginTop)
     }));
-    assert.ok(Math.abs(layout.filtersTop-layout.top-layout.filtersMargin)<1,'Goal filters must start at the top of the content with only their standard margin');
+    assert.ok(layout.filtersTop-layout.top>=0 && layout.filtersTop-layout.top<=layout.filtersMargin+1,'Goal filters must start at the top of the content with no added toolbar gap');
     await page.goto('/goal.html?id=recovery&q=Magnesium');
     await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
@@ -207,6 +232,12 @@ async function main(){
       await page.locator('#goalNavigation > summary').click();
       await page.locator('#goalNavigation nav a').first().waitFor();
       await page.waitForFunction(()=>getComputedStyle(document.querySelector('.goal-navigation-chevron')).transform==='matrix(-1, 0, 0, -1, 0, 0)');
+      const popup=await page.locator('#goalNavigation nav').evaluate(node=>{
+        const box=node.getBoundingClientRect();
+        const bottomNav=document.querySelector('[data-mobile-bottom-nav]').getBoundingClientRect();
+        return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,limit:bottomNav.height?bottomNav.top:innerHeight,viewport:innerWidth};
+      });
+      assert.ok(popup.left>=0 && popup.right<=popup.viewport && popup.top>=0 && popup.bottom<=popup.limit+1,'Goal dropdown must fit phone and landscape viewports');
       if(screenshots && width===375) await page.screenshot({path:path.join(screenshots,'goal-mobile-selector-open.png')});
       const targets = await page.locator('#goalNavigation nav a').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
       assert.ok(targets.every(height=>height>=48));

@@ -10,9 +10,9 @@
   <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png?v=12">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=12">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=12">
-  <link rel="stylesheet" href="css/style.css?v=206">
+  <link rel="stylesheet" href="css/style.css?v=207">
   <script src="js/data.js?v=79" defer></script>
-  <script src="js/app.js?v=155" defer></script>
+  <script src="js/app.js?v=156" defer></script>
 </head>
 
 <body data-page="goal">
@@ -53,13 +53,15 @@
     <section class="page-hero">
       <div class="container">
         <div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="goals.html">Цели</a></div>
-        <h1>Подборка по цели</h1>
-        <p>Товары из каталога BYVIT для вашей задачи.</p>
+        <div class="goal-hero-heading">
+          <div class="goal-hero-copy"><h1>Подборка по цели</h1><p>Товары из каталога BYVIT для вашей задачи.</p></div>
+          <details class="goal-navigation" id="goalNavigation"></details>
+        </div>
       </div>
     </section>
     <section class="section goal-catalog-section">
       <div class="container">
-        <div class="catalog-layout goal-catalog-layout"><aside class="goal-sidebar"><details class="goal-navigation" id="goalNavigation"></details></aside>
+        <div class="catalog-layout goal-catalog-layout">
           <div class="catalog-main">
             <div class="catalog-filter-bar" id="catalogFilters" aria-label="Фильтры каталога"></div>
             <div class="catalog-category-context" id="catalogCategoryContext" hidden aria-label="Подгруппы выбранной категории"></div>

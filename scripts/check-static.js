@@ -93,10 +93,14 @@ async function main(){
     assert.ok(canonical.includes('/by_vit/goal.html?id=recovery'), 'Goal canonical must retain the GitHub Pages base path');
     assert.equal(await page.locator('#catalogSort').count(),0);
     assert.equal(await page.locator('#catalogSearch').count(),0);
+    assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
     assert.equal(await page.locator('.toolbar').count(),0);
     await page.setViewportSize({width:1440,height:900});
     assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
     assert.equal(await page.locator('#catalogSearch').count(),0);
+    await page.locator('#goalNavigation > summary').click();
+    await page.locator('#goalNavigation [aria-current="page"] .goal-navigation-check').waitFor();
+    await page.locator('#goalNavigation > summary').press('Escape');
     await page.locator('.catalog-filter-menu-all > summary').click();
     await page.locator('#stockOnly').check();
     await page.waitForURL('**/goal.html?id=recovery&stock=1');

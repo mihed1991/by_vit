@@ -2596,14 +2596,38 @@
       ensureMeta('robots','noindex, nofollow');
       return;
     }
-    hero.innerHTML = `<div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="goals.html">Цели</a> / ${esc(goal.title)}</div><h1>${esc(goal.title)}</h1><p>${esc(goal.text)}</p>`;
+    hero.innerHTML = `<div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="goals.html">Цели</a> / ${esc(goal.title)}</div><div class="goal-hero-heading"><div class="goal-hero-copy"><h1>${esc(goal.title)}</h1><p>${esc(goal.text)}</p></div><details class="goal-navigation" id="goalNavigation"></details></div>`;
     const goals = getGoals().filter(item => item.enabled !== false);
-    $('#goalNavigation').innerHTML = `<summary>Выбрать цель <svg class="goal-navigation-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-label="Подборки по целям">${goals.map(item => `<a href="goal.html?id=${encodeURIComponent(item.id)}" ${item.id === goal.id ? 'aria-current="page"' : ''}>${goalIcon(item)}<span>${esc(item.title)}</span></a>`).join('')}<a class="goal-navigation-all" href="goals.html">Все цели <span aria-hidden="true">→</span></a></nav>`;
+    $('#goalNavigation').innerHTML = `<summary>Сменить цель <svg class="goal-navigation-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-label="Подборки по целям">${goals.map(item => `<a href="goal.html?id=${encodeURIComponent(item.id)}" ${item.id === goal.id ? 'aria-current="page"' : ''}>${goalIcon(item)}<span>${esc(item.title)}</span>${item.id === goal.id ? '<svg class="goal-navigation-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>' : ''}</a>`).join('')}<a class="goal-navigation-all" href="goals.html">Все цели <span aria-hidden="true">→</span></a></nav>`;
     const navigation = $('#goalNavigation');
-    const desktop = window.matchMedia('(min-width:1101px)');
-    const updateNavigation = () => { navigation.open = desktop.matches; };
-    updateNavigation();
-    desktop.addEventListener('change', updateNavigation);
+    const summary = $('summary', navigation);
+    const positionNavigation = () => {
+      if(!navigation.open) return;
+      const anchor = summary.getBoundingClientRect();
+      const headerBottom = Math.max(0, $('.site-header')?.getBoundingClientRect().bottom || 0);
+      const bottomNav = $('[data-mobile-bottom-nav]')?.getBoundingClientRect();
+      const bottom = bottomNav?.height ? Math.min(innerHeight, bottomNav.top) : innerHeight;
+      const below = Math.max(0, bottom - anchor.bottom - 8);
+      const above = Math.max(0, anchor.top - headerBottom - 8);
+      const opensAbove = below < 240 && above > below;
+      navigation.classList.toggle('opens-above', opensAbove);
+      navigation.style.setProperty('--goal-menu-height', `${Math.min(440, opensAbove ? above : below)}px`);
+    };
+    navigation.addEventListener('toggle', positionNavigation);
+    navigation.addEventListener('keydown', event => {
+      if(event.key !== 'Escape' || !navigation.open) return;
+      event.preventDefault();
+      navigation.open = false;
+      summary.focus();
+    });
+    navigation.addEventListener('focusout', event => {
+      if(event.relatedTarget && !navigation.contains(event.relatedTarget)) navigation.open = false;
+    });
+    document.addEventListener('click', event => {
+      if(!navigation.contains(event.target)) navigation.open = false;
+    });
+    window.addEventListener('resize', () => { navigation.open = false; });
+    window.addEventListener('scroll', () => { navigation.open = false; }, {passive:true});
     const article = $('#goalDescription');
     article.hidden = !goal.description;
     article.innerHTML = goal.description ? `<h2>О подборке «${esc(goal.title)}»</h2>${goal.description.split(/\n\s*\n/).map(text => `<p>${esc(text)}</p>`).join('')}` : '';
