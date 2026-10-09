@@ -17781,6 +17781,7 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
 @media (max-width: 1100px) {
   .goals-index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body[data-page="goal"] .goal-catalog-layout { display: block; }
+  body[data-page="goal"] #catalogSort { display: none; }
   .goal-sidebar { margin-bottom: 16px; }
   .goal-navigation > summary { display: flex; align-items: center; justify-content: space-between; }
   .goal-navigation nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -17792,7 +17793,6 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
   .goal-selection-card h2 { font-size: 18px; }
   .goal-navigation nav { grid-template-columns: minmax(0, 1fr); }
   .catalog-context-links a, .catalog-context-links .catalog-subcategory-more > summary { min-height: 48px; }
-  body[data-page="goal"] #catalogSort { display: block; width: 100%; max-width: none; min-height: 48px; }
   body[data-page="goal"] .toolbar { position: static; flex-wrap: wrap; }
   body[data-page="goal"] .catalog-search-wrap { flex-basis: 100%; }
   .goal-description { margin-top: 32px; padding-top: 24px; }

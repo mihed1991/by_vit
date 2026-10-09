@@ -96,6 +96,7 @@ async function main(){
     assert.equal(await page.locator('#goalNavigation').getAttribute('open'),'');
     await noOverflow(page);
     if(screenshots){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-desktop.png')}); }
+    assert.equal(await page.locator('#catalogSort').isVisible(),true);
     await page.locator('#catalogSort').selectOption('price-desc');
     assert.match(page.url(), /id=recovery/);
     assert.match(page.url(), /sort=price-desc/);
@@ -125,7 +126,7 @@ async function main(){
     assert.match(page.url(),/id=many-test.*page=2/);
     await page.goBack();
     assert.equal(await page.locator('.product-card').count(),30);
-    for(const width of [320,375,432,820]){
+    for(const width of [320,375,432,820,1100]){
       await page.setViewportSize({width,height:width===820?390:804});
       await page.goto('/goals.html');
       await page.locator('.goal-selection-card').first().waitFor();
@@ -139,10 +140,20 @@ async function main(){
       assert.ok(targets.every(height=>height>=48));
       await page.locator('#goalNavigation > summary').press('Enter');
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
-      assert.equal(await page.locator('#catalogSort').isVisible(),true);
+      assert.equal(await page.locator('#catalogSort').isVisible(),false);
+      assert.equal(await page.locator('#catalogSearch').isVisible(),true);
+      const toolbarSpace = await page.locator('.toolbar').evaluate(node=>{
+        const toolbar = node.getBoundingClientRect();
+        const search = node.querySelector('.catalog-search-wrap').getBoundingClientRect();
+        const styles = getComputedStyle(node);
+        return toolbar.height - search.height - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom) - parseFloat(styles.borderTopWidth) - parseFloat(styles.borderBottomWidth);
+      });
+      assert.ok(toolbarSpace < 1, 'Hidden mobile sorting must not leave an empty toolbar row');
       await noOverflow(page);
       if(screenshots && width===375){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-mobile.png')}); }
     }
+    await page.setViewportSize({width:1101,height:900});
+    assert.equal(await page.locator('#catalogSort').isVisible(),true);
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto('/goal.html?id=many-test');
     await page.locator('.product-card').first().waitFor();

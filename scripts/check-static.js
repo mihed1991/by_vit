@@ -91,6 +91,9 @@ async function main(){
     assert.deepEqual(await page.locator('#catalogProducts .product-card').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.productId))),[1,13,3,4,5,10]);
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     assert.ok(canonical.includes('/by_vit/goal.html?id=recovery'), 'Goal canonical must retain the GitHub Pages base path');
+    assert.equal(await page.locator('#catalogSort').isVisible(),false);
+    await page.setViewportSize({width:1440,height:900});
+    assert.equal(await page.locator('#catalogSort').isVisible(),true);
     await page.locator('#catalogSort').selectOption('price-asc');
     assert.match(page.url(),/id=recovery/);
     assert.deepEqual(errors,[],'Goal routes and assets must resolve in the published subdirectory');
