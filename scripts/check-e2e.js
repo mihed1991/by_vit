@@ -52,6 +52,142 @@ async function assertNoHorizontalOverflow(page, pathname) {
   assert.ok(dimensions.scrollWidth <= dimensions.width + 1, `${pathname} overflows horizontally: ${dimensions.scrollWidth}px > ${dimensions.width}px`);
 }
 
+async function checkCatalogNavigation(browser, baseURL, screenshots){
+  // Mock only the browser's public state; never modify real or test-store categories.
+  const state = await (await fetch(`${baseURL}/api/state`)).json();
+  if(!state.site.categories){
+    const defaults = {window:{}};
+    require('vm').runInNewContext(fs.readFileSync(path.join(root, 'js/data.js'), 'utf8'), defaults);
+    state.site.categories = structuredClone(defaults.window.ByVitDefaults.categories);
+  }
+  const protein = state.site.categories.find(category => category.id === 'protein');
+  protein.subcategories.push(
+    {title:'Гидролизат',query:'гидролизат'},
+    {title:'Комплексный',href:'catalog.html?category=protein&tag=blend'},
+    {title:'Скрытая подгруппа',query:'hidden',enabled:false}
+  );
+  state.site.categories.push(
+    {id:'empty-test',name:'Без подгрупп',subcategories:[]},
+    {id:'short-test',name:'Одна подгруппа',subcategories:[{title:'Единственная',query:'single'}]},
+    {id:'long-test',name:'Категория с длинным названием для проверки адаптивного меню',subcategories:[]}
+  );
+  const context = await browser.newContext({baseURL,viewport:{width:1384,height:720}});
+  await context.route('**/api/state', route => route.fulfill({json:state}));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/catalog.html', {waitUntil:'domcontentloaded'});
+  await page.locator('#catalogSmart .catalog-smart-card').first().waitFor();
+  const smart = page.locator('#catalogSmart .catalog-smart-card').first();
+  assert.equal(await smart.locator('.catalog-subcategory-list > a:visible').count(), 3);
+  assert.equal(await smart.locator('.catalog-subcategory-rest a:visible').count(), 0);
+  await smart.locator('.catalog-subcategory-more > summary').click();
+  assert.equal(await smart.locator('.catalog-subcategory-rest a:visible').count(), 2);
+  await smart.locator('.catalog-subcategory-more > summary').click();
+  for(const width of [1101,1200,1384,1920]){
+    await page.setViewportSize({width,height:720});
+    await page.locator('.catalog-menu-trigger').click();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.catalog-mega-sheet')).opacity === '1');
+    const columns = await page.locator('.catalog-mega-group').evaluateAll(nodes => {
+      const columns = [];
+      nodes.forEach((node, index) => {
+        const box = node.getBoundingClientRect();
+        const column = columns[index % 3] ||= {count:0,width:box.width};
+        column.count++;
+      });
+      return columns;
+    });
+    assert.equal(columns.length, 3);
+    assert.ok(Math.max(...columns.map(column=>column.count)) - Math.min(...columns.map(column=>column.count)) <= 1, 'Category counts must balance across columns');
+    assert.ok(Math.max(...columns.map(column=>column.width)) - Math.min(...columns.map(column=>column.width)) < 1, 'Category columns must have equal widths');
+    const firstRow = await page.locator('.catalog-mega-group').evaluateAll(nodes=>nodes.slice(0,3).map(node=>({top:node.getBoundingClientRect().top,bottom:node.getBoundingClientRect().bottom})));
+    assert.ok(firstRow.every(row=>Math.abs(row.top-firstRow[0].top)<1 && Math.abs(row.bottom-firstRow[0].bottom)<1), 'Category rows must align even when only one group has extra subgroups');
+    assert.equal(await page.locator('.catalog-mega-group').count(), 13, 'All enabled categories must be included');
+    const group = page.locator('.catalog-mega-group').first();
+    assert.equal(await group.locator('.catalog-subcategory-list > a:visible').count(), 3);
+    assert.equal(await group.locator('.catalog-subcategory-rest a:visible').count(), 0);
+    assert.equal(await page.locator('.catalog-mega').getByText('Скрытая подгруппа').count(), 0);
+    await group.locator('summary').click();
+    assert.equal(await group.locator('.catalog-subcategory-rest a:visible').count(), 2);
+    assert.equal(await page.locator('.catalog-mega').isVisible(), true, 'Expanding subgroups must not close the menu');
+    await group.locator('summary').press('Enter');
+    assert.equal(await group.locator('.catalog-subcategory-rest a:visible').count(), 0);
+    const bounds = await page.locator('.catalog-mega-sheet').evaluate(node=>({width:node.clientWidth,scrollWidth:node.scrollWidth}));
+    assert.ok(bounds.scrollWidth <= bounds.width + 1, `Catalog sheet must not overflow at ${width}px`);
+    if(screenshots && width===1384) await page.screenshot({path:path.join(screenshots,'catalog-menu-desktop.png')});
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.catalog-menu-trigger').getAttribute('aria-expanded'), 'false');
+  }
+  await page.locator('.catalog-menu-trigger').click();
+  await page.locator('.catalog-mega-group').first().locator('summary').click();
+  await page.locator('.catalog-mega-group').first().getByText('Комплексный',{exact:true}).click();
+  await page.waitForURL('**/catalog.html?category=protein&tag=blend');
+  assert.equal(await page.locator('[data-catalog-mega]').isVisible(), false);
+  await context.close();
+
+  const mobile = await browser.newContext({baseURL,viewport:{width:383,height:720},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+  await mobile.route('**/api/state', route => route.fulfill({json:state}));
+  const phone = await mobile.newPage();
+  phone.on('pageerror', error => errors.push(error.message));
+  for(const size of [{width:320,height:720},{width:375,height:720},{width:383,height:720},{width:432,height:720},{width:820,height:383}]){
+    await phone.setViewportSize(size);
+    await phone.goto('/index.html', {waitUntil:'domcontentloaded'});
+    await phone.locator('[data-burger]').click();
+    const trigger = phone.locator('[data-mobile-catalog-open]');
+    await trigger.click();
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+    assert.equal(await phone.locator('.mobile-menu-primary').isVisible(), false);
+    assert.equal(await phone.locator('.mobile-catalog-category').count(), 13);
+    const category = phone.locator('.mobile-catalog-category').first();
+    await category.locator(':scope > summary').click();
+    assert.equal(await category.locator('.catalog-subcategory-list > a:visible').count(), 3);
+    assert.equal(await category.locator('.catalog-subcategory-rest a:visible').count(), 0);
+    await category.locator('.catalog-subcategory-more > summary').click();
+    assert.equal(await category.locator('.catalog-subcategory-rest a:visible').count(), 2);
+    const bounds = await phone.locator('[data-mobile-panel]').evaluate(node=>({width:node.clientWidth,scrollWidth:node.scrollWidth}));
+    assert.ok(bounds.scrollWidth<=bounds.width+1, `Mobile catalog must not overflow at ${size.width}px`);
+    const targets = await phone.locator('#mobileCatalogMenu :is(a,button,summary):visible').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
+    assert.ok(targets.every(height=>height>=48), 'Mobile catalog controls must have 48px touch targets');
+    if(screenshots && size.width===383){
+      await phone.locator('[data-mobile-panel]').evaluate(panel=>{panel.scrollTop=0;});
+      await phone.screenshot({path:path.join(screenshots,'catalog-menu-mobile.png')});
+    }
+    const menuPosition = await phone.evaluate(()=>({headerTop:document.querySelector('.site-header').getBoundingClientRect().top,panelTop:document.querySelector('[data-mobile-panel]').getBoundingClientRect().top,headerBottom:document.querySelector('.site-header').getBoundingClientRect().bottom}));
+    assert.ok(Math.abs(menuPosition.headerTop)<1 && Math.abs(menuPosition.panelTop-menuPosition.headerBottom)<1, 'Mobile catalog scrolling must keep the header visible and panel below it');
+    await phone.locator('[data-mobile-catalog-back]').click();
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+    assert.equal(await trigger.evaluate(node=>node===document.activeElement), true, 'Back must restore focus to Catalog');
+    await trigger.press('Space');
+    await phone.keyboard.press('Escape');
+    assert.equal(await phone.locator('[data-burger]').getAttribute('aria-expanded'), 'true', 'Escape from catalog must return to the parent menu');
+    await phone.keyboard.press('Escape');
+    assert.equal(await phone.locator('[data-burger]').getAttribute('aria-expanded'), 'false');
+  }
+  await phone.setViewportSize({width:383,height:720});
+  await phone.evaluate(()=>window.scrollTo({top:600,behavior:'instant'}));
+  await phone.waitForFunction(()=>window.scrollY>=500);
+  const originalScroll = await phone.evaluate(()=>window.scrollY);
+  await phone.locator('[data-burger]').click();
+  await phone.locator('[data-mobile-catalog-open]').click();
+  await phone.keyboard.press('Escape');
+  await phone.keyboard.press('Escape');
+  assert.ok(Math.abs(await phone.evaluate(()=>window.scrollY)-originalScroll)<1, 'Closing mobile catalog must restore the page scroll position');
+  await phone.locator('[data-burger]').click();
+  await phone.locator('[data-mobile-catalog-open]').click();
+  await phone.locator('.mobile-catalog-category').first().locator(':scope > summary').click();
+  await phone.locator('.mobile-catalog-category').first().locator('.catalog-subcategory-more > summary').click();
+  await phone.locator('#mobileCatalogMenu').getByText('Комплексный',{exact:true}).click();
+  await phone.waitForURL('**/catalog.html?category=protein&tag=blend');
+  assert.equal(await phone.locator('[data-burger]').getAttribute('aria-expanded'), 'false');
+  await phone.locator('[data-burger]').click();
+  await phone.locator('[data-mobile-catalog-open]').click();
+  await phone.locator('.mobile-catalog-all').click();
+  await phone.waitForURL('**/catalog.html');
+  assert.equal(await phone.locator('#catalogSmart').isVisible(), false, 'Mobile catalog recommendation block must remain hidden');
+  await mobile.close();
+  assert.deepEqual(errors, [], 'Catalog navigation must not produce browser errors');
+}
+
 async function main() {
   const executablePath = findChrome();
   if (!executablePath) throw new Error('Chrome/Chromium was not found. Set CHROME_PATH to run browser checks.');
@@ -84,6 +220,7 @@ async function main() {
   try {
     await waitForServer(baseUrl, child);
     browser = await chromium.launch({ executablePath, headless: true });
+    await checkCatalogNavigation(browser, baseUrl, qaScreenshotDir);
 
     const desktop = await browser.newContext({ baseURL: baseUrl, viewport: { width: 1440, height: 900 } });
     const page = await desktop.newPage();

@@ -1311,12 +1311,15 @@
     }
     return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5.5 8.5h13l-1 11h-11l-1-11Z"></path><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"></path></svg>`;
   }
-  function mobileMenuIcon(href){
-    let page = '';
+  function menuLinkPage(href){
     try{
       const url = new URL(href, location.href);
-      if(url.origin === location.origin) page = url.pathname.split('/').pop() || 'index.html';
+      if(url.origin === location.origin) return url.pathname.split('/').pop() || 'index.html';
     }catch(error){ /* Custom links still receive the generic link icon. */ }
+    return '';
+  }
+  function mobileMenuIcon(href){
+    const page = menuLinkPage(href);
     const shapes = {
       'index.html':'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1Z"/>',
       'catalog.html':'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -1334,7 +1337,36 @@
     return `<svg class="mobile-menu-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">${shape}</svg>`;
   }
   function mobileMenuLink(link){
-    return `<a href="${esc(link.href)}">${mobileMenuIcon(link.href)}<span class="mobile-menu-label">${esc(link.text)}</span></a>`;
+    const catalog = menuLinkPage(link.href) === 'catalog.html';
+    return `<a href="${esc(link.href)}"${catalog ? ' data-mobile-catalog-open role="button" aria-expanded="false" aria-controls="mobileCatalogMenu"' : ''}>${mobileMenuIcon(link.href)}<span class="mobile-menu-label">${esc(link.text)}</span>${catalog ? '<span class="mobile-menu-next" aria-hidden="true"></span>' : ''}</a>`;
+  }
+  let mobileMenuScrollY = 0;
+  function setMobileMenuOpen(open){
+    const wasOpen = document.body.classList.contains('menu-open');
+    if(open && !wasOpen){
+      mobileMenuScrollY = window.scrollY;
+      document.body.style.setProperty('--mobile-scroll-top', `${-mobileMenuScrollY}px`);
+    }
+    document.body.classList.toggle('menu-open', open);
+    if(!open && wasOpen){
+      document.body.style.removeProperty('--mobile-scroll-top');
+      window.scrollTo({top:mobileMenuScrollY,behavior:'instant'});
+    }
+  }
+  function renderMobileCatalog(){
+    const categories = getCategories().filter(item => item && item.enabled !== false);
+    return `<nav class="mobile-catalog" id="mobileCatalogMenu" aria-label="Категории каталога" hidden>
+      <button class="mobile-catalog-back" type="button" data-mobile-catalog-back><span aria-hidden="true">←</span> Назад в меню</button>
+      <h2 class="mobile-catalog-title">Каталог</h2>
+      <a class="mobile-catalog-all" href="catalog.html">Все товары <span aria-hidden="true">→</span></a>
+      <div class="mobile-catalog-categories">${categories.map(category => `<details class="mobile-catalog-category">
+        <summary>${esc(category.name)}<span class="mobile-menu-next" aria-hidden="true"></span></summary>
+        <div class="mobile-catalog-category-body">
+          <a class="mobile-catalog-category-all" href="catalog.html?category=${encodeURIComponent(category.id)}">Все товары категории <span aria-hidden="true">→</span></a>
+          ${categorySubgroups(category)}
+        </div>
+      </details>`).join('') || '<p>Категории пока не добавлены.</p>'}</div>
+    </nav>`;
   }
   function renderHeaderActionIcons(){
     const actions = $('.site-header .header-actions');
@@ -1464,7 +1496,7 @@
       const burger = $('[data-burger]');
       const catalogMenu = $('[data-catalog-mega]');
       mobile?.classList.remove('open');
-      document.body.classList.remove('menu-open');
+      setMobileMenuOpen(false);
       burger?.setAttribute('aria-expanded', 'false');
       catalogMenu?.querySelector('[data-catalog-mega-close]')?.click();
       setOverlayTop();
@@ -1640,9 +1672,7 @@
           <nav class="catalog-mega-grid" aria-label="Категории каталога">
             ${categories.map(category => `<div class="catalog-mega-group">
               <a class="catalog-mega-category" href="catalog.html?category=${encodeURIComponent(category.id)}">${esc(category.name)}</a>
-              <div class="catalog-mega-subcategories">
-                ${(category.subcategories || []).filter(item => item.enabled !== false).map(item => `<a href="catalog.html?tag=${encodeURIComponent(item.query || item.title || '')}">${esc(item.title || item.query || '')}</a>`).join('')}
-              </div>
+              ${categorySubgroups(category, 'catalog-mega-subcategories')}
             </div>`).join('')}
           </nav>
         </div>
@@ -1716,7 +1746,7 @@
             {text:'Избранное',href:'wishlist.html'},
             {text:'Сравнение',href:'compare.html'}
           ].map(mobileMenuLink).join('');
-	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>`;
+	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>${renderMobileCatalog()}`;
 	    });
 	    renderHeaderActionIcons();
 	    renderHeaderSearch(header);
@@ -1730,8 +1760,19 @@
     if(burger && mobile && burger.dataset.menuBound !== '1'){
       burger.dataset.menuBound = '1';
       burger.innerHTML = '<span class="burger-lines" aria-hidden="true"></span>';
+      const showMobilePrimary = (restoreFocus=false) => {
+        const catalog = $('#mobileCatalogMenu', mobile);
+        const primary = $('.mobile-menu-primary', mobile);
+        if(catalog) catalog.hidden = true;
+        if(primary) primary.hidden = false;
+        $$('[data-mobile-catalog-open]', mobile).forEach(link => link.setAttribute('aria-expanded', 'false'));
+        if(catalog) $$('details[open]', catalog).forEach(details => { details.open = false; });
+        if(restoreFocus) $('[data-mobile-catalog-open]', mobile)?.focus();
+        mobile.scrollTop = 0;
+      };
       const closeMobileMenu = () => {
-        document.body.classList.remove('menu-open');
+        showMobilePrimary();
+        setMobileMenuOpen(false);
         mobile.classList.remove('open');
         burger.setAttribute('aria-expanded', 'false');
       };
@@ -1743,16 +1784,38 @@
       burger.addEventListener('click', () => {
         const open = !mobile.classList.contains('open');
         if(open){
+          showMobilePrimary();
           const searchOverlay = $('[data-header-search-overlay]');
           searchOverlay?.querySelector('[data-header-overlay-close]')?.click();
           setMobileTop();
         }
-        document.body.classList.toggle('menu-open', open);
+        setMobileMenuOpen(open);
         mobile.classList.toggle('open', open);
         burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if(!open) showMobilePrimary();
       });
       mobile.addEventListener('click', event => {
+        const catalogTrigger = event.target.closest('[data-mobile-catalog-open]');
+        if(catalogTrigger){
+          event.preventDefault();
+          $('.mobile-menu-primary', mobile).hidden = true;
+          $('#mobileCatalogMenu', mobile).hidden = false;
+          catalogTrigger.setAttribute('aria-expanded', 'true');
+          mobile.scrollTop = 0;
+          $('[data-mobile-catalog-back]', mobile)?.focus();
+          return;
+        }
+        if(event.target.closest('[data-mobile-catalog-back]')){
+          showMobilePrimary(true);
+          return;
+        }
         if(event.target.closest('a')) closeMobileMenu();
+      });
+      mobile.addEventListener('keydown', event => {
+        if(event.key === ' ' && event.target.matches('[data-mobile-catalog-open]')){
+          event.preventDefault();
+          event.target.click();
+        }
       });
       document.addEventListener('click', event => {
         if(!mobile.classList.contains('open')) return;
@@ -1761,11 +1824,18 @@
       });
       document.addEventListener('keydown', event => {
         if(event.key === 'Escape' && mobile.classList.contains('open')){
+          if($('#mobileCatalogMenu', mobile)?.hidden === false){
+            showMobilePrimary(true);
+            return;
+          }
           closeMobileMenu();
           burger.focus();
         }
       });
-      window.addEventListener('resize', setMobileTop);
+      window.addEventListener('resize', () => {
+        setMobileTop();
+        if(window.matchMedia('(min-width:1101px)').matches) closeMobileMenu();
+      });
     }
     $$('[data-header-search-form]').forEach(form => {
       form.addEventListener('submit', event => {
@@ -2447,8 +2517,20 @@
 	  }
 	  function categorySubLink(category, sub){
 	    const href = sub.href || `catalog.html?tag=${encodeURIComponent(sub.query || sub.title || '')}`;
-	    return `<a href="${esc(href)}">${esc(sub.title)}</a>`;
+	    return `<a href="${esc(href)}">${esc(sub.title || sub.query || '')}</a>`;
 	  }
+  function categorySubgroups(category, className=''){
+    const subs = (category.subcategories || []).filter(item => item && item.enabled !== false && (item.title || item.query));
+    if(!subs.length) return '';
+    const more = subs.slice(3);
+    return `<div class="catalog-subcategory-list ${className}">
+      ${subs.slice(0,3).map(sub => categorySubLink(category, sub)).join('')}
+      ${more.length ? `<details class="catalog-subcategory-more">
+        <summary aria-label="Все подгруппы категории ${esc(category.name)}"><span class="catalog-subcategory-expand">Полный список</span><span class="catalog-subcategory-collapse">Свернуть</span><span class="catalog-subcategory-chevron" aria-hidden="true"></span></summary>
+        <div class="catalog-subcategory-rest">${more.map(sub => categorySubLink(category, sub)).join('')}</div>
+      </details>` : ''}
+    </div>`;
+  }
 	  function renderCatalogSmart(){
 	    let root = $('#catalogSmart');
 	    if(!root){
@@ -2459,15 +2541,14 @@
 	    }
 	    if(!root) return;
 	    root.classList.add('catalog-smart');
-	    const cats = getCategories().filter(Boolean);
+	    const cats = getCategories().filter(item => item && item.enabled !== false);
 	    root.innerHTML = `<div class="catalog-smart-grid">
 	        ${cats.map(category => {
-	          const subs = (category.subcategories || []).filter(item => item.enabled !== false).slice(0,4).map(sub => categorySubLink(category, sub)).join('');
 	          return `<article class="catalog-smart-card">
 	            <div>
 	              <a class="catalog-smart-title" href="catalog.html?category=${esc(category.id)}">${esc(category.name)}</a>
 	              <p>${esc(category.description)}</p>
-	              ${subs ? `<div class="catalog-smart-links">${subs}</div>` : ''}
+	              ${categorySubgroups(category, 'catalog-smart-links')}
 	            </div>
 	          </article>`;
 	        }).join('')}
