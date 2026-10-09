@@ -3076,7 +3076,7 @@
     const params = new URLSearchParams();
     const currentParams = new URLSearchParams(location.search);
     if(document.body.dataset.page === 'goal' && currentParams.has('id')) params.set('id', currentParams.get('id'));
-    const q = $('#catalogSearch')?.value.trim();
+    const q = $('#catalogSearch')?.value.trim() ?? currentParams.get('q');
     const sort = $('#catalogSort')?.value || 'default';
     const recommendationTag = currentParams.get('tag');
     if(q) params.set('q', q);
@@ -3263,6 +3263,7 @@
 	        const search = $('#catalogSearch'); if(search) search.value = '';
 	        const sort = $('#catalogSort'); if(sort) sort.value = 'default';
 	        const nextParams = new URLSearchParams(location.search);
+	        nextParams.delete('q');
 	        nextParams.delete('tag');
 	        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
 	        $$('[data-filter-menu][open]', filters).forEach(menu => { menu.open = false; });

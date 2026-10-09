@@ -67,6 +67,11 @@ async function main(){
     await page.goto('/catalog.html');
     await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.equal(await page.locator('#catalogSmart').count(),0);
+    await page.locator('#catalogSearch').fill('Magnesium');
+    assert.match(page.url(),/q=Magnesium/);
+    assert.ok(await page.locator('#catalogProducts .product-card').count()<30);
+    assert.equal(await page.locator('#catalogProducts .product-card[data-product-id="5"]').count(),1);
+    await page.locator('#catalogSearch').fill('');
     assert.equal(await page.locator('#catalogCategoryContext').isVisible(),false);
     const top = await page.locator('#catalogProducts').evaluate(node=>node.getBoundingClientRect().top);
     assert.ok(top < 500, 'Products must appear before the old category matrix occupied the screen');
@@ -94,6 +99,8 @@ async function main(){
     assert.equal(await page.locator('#goalDescription p').count(),2);
     assert.equal(await page.locator('#goalDescription script').count(),0);
     assert.equal(await page.locator('#goalNavigation').getAttribute('open'),'');
+    assert.equal(await page.locator('#catalogSearch, #catalogSearchPanel').count(),0);
+    assert.ok(await page.locator('[data-header-search-form]').count()>0);
     await noOverflow(page);
     if(screenshots){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-desktop.png')}); }
     assert.equal(await page.locator('#catalogSort').isVisible(),true);
@@ -102,9 +109,17 @@ async function main(){
     assert.match(page.url(), /sort=price-desc/);
     const mostExpensive = originalProducts.filter(product=>[2,4,5].includes(product.id)).sort((a,b)=>b.price-a.price)[0];
     assert.equal(await page.locator('.product-card').first().getAttribute('data-product-id'),String(mostExpensive.id));
-    await page.locator('#catalogSearch').fill('Magnesium');
-    await page.waitForFunction(()=>document.querySelectorAll('#catalogProducts .product-card').length===1);
-    await page.locator('#catalogSearch').fill('не существует');
+    await page.goto('/goal.html?id=recovery&q=Magnesium');
+    await page.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
+    await page.locator('#catalogSort').selectOption('price-asc');
+    assert.match(page.url(),/q=Magnesium/,'Subgroup links must retain their query when sorting without a search input');
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
+    await page.locator('.catalog-filter-menu-all > summary').click();
+    await page.locator('.catalog-filter-menu-all [data-clear-filters]').click();
+    assert.ok(!new URL(page.url()).searchParams.has('q'));
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),3);
+    await page.goto('/goal.html?id=recovery&q=не%20существует');
     await page.getByRole('heading',{name:'По этим фильтрам товаров нет'}).waitFor();
     await page.getByRole('link',{name:'Сбросить фильтры',exact:true}).click();
     await page.locator('#catalogProducts .product-card').first().waitFor();
@@ -141,14 +156,9 @@ async function main(){
       await page.locator('#goalNavigation > summary').press('Enter');
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
       assert.equal(await page.locator('#catalogSort').isVisible(),false);
-      assert.equal(await page.locator('#catalogSearch').isVisible(),true);
-      const toolbarSpace = await page.locator('.toolbar').evaluate(node=>{
-        const toolbar = node.getBoundingClientRect();
-        const search = node.querySelector('.catalog-search-wrap').getBoundingClientRect();
-        const styles = getComputedStyle(node);
-        return toolbar.height - search.height - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom) - parseFloat(styles.borderTopWidth) - parseFloat(styles.borderBottomWidth);
-      });
-      assert.ok(toolbarSpace < 1, 'Hidden mobile sorting must not leave an empty toolbar row');
+      assert.equal(await page.locator('#catalogSearch').count(),0);
+      assert.equal(await page.locator('.toolbar').isVisible(),false);
+      assert.equal(await page.locator('.toolbar').evaluate(node=>node.getBoundingClientRect().height),0,'Removed mobile toolbar must not leave empty space');
       await noOverflow(page);
       if(screenshots && width===375){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-mobile.png')}); }
     }

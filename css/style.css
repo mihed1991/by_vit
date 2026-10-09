@@ -17747,6 +17747,7 @@ body:is([data-page="catalog"], [data-page="goal"]) .catalog-smart-links.catalog-
 .goals-catalog-return { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 .goals-catalog-return a { display: inline-flex; align-items: center; min-height: 48px; color: var(--green); text-decoration: underline; text-underline-offset: 4px; }
 body[data-page="goal"] .goal-catalog-layout { display: grid; grid-template-columns: var(--goal-nav-width) minmax(0, 1fr); gap: 32px; }
+body[data-page="goal"] .toolbar { justify-content: flex-end; padding: 0; border: 0; background: transparent; }
 body[data-page="goal"] .page-hero p { display: block !important; max-width: 760px; margin: 12px 0 0; font-size: 15px; line-height: 1.5; }
 .goal-sidebar, .goal-navigation { min-width: 0; }
 .goal-navigation { border: 1px solid var(--line); background: var(--paper); }
@@ -17781,6 +17782,7 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
 @media (max-width: 1100px) {
   .goals-index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body[data-page="goal"] .goal-catalog-layout { display: block; }
+  body[data-page="goal"] .toolbar { display: none; }
   body[data-page="goal"] #catalogSort { display: none; }
   .goal-sidebar { margin-bottom: 16px; }
   .goal-navigation > summary { display: flex; align-items: center; justify-content: space-between; }
@@ -17793,8 +17795,6 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
   .goal-selection-card h2 { font-size: 18px; }
   .goal-navigation nav { grid-template-columns: minmax(0, 1fr); }
   .catalog-context-links a, .catalog-context-links .catalog-subcategory-more > summary { min-height: 48px; }
-  body[data-page="goal"] .toolbar { position: static; flex-wrap: wrap; }
-  body[data-page="goal"] .catalog-search-wrap { flex-basis: 100%; }
   .goal-description { margin-top: 32px; padding-top: 24px; }
 }
 @media (prefers-reduced-motion: reduce) { .goal-selection-card { transition: none; } }
