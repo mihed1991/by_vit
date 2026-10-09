@@ -1311,6 +1311,31 @@
     }
     return `<svg class="${className}" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5.5 8.5h13l-1 11h-11l-1-11Z"></path><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"></path></svg>`;
   }
+  function mobileMenuIcon(href){
+    let page = '';
+    try{
+      const url = new URL(href, location.href);
+      if(url.origin === location.origin) page = url.pathname.split('/').pop() || 'index.html';
+    }catch(error){ /* Custom links still receive the generic link icon. */ }
+    const shapes = {
+      'index.html':'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1Z"/>',
+      'catalog.html':'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+      'brands.html':'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
+      'sale.html':'<path d="m5 19 14-14"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+      'delivery.html':'<path d="M3 16V5h11v11M14 9h4l3 4v3h-2M8 16h8M3 16h1"/><circle cx="6" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>',
+      'stores.html':'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+      'about.html':'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+      'faq.html':'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/>',
+      'wishlist.html':'<path d="M12 20.2 4.8 13.3A5.2 5.2 0 0 1 12 5.8a5.2 5.2 0 0 1 7.2 7.5L12 20.2Z"/>',
+      'compare.html':'<path d="M5 8h13m-3-3 3 3-3 3M19 16H6m3-3-3 3 3 3"/>',
+      'cart.html':'<path d="M5.5 8.5h13l-1 11h-11l-1-11ZM9 8.5V7a3 3 0 0 1 6 0v1.5"/>'
+    };
+    const shape = shapes[page] || '<path d="m10 13 4-4M8 15l-2 2a3.5 3.5 0 0 1-5-5l5-5a3.5 3.5 0 0 1 5 0m2 2 2-2a3.5 3.5 0 0 1 5 5l-5 5a3.5 3.5 0 0 1-5 0"/>';
+    return `<svg class="mobile-menu-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">${shape}</svg>`;
+  }
+  function mobileMenuLink(link){
+    return `<a href="${esc(link.href)}">${mobileMenuIcon(link.href)}<span class="mobile-menu-label">${esc(link.text)}</span></a>`;
+  }
   function renderHeaderActionIcons(){
     const actions = $('.site-header .header-actions');
     if(!actions) return;
@@ -1686,9 +1711,11 @@
     const navHtml = (header.nav || []).filter(link => link.enabled !== false).map(link => `<a data-nav href="${esc(link.href)}">${esc(link.text)}</a>`).join('');
     $$('.main-nav').forEach(nav => { nav.innerHTML = navHtml; });
 	    $$('.mobile-panel .container').forEach(panel => {
-	      const mobileNav = `${navHtml.replaceAll(' data-nav','')}
-	        <a href="wishlist.html">Избранное</a>
-	        <a href="compare.html">Сравнение</a>`;
+	      const mobileNav = [
+            ...(header.nav || []).filter(link => link.enabled !== false),
+            {text:'Избранное',href:'wishlist.html'},
+            {text:'Сравнение',href:'compare.html'}
+          ].map(mobileMenuLink).join('');
 	      panel.innerHTML = `<nav class="mobile-menu-primary" aria-label="Основное меню">${mobileNav}</nav>`;
 	    });
 	    renderHeaderActionIcons();

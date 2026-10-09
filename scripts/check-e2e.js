@@ -619,6 +619,32 @@ async function main() {
     await mobilePage.locator('[data-burger]').click();
     await mobilePage.locator('[data-mobile-panel].open').waitFor();
     assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'true');
+    await mobilePage.waitForFunction(() => getComputedStyle(document.querySelector('[data-mobile-panel]')).opacity === '1');
+    const menuLinks = mobilePage.locator('.mobile-menu-primary a');
+    assert.equal(await menuLinks.count(), 10, 'Mobile menu must preserve its existing destinations');
+    assert.deepEqual(await menuLinks.evaluateAll(links => links.map(link => link.getAttribute('href'))), ['index.html','catalog.html','brands.html','sale.html','delivery.html','stores.html','about.html','faq.html','wishlist.html','compare.html']);
+    for(const width of [320,375,383,432,820]){
+      await mobilePage.setViewportSize({width,height:720});
+      const menuRows = await menuLinks.evaluateAll(links => links.map(link => {
+        const icon = link.querySelector('.mobile-menu-icon');
+        const label = link.querySelector('.mobile-menu-label');
+        const row = link.getBoundingClientRect();
+        const glyph = icon?.getBoundingClientRect();
+        return {height:row.height,iconWidth:glyph?.width,iconHeight:glyph?.height,hidden:icon?.getAttribute('aria-hidden'),focusable:icon?.getAttribute('focusable'),text:label?.textContent,labelLeft:label?.getBoundingClientRect().left,iconRight:glyph?.right};
+      }));
+      assert.ok(menuRows.every(row => row.height >= 48 && Math.abs(row.iconWidth - 24) < .01 && Math.abs(row.iconHeight - 24) < .01 && row.hidden === 'true' && row.focusable === 'false' && row.text && row.labelLeft > row.iconRight), `Mobile menu icons and touch targets must fit at ${width}px: ${JSON.stringify(menuRows)}`);
+      const panelSize = await mobilePage.locator('[data-mobile-panel]').evaluate(panel => ({width:panel.clientWidth,scrollWidth:panel.scrollWidth}));
+      assert.ok(panelSize.scrollWidth <= panelSize.width + 1, `Mobile menu must not overflow at ${width}px`);
+      if(qaScreenshotDir && width === 383) await mobilePage.screenshot({path:path.join(qaScreenshotDir, 'mobile-menu-icons.png')});
+    }
+    await mobilePage.setViewportSize({width:390,height:844});
+    await mobilePage.keyboard.press('Escape');
+    assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'false');
+    assert.equal(await mobilePage.locator('[data-burger]').evaluate(button => button === document.activeElement), true);
+    await mobilePage.locator('[data-burger]').click();
+    await mobilePage.locator('.mobile-menu-primary a[href="brands.html"] .mobile-menu-label').click();
+    await mobilePage.waitForURL('**/brands.html');
+    assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'false');
     for (const pathname of ['/catalog.html', '/product.html?id=1', '/cart.html', '/delivery.html']) {
       await assertNoHorizontalOverflow(mobilePage, pathname);
     }

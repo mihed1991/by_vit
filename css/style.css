@@ -12530,10 +12530,41 @@ body[data-page="about"] main>.section:nth-of-type(4) .section-head {
 
   .mobile-menu-primary a {
     padding: 10px 0;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 48px;
     border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
     font-size: 17px;
     line-height: 1.25;
     font-weight: 400;
+  }
+
+  .mobile-menu-primary .mobile-menu-icon {
+    display: block;
+    width: 24px;
+    height: 24px;
+    color: var(--green);
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  .mobile-menu-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-menu-primary a:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 3px;
+  }
+
+  .mobile-menu-primary a:active {
+    background: var(--green-soft);
   }
 }
 
