@@ -68,10 +68,12 @@ async function main(){
     await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.equal(await page.locator('#catalogSmart').count(),0);
     await page.locator('#catalogSearch').fill('Magnesium');
+    await page.waitForURL('**/catalog.html?q=Magnesium');
     assert.match(page.url(),/q=Magnesium/);
     assert.ok(await page.locator('#catalogProducts .product-card').count()<30);
     assert.equal(await page.locator('#catalogProducts .product-card[data-product-id="5"]').count(),1);
     await page.locator('#catalogSearch').fill('');
+    await page.waitForURL('**/catalog.html');
     assert.equal(await page.locator('#catalogCategoryContext').isVisible(),false);
     const top = await page.locator('#catalogProducts').evaluate(node=>node.getBoundingClientRect().top);
     assert.ok(top < 500, 'Products must appear before the old category matrix occupied the screen');
