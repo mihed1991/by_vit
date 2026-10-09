@@ -74,6 +74,10 @@ async function main(){
     assert.equal(await page.locator('#catalogProducts .product-card[data-product-id="5"]').count(),1);
     await page.locator('#catalogSearch').fill('');
     await page.waitForURL('**/catalog.html');
+    await page.locator('#catalogSort').selectOption('price-desc');
+    await page.waitForURL('**/catalog.html?sort=price-desc');
+    const mostExpensive = state.products.toSorted((a,b)=>b.price-a.price)[0];
+    assert.equal(await page.locator('#catalogProducts .product-card').first().getAttribute('data-product-id'),String(mostExpensive.id));
     assert.equal(await page.locator('#catalogCategoryContext').isVisible(),false);
     const top = await page.locator('#catalogProducts').evaluate(node=>node.getBoundingClientRect().top);
     assert.ok(top < 500, 'Products must appear before the old category matrix occupied the screen');
@@ -105,19 +109,21 @@ async function main(){
     assert.ok(await page.locator('[data-header-search-form]').count()>0);
     await noOverflow(page);
     if(screenshots){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-desktop.png')}); }
-    assert.equal(await page.locator('#catalogSort').isVisible(),true);
-    await page.locator('#catalogSort').selectOption('price-desc');
-    assert.match(page.url(), /id=recovery/);
-    assert.match(page.url(), /sort=price-desc/);
-    const mostExpensive = originalProducts.filter(product=>[2,4,5].includes(product.id)).sort((a,b)=>b.price-a.price)[0];
-    assert.equal(await page.locator('.product-card').first().getAttribute('data-product-id'),String(mostExpensive.id));
+    assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
+    const layout = await page.locator('.catalog-main').evaluate(node=>({
+      top:node.getBoundingClientRect().top,
+      filtersTop:node.querySelector('#catalogFilters').getBoundingClientRect().top,
+      filtersMargin:parseFloat(getComputedStyle(node.querySelector('#catalogFilters')).marginTop)
+    }));
+    assert.ok(Math.abs(layout.filtersTop-layout.top-layout.filtersMargin)<1,'Goal filters must start at the top of the content with only their standard margin');
     await page.goto('/goal.html?id=recovery&q=Magnesium');
     await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
-    await page.locator('#catalogSort').selectOption('price-asc');
-    assert.match(page.url(),/q=Magnesium/,'Subgroup links must retain their query when sorting without a search input');
-    assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
     await page.locator('.catalog-filter-menu-all > summary').click();
+    await page.locator('#stockOnly').check();
+    await page.waitForURL('**/goal.html?id=recovery&q=Magnesium&stock=1');
+    assert.match(page.url(),/q=Magnesium/,'Subgroup links must retain their query when applying filters without a search input');
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),1);
     await page.locator('.catalog-filter-menu-all [data-clear-filters]').click();
     assert.ok(!new URL(page.url()).searchParams.has('q'));
     assert.equal(await page.locator('#catalogProducts .product-card').count(),3);
@@ -157,15 +163,14 @@ async function main(){
       assert.ok(targets.every(height=>height>=48));
       await page.locator('#goalNavigation > summary').press('Enter');
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
-      assert.equal(await page.locator('#catalogSort').isVisible(),false);
+      assert.equal(await page.locator('#catalogSort').count(),0);
       assert.equal(await page.locator('#catalogSearch').count(),0);
-      assert.equal(await page.locator('.toolbar').isVisible(),false);
-      assert.equal(await page.locator('.toolbar').evaluate(node=>node.getBoundingClientRect().height),0,'Removed mobile toolbar must not leave empty space');
+      assert.equal(await page.locator('.toolbar').count(),0);
       await noOverflow(page);
       if(screenshots && width===375){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-mobile.png')}); }
     }
     await page.setViewportSize({width:1101,height:900});
-    assert.equal(await page.locator('#catalogSort').isVisible(),true);
+    assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto('/goal.html?id=many-test');
     await page.locator('.product-card').first().waitFor();
