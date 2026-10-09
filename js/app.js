@@ -2598,7 +2598,7 @@
     }
     hero.innerHTML = `<div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="goals.html">Цели</a> / ${esc(goal.title)}</div><h1>${esc(goal.title)}</h1><p>${esc(goal.text)}</p>`;
     const goals = getGoals().filter(item => item.enabled !== false);
-    $('#goalNavigation').innerHTML = `<summary>Выбрать цель <span aria-hidden="true">⌄</span></summary><nav aria-label="Подборки по целям">${goals.map(item => `<a href="goal.html?id=${encodeURIComponent(item.id)}" ${item.id === goal.id ? 'aria-current="page"' : ''}>${goalIcon(item)}<span>${esc(item.title)}</span></a>`).join('')}<a class="goal-navigation-all" href="goals.html">Все цели <span aria-hidden="true">→</span></a></nav>`;
+    $('#goalNavigation').innerHTML = `<summary>Выбрать цель <svg class="goal-navigation-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-label="Подборки по целям">${goals.map(item => `<a href="goal.html?id=${encodeURIComponent(item.id)}" ${item.id === goal.id ? 'aria-current="page"' : ''}>${goalIcon(item)}<span>${esc(item.title)}</span></a>`).join('')}<a class="goal-navigation-all" href="goals.html">Все цели <span aria-hidden="true">→</span></a></nav>`;
     const navigation = $('#goalNavigation');
     const desktop = window.matchMedia('(min-width:1101px)');
     const updateNavigation = () => { navigation.open = desktop.matches; };
@@ -4351,10 +4351,10 @@
       </div>
       <div class="field-row">
         <label class="admin-input-field"><span>Название цели</span><input data-goal-title required value="${esc(goal.title || '')}"></label>
-        <label class="admin-input-field"><span>Ссылка карточки на главной</span><input data-goal-href value="${esc(goal.href || `goal.html?id=${encodeURIComponent(id)}`)}"></label>
+        <label class="admin-input-field"><span>Ссылка карточки — главная и раздел «Цели»</span><input data-goal-href value="${esc(goal.href || `goal.html?id=${encodeURIComponent(id)}`)}"></label>
       </div>
       <label class="admin-input-field"><span>Иконка цели</span><select data-goal-icon>${[['dumbbell','Гантель'],['activity','Пульс'],['leaf','Лист'],['joints','Сустав'],['shield','Щит'],['flame','Огонь'],['star','Звезда'],['truck','Доставка'],['tag','Ценник'],['headphones','Поддержка']].map(([value,label]) => `<option value="${value}" ${goal.icon === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
-      <label class="admin-input-field"><span>Короткое описание — главная и верх страницы цели</span><textarea data-goal-text>${esc(goal.text || '')}</textarea></label>
+      <label class="admin-input-field"><span>Короткое описание — карточки и верх страницы цели</span><textarea data-goal-text>${esc(goal.text || '')}</textarea></label>
       <fieldset class="admin-goal-products"><legend>Товары подборки</legend>
         <p class="admin-hint">Выберите товары из любых категорий. Цены, изображения и остатки берутся из каталога. Без выбранных товаров подборка будет пустой.</p>
         <label class="admin-input-field"><span>Найти товар по названию, бренду или ID</span><input type="search" data-goal-product-search autocomplete="off"></label>
@@ -4516,7 +4516,7 @@
       id:card.dataset.goalKey || `goal-${index + 1}`,
       title:$('[data-goal-title]', card)?.value.trim() || '',
       text:$('[data-goal-text]', card)?.value.trim() || '',
-      href:$('[data-goal-href]', card)?.value.trim() || 'catalog.html',
+      href:$('[data-goal-href]', card)?.value.trim() || `goal.html?id=${encodeURIComponent(card.dataset.goalKey || `goal-${index + 1}`)}`,
       productIds:$$('[data-goal-product]:checked', card).map(input => Number(input.value)),
       description:$('[data-goal-description]', card)?.value.trim() || '',
       seoTitle:$('[data-goal-seo-title]', card)?.value.trim() || '',
@@ -6381,7 +6381,7 @@
 	        if(addButton) addButton.disabled = false;
 	        return;
 	      }
-	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',href:'catalog.html',enabled:true}, $$('[data-goal-key]', root).length)); return; }
+	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); deleteUploadedSource(input?.value); if(input) input.value = ''; updateBrandImagePreview(block); return; }
 	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }

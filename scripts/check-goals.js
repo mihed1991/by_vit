@@ -20,6 +20,21 @@ async function noOverflow(page){
   const bounds = await page.evaluate(() => ({width:document.documentElement.clientWidth, scroll:document.documentElement.scrollWidth}));
   assert.ok(bounds.scroll <= bounds.width + 1, `${page.url()} overflows: ${JSON.stringify(bounds)}`);
 }
+async function equalGoalGrid(page, columns){
+  const grid = await page.locator('#goalsIndex').evaluate(node=>({
+    columns:getComputedStyle(node).gridTemplateColumns.split(' ').length,
+    cards:[...node.querySelectorAll('.goal-selection-card')].map(card=>{
+      const box=card.getBoundingClientRect();
+      return {width:box.width,height:box.height};
+    })
+  }));
+  assert.equal(grid.columns,columns);
+  assert.ok(grid.cards.length>0);
+  for(const dimension of ['width','height']){
+    const values=grid.cards.map(card=>card[dimension]);
+    assert.ok(Math.max(...values)-Math.min(...values)<1, `Goal cards must have equal ${dimension} with ${grid.cards.length} goals`);
+  }
+}
 async function main(){
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'byvit-goals-check-'));
   const port = await freePort();
@@ -93,10 +108,32 @@ async function main(){
     assert.ok(subgroupIds.every(id=>state.products.find(product=>product.id===id)?.category==='protein'), 'Subgroups must stay within their category');
     await page.goto('/goals.html');
     await page.locator('.goal-selection-card').first().waitFor();
+    await equalGoalGrid(page,3);
+    const hoverCard=page.locator('.goal-selection-card').first();
+    await page.mouse.move(0,0);
+    const beforeHover=await hoverCard.evaluate(node=>({background:getComputedStyle(node).backgroundColor,border:getComputedStyle(node).borderTopColor}));
+    await hoverCard.hover();
+    await page.waitForTimeout(220);
+    const afterHover=await hoverCard.evaluate(node=>({background:getComputedStyle(node).backgroundColor,border:getComputedStyle(node).borderTopColor}));
+    assert.equal(afterHover.background,beforeHover.background,'Hover must not change goal card backgrounds');
+    assert.notEqual(afterHover.border,beforeHover.border,'Hover must highlight the border like product cards');
+    await page.mouse.move(0,0);
     assert.equal(await page.getByRole('link',{name:/Набор массы Протеин/}).getAttribute('href'),'goal.html?id=mass');
     assert.equal(await page.getByText('Скрытая цель',{exact:true}).count(),0);
     assert.equal(await page.getByRole('link',{name:/Своя ссылка/}).getAttribute('href'),'catalog.html?category=minerals');
     if(screenshots){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goals-index-desktop.png')}); }
+    const savedFixtureGoals=state.site.goals;
+    const enabledGoals=savedFixtureGoals.filter(goal=>goal.enabled!==false);
+    for(const count of [7,8,10]){
+      state.site.goals=Array.from({length:count},(_,index)=>({...enabledGoals[index%enabledGoals.length],id:`layout-${index}`}));
+      await page.goto('/goals.html');
+      await page.waitForFunction(count=>document.querySelectorAll('.goal-selection-card').length===count,count);
+      await equalGoalGrid(page,3);
+      await noOverflow(page);
+    }
+    state.site.goals=savedFixtureGoals;
+    await page.goto('/goals.html');
+    await page.locator('.goal-selection-card').first().waitFor();
     await page.getByRole('link',{name:/Восстановление BCAA/}).click();
     await page.locator('#catalogProducts .product-card').first().waitFor();
     assert.deepEqual(await page.locator('#catalogProducts .product-card').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.productId))),[2,4,5]);
@@ -153,12 +190,24 @@ async function main(){
       await page.setViewportSize({width,height:width===820?390:804});
       await page.goto('/goals.html');
       await page.locator('.goal-selection-card').first().waitFor();
+      await equalGoalGrid(page,width<=760?1:2);
+      if(screenshots && width===375) await page.screenshot({path:path.join(screenshots,'goals-index-mobile.png')});
       await noOverflow(page);
       await page.goto('/goal.html?id=recovery');
       await page.locator('.product-card').first().waitFor();
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
+      const chevron=page.locator('#goalNavigation .goal-navigation-chevron');
+      assert.equal(await chevron.getAttribute('aria-hidden'),'true');
+      const alignment=await chevron.evaluate(node=>{
+        const icon=node.getBoundingClientRect(),summary=node.closest('summary').getBoundingClientRect();
+        return {size:icon.width,offset:Math.abs(icon.y+icon.height/2-summary.y-summary.height/2)};
+      });
+      assert.equal(alignment.size,20);
+      assert.ok(alignment.offset<1,'Goal chevron must be vertically centered');
       await page.locator('#goalNavigation > summary').click();
       await page.locator('#goalNavigation nav a').first().waitFor();
+      await page.waitForFunction(()=>getComputedStyle(document.querySelector('.goal-navigation-chevron')).transform==='matrix(-1, 0, 0, -1, 0, 0)');
+      if(screenshots && width===375) await page.screenshot({path:path.join(screenshots,'goal-mobile-selector-open.png')});
       const targets = await page.locator('#goalNavigation nav a').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
       assert.ok(targets.every(height=>height>=48));
       await page.locator('#goalNavigation > summary').press('Enter');
@@ -195,6 +244,22 @@ async function main(){
     await card.locator('[data-goal-title]').fill('Восстановление после нагрузки');
     await card.locator('.admin-goal-details > summary').click();
     await card.locator('[data-goal-description]').fill('Обновлённый текст подборки.');
+    const originalGoalCount=await admin.locator('[data-goal-key]').count();
+    await admin.locator('[data-goal-add]').click();
+    await admin.locator('[data-goal-key]').last().locator('[data-goal-delete]').click();
+    assert.equal(await admin.locator('[data-goal-key]').count(),originalGoalCount);
+    await admin.locator('[data-goal-add]').click();
+    const added=admin.locator('[data-goal-key]').last();
+    const addedId=await added.getAttribute('data-goal-key');
+    assert.equal(await added.locator('[data-goal-href]').inputValue(),`goal.html?id=${addedId}`);
+    await added.locator('[data-goal-title]').fill('Здоровый сон');
+    await added.locator('[data-goal-text]').fill('Поддержка спокойного отдыха и восстановления после нагрузок.');
+    await added.locator('[data-goal-icon]').selectOption('leaf');
+    await added.locator('[data-goal-product][value="5"]').check();
+    await admin.locator('[data-goal-add]').click();
+    const disabled=admin.locator('[data-goal-key]').last();
+    await disabled.locator('[data-goal-title]').fill('Новая скрытая цель');
+    await disabled.locator('[data-goal-enabled]').uncheck();
     assert.deepEqual(await card.locator('[data-goal-product]:checked').evaluateAll(inputs=>inputs.map(input=>Number(input.value))),[2,5], 'Admin selection before save');
     const saving = admin.waitForRequest(request=>request.method()==='PUT' && request.url().endsWith('/api/admin/state'));
     await admin.locator('#adminGoalsForm button[type="submit"]').click();
@@ -202,7 +267,7 @@ async function main(){
     assert.deepEqual(payload.site.goals.find(goal=>goal.id==='recovery').productIds,[2,5], 'Selection in persisted request');
     await admin.waitForFunction(async()=>{
       const state = await (await fetch('/api/state')).json();
-      return state.site.goals?.some(goal=>goal.id==='recovery' && goal.title==='Восстановление после нагрузки');
+      return state.site.goals?.some(goal=>goal.id==='recovery' && goal.title==='Восстановление после нагрузки') && state.site.goals.some(goal=>goal.title==='Здоровый сон');
     });
     const saved = await (await admin.request.get('/api/state')).json();
     assert.deepEqual(saved.site.goals.find(goal=>goal.id==='recovery').productIds,[2,5]);
@@ -210,6 +275,18 @@ async function main(){
     await admin.reload();
     await admin.locator('[data-admin-tab="goals"]').click();
     assert.equal(await admin.locator('[data-goal-key="recovery"] [data-goal-product]:checked').count(),2);
+    assert.equal(await admin.locator(`[data-goal-key="${addedId}"] [data-goal-icon]`).inputValue(),'leaf');
+    await admin.goto('/goals.html');
+    await admin.locator('.goal-selection-card').first().waitFor();
+    assert.equal(await admin.locator('.goal-selection-card').count(),originalGoalCount+1);
+    assert.equal(await admin.getByText('Новая скрытая цель',{exact:true}).count(),0);
+    await equalGoalGrid(admin,3);
+    const newGoal=admin.locator(`.goal-selection-card[href="goal.html?id=${addedId}"]`);
+    assert.match(await newGoal.textContent(),/Поддержка спокойного отдыха/);
+    assert.equal(await newGoal.locator('use').getAttribute('href'),'assets/home-mobile-icons.svg#leaf');
+    await newGoal.click();
+    await admin.locator('.product-card').first().waitFor();
+    assert.deepEqual(await admin.locator('.product-card').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.productId))),[5]);
     const detail = await admin.request.get('/goal.html?id=recovery');
     assert.match(await detail.text(), /<title>Восстановление после нагрузки — подбор добавок \| ByVit<\/title>/);
     await admin.goto('/goal.html?id=recovery');

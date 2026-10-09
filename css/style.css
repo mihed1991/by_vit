@@ -17732,13 +17732,13 @@ body:is([data-page="catalog"], [data-page="goal"]) .catalog-smart-links.catalog-
   border: 1px solid var(--line); background: var(--white); color: var(--green); font-size: 14px;
 }
 .catalog-context-links .catalog-subcategory-rest { margin-top: 8px; }
-.goals-index-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.goals-index-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
 .goal-selection-card {
   display: flex; align-items: flex-start; gap: 16px; min-width: 0; padding: 24px;
   border: 1px solid var(--line); background: var(--white); border-radius: 2px;
-  transition: background-color 180ms ease, border-color 180ms ease;
+  transition: border-color 180ms ease;
 }
-.goal-selection-card:hover { border-color: var(--green); background: var(--paper); }
+.goal-selection-card:hover { border-color: var(--green); }
 .goal-selection-card > div { flex: 1; min-width: 0; }
 .goal-selection-card h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
 .goal-selection-card p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); }
@@ -17752,6 +17752,8 @@ body[data-page="goal"] .page-hero p { display: block !important; max-width: 760p
 .goal-navigation { border: 1px solid var(--line); background: var(--paper); }
 .goal-navigation > summary { padding: 16px; min-height: 48px; font-weight: 600; color: var(--green); list-style: none; cursor: pointer; }
 .goal-navigation > summary::-webkit-details-marker { display: none; }
+.goal-navigation-chevron { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 180ms ease; }
+.goal-navigation[open] .goal-navigation-chevron { transform: rotate(180deg); }
 .goal-navigation nav { display: grid; padding: 8px; gap: 4px; }
 .goal-navigation nav a { display: flex; align-items: center; gap: 12px; padding: 12px 8px; min-height: 48px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
 .goal-navigation nav a[aria-current="page"] { background: var(--white); color: var(--green); font-weight: 600; border-left: 2px solid var(--green); }
@@ -17794,4 +17796,4 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
   .catalog-context-links a, .catalog-context-links .catalog-subcategory-more > summary { min-height: 48px; }
   .goal-description { margin-top: 32px; padding-top: 24px; }
 }
-@media (prefers-reduced-motion: reduce) { .goal-selection-card { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .goal-selection-card, .goal-navigation-chevron { transition: none; } }
