@@ -235,8 +235,8 @@ async function main() {
     assert.equal(await page.locator('meta[property="og:title"]').getAttribute('content'), await page.title());
     assert.equal(await page.locator('link[rel="icon"][type="image/svg+xml"]').getAttribute('href'), 'assets/favicon.svg?v=12');
     assert.equal(await page.locator('link[rel="icon"][type="image/svg+xml"]').getAttribute('sizes'), 'any');
-    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('sizes'), '48x48');
-    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon-48.png?v=12');
+    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('sizes'), '96x96');
+    assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon-96.png?v=13');
     assert.equal(await page.locator('link[rel="apple-touch-icon"]').getAttribute('sizes'), '180x180');
     assert.equal(await page.locator('link[rel="apple-touch-icon"]').getAttribute('href'), 'assets/apple-touch-icon.png?v=12');
     await page.locator('.hero').waitFor();

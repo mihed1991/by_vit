@@ -11,7 +11,7 @@ async function main(){
   try{
     const page = await browser.newPage();
     const source = `data:image/svg+xml;base64,${fs.readFileSync(path.join(root,'assets/favicon.svg')).toString('base64')}`;
-    for(const [size, file] of [[48,'favicon-48.png'], [180,'apple-touch-icon.png']]){
+    for(const [size, file] of [[96,'favicon-96.png'], [180,'apple-touch-icon.png']]){
       const data = await page.evaluate(async ({source,size}) => {
         const image = new Image();
         image.src = source;
