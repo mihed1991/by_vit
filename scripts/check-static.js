@@ -177,9 +177,21 @@ async function main(){
     await blogPage.setViewportSize({width:390,height:844});
     await blogPage.locator('.blog-card').first().click();
     await blogPage.locator('.article-prose').waitFor();
-    for(const width of [356,1440]){
+    for(const width of [356,1100,1101,1384,1440]){
       await blogPage.setViewportSize({width,height:720});
       await blogPage.goto(`http://127.0.0.1:${server.address().port}/by_vit/blog/fasovka-i-tsena-kak-sravnivat.html`);
+      await blogPage.locator('.article-recommendations .blog-card').first().waitFor();
+      const layout=await blogPage.locator('#articleReading').evaluate(article=>{
+        const a=article.getBoundingClientRect(),r=document.querySelector('.article-recommendations').getBoundingClientRect(),logo=document.querySelector('.site-header .brand').getBoundingClientRect();
+        return {left:a.left,right:a.right,top:a.top,bottom:a.bottom,width:a.width,sideLeft:r.left,sideTop:r.top,logoLeft:logo.left};
+      });
+      assert.ok(layout.width<=740);
+      assert.equal(await blogPage.locator('.article-recommendations .blog-card').count(),2);
+      if(width>1100){
+        assert.ok(Math.abs(layout.left-layout.logoLeft)<1,'Published article aligns with logo at '+width);
+        assert.ok(layout.sideLeft>layout.right && Math.abs(layout.sideTop-layout.top)<1,'Published recommendations occupy the right column');
+      }else assert.ok(layout.sideTop>=layout.bottom,'Published mobile/tablet flow remains unchanged');
+      assert.ok(await blogPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Static article must not overflow at '+width);
       await blogPage.locator('.article-contents summary').click();
       const targets=await blogPage.locator('.article-contents a').evaluateAll(links=>links.map(link=>({href:link.href,id:new URL(link.href).hash.slice(1),text:link.textContent})));
       assert.equal(targets.length,3);

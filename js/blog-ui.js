@@ -22,7 +22,7 @@
     }
     root.innerHTML=blog.article(post,!!window.BYVIT_ARTICLE_ID);
     const candidates=blog.published(data()).filter(p=>p.id!==post.id).sort((a,b)=>Number(b.category===post.category)-Number(a.category===post.category)).slice(0,3);
-    $('#articleRelated').innerHTML=relatedProducts(post)+(candidates.length ? `<section class="article-related"><h2>Читайте также</h2><div class="blog-grid">${candidates.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></section>` : '');
+    $('#articleRelated').innerHTML=relatedProducts(post)+(candidates.length ? `<section class="article-related article-recommendations"><h2>Читайте также</h2><div class="blog-grid">${candidates.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></section>` : '');
     api.syncProducts();
     const title=post.seoTitle || `${post.title} | BYVIT`, description=post.seoDescription || post.excerpt;
     const url=api.absoluteUrl('/'+blog.href(post,window.BYVIT_STATIC===true));
