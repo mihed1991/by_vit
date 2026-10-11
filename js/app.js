@@ -2640,6 +2640,16 @@
     $('#goalNavigation').innerHTML = `<summary>Сменить цель <svg class="goal-navigation-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-label="Подборки по целям">${goals.map(item => `<a href="goal.html?id=${encodeURIComponent(item.id)}" ${item.id === goal.id ? 'aria-current="page"' : ''}>${goalIcon(item)}<span>${esc(item.title)}</span>${item.id === goal.id ? '<svg class="goal-navigation-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>' : ''}</a>`).join('')}<a class="goal-navigation-all" href="goals.html">Все цели <span aria-hidden="true">→</span></a></nav>`;
     const navigation = $('#goalNavigation');
     const summary = $('summary', navigation);
+    const placeNavigation = () => {
+      if(matchMedia('(max-width:760px)').matches){
+        const products = $('.goal-catalog-layout .catalog-main');
+        if(navigation.parentElement !== products) products.prepend(navigation);
+      }else{
+        const heading = $('.goal-hero-heading');
+        if(navigation.parentElement !== heading) heading.append(navigation);
+      }
+    };
+    placeNavigation();
     const positionNavigation = () => {
       if(!navigation.open) return;
       const anchor = summary.getBoundingClientRect();
@@ -2665,7 +2675,7 @@
     document.addEventListener('click', event => {
       if(!navigation.contains(event.target)) navigation.open = false;
     });
-    window.addEventListener('resize', () => { navigation.open = false; });
+    window.addEventListener('resize', () => { navigation.open = false; placeNavigation(); });
     window.addEventListener('scroll', () => { navigation.open = false; }, {passive:true});
     const article = $('#goalDescription');
     article.hidden = !goal.description;

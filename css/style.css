@@ -17794,6 +17794,9 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
 }
 @media (max-width: 760px) {
   .goals-index-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  body[data-page="goal"] .goal-catalog-section { padding-top: 24px; }
+  body[data-page="goal"] .catalog-main > .goal-navigation { margin: 0 0 24px; z-index: 46; }
+  body[data-page="goal"] .goal-navigation > summary { font-size: 16px; }
   body[data-page="goals"] .page-hero h1 { font-size: 28px; line-height: 1.25; }
   .goal-selection-card { gap: 12px; padding: 20px 16px; }
   .goal-selection-card h2 { font-size: 18px; }

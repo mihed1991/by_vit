@@ -137,10 +137,11 @@ async function main(){
       await page.setViewportSize({width,height:720});
       const arrow=await page.locator('.blog-topic-control').evaluate(control=>{
         const select=control.querySelector('select'),svg=control.querySelector('svg'),s=select.getBoundingClientRect(),r=svg.getBoundingClientRect();
-        return {appearance:getComputedStyle(select).appearance,background:getComputedStyle(select).backgroundImage,gap:s.right-r.right,centerOffset:(s.top+s.bottom-r.top-r.bottom)/2,size:r.width,pointerEvents:getComputedStyle(svg).pointerEvents};
+        return {appearance:getComputedStyle(select).appearance,background:getComputedStyle(select).backgroundImage,gap:s.right-r.right,centerOffset:(s.top+s.bottom-r.top-r.bottom)/2,size:r.width,pointerEvents:getComputedStyle(svg).pointerEvents,height:s.height,font:getComputedStyle(select).fontSize,weight:getComputedStyle(select).fontWeight};
       });
       assert.equal(arrow.appearance,'none');assert.equal(arrow.background,'none');assert.equal(arrow.pointerEvents,'none');
       assert.ok(Math.abs(arrow.gap-16)<1 && Math.abs(arrow.centerOffset)<1);assert.equal(arrow.size,20);
+      assert.equal(arrow.height,40);assert.equal(arrow.font,'16px');assert.equal(arrow.weight,'600');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Rubric selector must not overflow at '+width);
       if(screenshotDir && width===356)await page.screenshot({path:path.join(screenshotDir,'blog-topic-selector-356.png')});
     }
@@ -206,6 +207,18 @@ async function main(){
     const current=await (await request('/api/admin/state',{headers:{Cookie:cookie}})).json();
     current.site.blog.posts.push(...Array.from({length:11},(_,i)=>({...example,id:'pagination-'+i,title:'Статья '+i,status:'published',category:'Проверка пагинации'})));
     assert.ok((await put(current)).ok);
+    for(const width of [373,1384]){
+      await page.setViewportSize({width,height:900});
+      await page.goto('/blog.html?topic='+encodeURIComponent('Проверка пагинации'));await page.locator('.blog-card').nth(8).waitFor();
+      assert.equal(await page.locator('.blog-card').count(),9);
+      const firstPage=await page.locator('.blog-card h2').allTextContents();
+      await page.getByRole('link',{name:'Следующая страница',exact:true}).click();await page.locator('.blog-pagination [aria-current]').waitFor();
+      assert.equal(await page.locator('.blog-card').count(),2);
+      assert.equal(await page.locator('.blog-pagination [aria-current]').textContent(),'2');
+      assert.ok((await page.locator('.blog-card h2').allTextContents()).every(title=>!firstPage.includes(title)));
+      await page.getByRole('link',{name:'Предыдущая страница',exact:true}).click();await page.locator('.blog-card').nth(8).waitFor();
+      assert.equal(await page.locator('.blog-card').count(),9);
+    }
     await page.goto('/blog.html?topic='+encodeURIComponent('Проверка пагинации')+'&page=2');await page.locator('.blog-card').first().waitFor();
     assert.equal(await page.locator('.blog-card').count(),2);
     assert.equal(await page.locator('.blog-pagination [aria-current]').textContent(),'2');

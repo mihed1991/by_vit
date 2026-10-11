@@ -222,12 +222,15 @@ async function main(){
       await page.locator('.product-card').first().waitFor();
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
       const selectorSize=await page.locator('#goalNavigation > summary').evaluate(node=>{
-        const box=node.getBoundingClientRect(),container=node.closest('.goal-hero-heading').getBoundingClientRect();
-        return {width:box.width,height:box.height,left:box.left,containerWidth:container.width,containerLeft:container.left};
+        const box=node.getBoundingClientRect(),container=node.closest('.catalog-main, .goal-hero-heading').getBoundingClientRect();
+        const hero=document.querySelector('.page-hero').getBoundingClientRect(),filters=document.querySelector('#catalogFilters').getBoundingClientRect();
+        return {width:box.width,height:box.height,left:box.left,containerWidth:container.width,containerLeft:container.left,inProducts:!!node.closest('.catalog-main'),top:box.top,bottom:box.bottom,heroBottom:hero.bottom,filterTop:filters.top};
       });
       assert.ok(Math.abs(selectorSize.height-40)<.1,'Mobile goal selector must be 40px tall');
       assert.ok(Math.abs(selectorSize.width-selectorSize.containerWidth)<1,'Mobile goal selector must fill its content container');
       assert.ok(Math.abs(selectorSize.left-selectorSize.containerLeft)<1,'Mobile goal selector must retain the page gutters');
+      assert.equal(selectorSize.inProducts,width<=760,'Only phone layouts must place the selector with the products');
+      if(width<=760)assert.ok(selectorSize.top>=selectorSize.heroBottom && selectorSize.bottom<=selectorSize.filterTop,'Goal selector must sit below the hero and above the filters');
       const chevron=page.locator('#goalNavigation .goal-navigation-chevron');
       assert.equal(await chevron.getAttribute('aria-hidden'),'true');
       const alignment=await chevron.evaluate(node=>{
@@ -258,6 +261,7 @@ async function main(){
       if(screenshots && width===375){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-mobile.png')}); }
     }
     await page.setViewportSize({width:1101,height:900});
+    await page.waitForFunction(()=>!!document.querySelector('.goal-hero-heading > #goalNavigation'));
     const desktopSelector=await page.locator('#goalNavigation > summary').evaluate(node=>({height:node.getBoundingClientRect().height,width:node.getBoundingClientRect().width,containerWidth:node.closest('.goal-hero-heading').getBoundingClientRect().width}));
     assert.ok(desktopSelector.height>=48 && desktopSelector.width<desktopSelector.containerWidth/2,'Desktop goal selector must keep its compact original size');
     assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
