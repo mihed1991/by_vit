@@ -92,15 +92,20 @@ async function main(){
     assert.equal(await page.locator('.home-blog-mobile').isVisible(),true);
     assert.equal(await page.locator('.home-blog-desktop').isVisible(),false);
     assert.equal(await page.locator('.mobile-bottom-nav a').count(),5);
-    for(const width of [320,373,390,760]){
+    for(const width of [320,356,373,390,760]){
       await page.setViewportSize({width,height:844});
       const edges=await page.locator('.home-blog-mobile').evaluate(section=>{
-        const bounds=selector=>{const r=section.querySelector(selector).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height};};
+        const bounds=selector=>{const r=section.querySelector(selector).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height};};
         return {label:bounds('.eyebrow'),heading:bounds('.section-head h2'),link:bounds('.text-link'),card:bounds('.blog-card'),border:getComputedStyle(section.querySelector('.section-head')).borderTopWidth,kickerLine:getComputedStyle(section.querySelector('.eyebrow'),'::before').display};
       });
-      for(const node of ['label','heading','link','card'])assert.ok(Math.abs(edges[node].left-16)<1,'Mobile home gutter must align at 16px: '+node+'/'+width);
+      for(const node of ['label','heading','card'])assert.ok(Math.abs(edges[node].left-16)<1,'Mobile home gutter must align at 16px: '+node+'/'+width);
       assert.ok(Math.abs(edges.card.right-(width-16))<1);
+      assert.ok(Math.abs(edges.link.right-(width-16))<1,'All articles must align to the right gutter: '+width);
+      assert.ok(edges.link.left-edges.heading.right>=11,'Heading and link must have a gap: '+width);
+      assert.ok(Math.abs((edges.heading.top+edges.heading.bottom)-(edges.link.top+edges.link.bottom))<2,'All articles must share the title row: '+width);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Home must not overflow at '+width);
       assert.equal(edges.border,'0px');assert.equal(edges.kickerLine,'none');assert.ok(edges.link.height>=44);
+      if(screenshotDir && width===356){await page.locator('.home-blog-mobile .section-head').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(screenshotDir,'blog-home-mobile-356.png')});}
     }
     await page.setViewportSize({width:390,height:844});
     await page.locator('.home-blog-mobile .section-head').scrollIntoViewIfNeeded();
