@@ -57,6 +57,9 @@ jobs:
       - name: Verify brand pages and admin persistence
         run: npm run check:brands
 
+      - name: Verify blog publishing and private drafts
+        run: npm run check:blog
+
       - name: Build public storefront
         env:
           BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/
@@ -64,6 +67,9 @@ jobs:
 
       - name: Verify published cache and browser data
         run: npm run check:static
+
+      - name: Verify portable blog export
+        run: npm run check:blog-export
 
       - name: Verify public artifact boundaries
         run: |

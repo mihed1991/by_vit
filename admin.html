@@ -10,10 +10,13 @@
   <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96.png?v=13">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=12">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=12">
-  <link rel="stylesheet" href="css/style.css?v=210">
-  <script src="js/data.js?v=81" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=211">
+  <link rel="stylesheet" href="css/blog.css?v=1">
+  <script src="js/data.js?v=82" defer></script>
   <script src="js/brand-utils.js?v=1" defer></script>
-  <script src="js/app.js?v=159" defer></script>
+  <script src="js/blog-utils.js?v=1" defer></script>
+  <script src="js/blog-ui.js?v=1" defer></script>
+  <script src="js/app.js?v=160" defer></script>
 </head>
 
 <body data-page="admin">
@@ -98,6 +101,7 @@
           <nav class="admin-nav">
             <button class="active" data-admin-tab="site">Главная</button>
             <button data-admin-tab="brands">Бренды</button>
+            <button data-admin-tab="blog">Блог</button>
             <button data-admin-tab="delivery">Доставка</button>
             <button data-admin-tab="telegram">Telegram</button>
             <button data-admin-tab="quick-contact">Связь</button>
@@ -119,6 +123,7 @@
           </nav>
 
           <div class="admin-content">
+            <section class="admin-section" id="admin-blog" aria-label="Управление блогом"></section>
             <section class="admin-section" id="admin-products">
               <div class="admin-grid">
                 <article class="admin-card">

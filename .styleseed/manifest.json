@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "engineVersion": "4.0.0",
+  "generatedAt": "2026-10-11T11:26:39.638Z",
+  "selection": {
+    "agent": "codex",
+    "grammar": "editorial-reading",
+    "grammarSource": "built-in:editorial-reading",
+    "fallback": "editorial-reading",
+    "adapter": "product-ui",
+    "domain": "content",
+    "page": "detail",
+    "recipe": "editorial-authority",
+    "recipeSelection": "editorial-authority",
+    "palette": "editorial-ink",
+    "paletteSelection": "editorial-ink",
+    "profile": "none"
+  },
+  "bundle": {
+    "path": ".styleseed/effective-rules.md",
+    "sha256": "76824887a09c8a97e39b35180b77f11c23c5ba3e2ad4c22ff5da7f5d021e87c7",
+    "bytes": 16308
+  },
+  "sources": [
+    {
+      "id": "agent-execution",
+      "sha256": "dfe4b0a2de36209ca50a04b39e35c248ac13fb8b059428fdb68a484cffc190cb",
+      "bytes": 329
+    },
+    {
+      "id": "core",
+      "sha256": "ed1cd2f73c34c197de665cb89d23f4b9e0753a8ff13c6a816f517a7cb0c32987",
+      "bytes": 4637
+    },
+    {
+      "id": "grammar",
+      "sha256": "ffc4cb18738d1a36b9ce564fc1fa18987e22a5bbb5787683841e25c401718fca",
+      "bytes": 970
+    },
+    {
+      "id": "adapter",
+      "sha256": "7b5b5c34b0b235dca329e6384ccb94c66ee65a348bbe7142277ae7bbda3c13b0",
+      "bytes": 714
+    },
+    {
+      "id": "domain",
+      "sha256": "76fe33adfcafaebd52e978128846f4b2f8ac6a4a2dafcc713028ff4309e512ac",
+      "bytes": 955
+    },
+    {
+      "id": "page",
+      "sha256": "0b4321abc5e338d444ee8ac569f6d03059e33eae2a70bfc5502876cf48b15fc7",
+      "bytes": 679
+    },
+    {
+      "id": "recipe",
+      "sha256": "97634faa4de0c7d681d5708fd420276618eef2e96f420d0e2770d9649cc06e27",
+      "bytes": 1249
+    },
+    {
+      "id": "palette",
+      "sha256": "e8b36131db1dbad9a718275fbdb632f8d31f274fcc9e85b9e2a577e1a6aca9a5",
+      "bytes": 920
+    },
+    {
+      "id": "lock",
+      "sha256": "25694b0e4dca49830c724ac46043b00bf2c89c5a13613e96c521d4c3433c9c0d",
+      "bytes": 1532
+    },
+    {
+      "id": "craft",
+      "sha256": "9f8b9c38d3ec1dc6d476a149b7c3502b27c51cbb55bce397a696b44335a22d21",
+      "bytes": 3564
+    }
+  ]
+}

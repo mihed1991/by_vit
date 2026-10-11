@@ -561,6 +561,7 @@
       nav.splice(catalogIndex + 1, 0, {text:'Цели',href:'goals.html',enabled:true});
     }
     header.nav = nav;
+    if(!nav.some(link => link.href === 'blog.html')) nav.splice(Math.max(0,nav.findIndex(link=>link.href==='about.html')),0,{text:'Блог',href:'blog.html',enabled:true});
     return header;
   }
   function normalizeFooter(site, defaults){
@@ -572,7 +573,7 @@
     footer.columns = Array.isArray(footer.columns) && footer.columns.length ? footer.columns : (defaults.footer?.columns || []);
     footer.columns = footer.columns.map(col => ({title:col.title || 'Раздел',links:normalizeLinks(col.links)}));
     const defaultFooterLinks = (defaults.footer?.columns || []).flatMap(col => normalizeLinks(col.links));
-    ['about.html','faq.html'].forEach(href => {
+    ['about.html','faq.html','blog.html'].forEach(href => {
       const defaultLink = defaultFooterLinks.find(link => link.href === href);
       const exists = footer.columns.some(col => (col.links || []).some(link => link.href === href));
       if(defaultLink && !exists){
@@ -966,6 +967,7 @@
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
     merged.brandProfiles = window.ByVitBrands.normalizeProfiles({...defaults.brandProfiles,...site?.brandProfiles});
+    merged.blog = window.ByVitBlog.normalize(site?.blog ?? defaults.blog);
     merged.mobileHome = normalizeMobileHome(merged, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
@@ -1386,6 +1388,7 @@
       'catalog.html':'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
       'goals.html':'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
       'brands.html':'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
+      'blog.html':'<path d="M4 4h12l4 4v12H4V4ZM16 4v4h4M8 12h8M8 16h8"/>',
       'sale.html':'<path d="m5 19 14-14"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
       'delivery.html':'<path d="M3 16V5h11v11M14 9h4l3 4v3h-2M8 16h8M3 16h1"/><circle cx="6" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>',
       'stores.html':'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
@@ -4698,6 +4701,7 @@
     if(!login || !panel) return;
     login.style.display = isLogged ? 'none' : 'grid';
     panel.style.display = isLogged ? 'block' : 'none';
+    window.ByVitBlogUI?.renderAdmin();
     if(!isLogged) return;
     renderAdminProducts(); renderAdminCategories(); renderAdminSite(); renderAdminTelegram(); renderAdminQuickContact(); renderAdminStores(); renderAdminContent(); renderAdminOrders(); renderAdminAnalytics(); renderAdminHeader(); renderAdminFooter(); renderAdminPages(); renderAdminFaq(); renderAdminCart(); renderAdminReviews(); renderAdminStorage(); renderAdminMoySklad();
   }
@@ -6620,6 +6624,13 @@
     await loadServerState();
     const page = document.body.dataset.page;
     if(page === 'admin' && isAdminSession()) await loadAdminState();
+    window.ByVitBlogUI?.init({getSite,getProducts,productCard,upload:fileToStoredSource,toast,isAdmin:isAdminSession,syncProducts:syncCartButtons,absoluteUrl,social:applySocialMeta,structured:setStructuredData,meta:(key,value,property=false)=>ensureMeta(key,value,property?'property':'name'),persistBlog:async blog=>{
+      if(!serverAvailable || !isAdminSession()) throw new Error('Для сохранения блога войдите в админку на сервере.');
+      const site=normalizeSite({...getSite(),blog});
+      await fetchJson('/api/admin/state',{method:'PUT',body:JSON.stringify({...serverState,site})});
+      serverState.site=clone(site);
+      try{localStorage.setItem(KEYS.site,JSON.stringify(site));}catch(error){}
+    }});
     setActiveNav(); applyHeader(); renderFooter(); applyStaticMode(); applyPageHeader(); applyPageSeo(page); updateCounts(); bindGlobal();
     if(page === 'home') renderHome();
     if(page === 'catalog') renderCatalog();
@@ -6637,6 +6648,7 @@
     if(page === 'faq') renderFaq();
     if(page === 'about') renderAboutPage();
     if(page === 'admin') renderAdmin();
+    window.ByVitBlogUI?.render();
     if(page !== 'admin') trackEvent('page_view', {page});
     initMotionSystem();
   }

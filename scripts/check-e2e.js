@@ -760,8 +760,8 @@ async function main() {
     assert.equal(await mobilePage.locator('[data-burger]').getAttribute('aria-expanded'), 'true');
     await mobilePage.waitForFunction(() => getComputedStyle(document.querySelector('[data-mobile-panel]')).opacity === '1');
     const menuLinks = mobilePage.locator('.mobile-menu-primary a');
-    assert.equal(await menuLinks.count(), 11, 'Mobile menu must retain existing destinations and add Goals');
-    assert.deepEqual(await menuLinks.evaluateAll(links => links.map(link => link.getAttribute('href'))), ['index.html','catalog.html','goals.html','brands.html','sale.html','delivery.html','stores.html','about.html','faq.html','wishlist.html','compare.html']);
+    assert.equal(await menuLinks.count(), 12, 'Mobile menu must retain existing destinations and add Goals and Blog');
+    assert.deepEqual(await menuLinks.evaluateAll(links => links.map(link => link.getAttribute('href'))), ['index.html','catalog.html','goals.html','brands.html','sale.html','delivery.html','stores.html','blog.html','about.html','faq.html','wishlist.html','compare.html']);
     for(const width of [320,375,383,432,820]){
       await mobilePage.setViewportSize({width,height:720});
       const menuRows = await menuLinks.evaluateAll(links => links.map(link => {

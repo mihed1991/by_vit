@@ -3,6 +3,7 @@ const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
 const brandUtils = require('../js/brand-utils');
+const blogUtils = require('../js/blog-utils');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
@@ -12,6 +13,8 @@ const pages = [
   'about.html',
   'brands.html',
   'brand.html',
+  'blog.html',
+  'article.html',
   'cart.html',
   'catalog.html',
   'goals.html',
@@ -26,38 +29,57 @@ const pages = [
 ];
 const assetManifest = {};
 
-function fingerprintFile(relative, body=fs.readFileSync(path.join(root,relative))){
+function fingerprintFile(relative, body = fs.readFileSync(path.join(root, relative))) {
   const extension = path.extname(relative);
-  const digest = crypto.createHash('sha256').update(body).digest('hex').slice(0,12);
-  const versioned = `${relative.slice(0,-extension.length)}.${digest}${extension}`;
-  fs.writeFileSync(path.join(output,versioned),body);
+  const digest = crypto.createHash('sha256').update(body).digest('hex').slice(0, 12);
+  const versioned = `${relative.slice(0, -extension.length)}.${digest}${extension}`;
+  fs.writeFileSync(path.join(output, versioned), body);
   assetManifest[relative] = versioned;
   return versioned;
 }
 
-function filesIn(directory){
-  return fs.readdirSync(path.join(root,directory),{withFileTypes:true}).flatMap(entry => {
+function filesIn(directory) {
+  return fs.readdirSync(path.join(root, directory), { withFileTypes: true }).flatMap(entry => {
     const relative = `${directory}/${entry.name}`;
     return entry.isDirectory() ? filesIn(relative) : [relative];
   });
 }
 
-function versionReferences(source){
+function versionReferences(source) {
   // Local bundled media only; retain SVG fragments and leave external/upload/data URLs intact.
-  return source.replace(/(?<![\w:/])((?:\.\.\/|\.\/)?assets\/[\w./-]+\.(?:png|jpe?g|webp|gif|svg|ico|mp4|webm|woff2?))(?:\?v=[\w.-]+)?/g, (full,reference) => {
+  return source.replace(/(?<![\w:/])((?:\.\.\/|\.\/)?assets\/[\w./-]+\.(?:png|jpe?g|webp|gif|svg|ico|mp4|webm|woff2?))(?:\?v=[\w.-]+)?/g, (full, reference) => {
     const prefix = reference.startsWith('../') ? '../' : reference.startsWith('./') ? './' : '';
     const key = reference.slice(prefix.length);
     return assetManifest[key] ? prefix + assetManifest[key] : full;
   });
 }
 
-function prepareResources(){
+function prepareResources() {
+  // Materialize image bytes from the admin's portable blog export before hashing JS/HTML.
+  const blog=defaultData().site.blog;
+  for(const post of blogUtils.published(blog)){
+    const original=blog.posts.find(item=>item.id===post.id);
+    const fields=[{item:original,key:'cover'},...(original.blocks || []).filter(b=>b.type==='image').map(item=>({item,key:'src'}))];
+    for(const {item,key} of fields){
+      const match=/^data:image\/(png|jpeg|webp);base64,([a-z0-9+/=]+)$/i.exec(item[key] || '');
+      if(!match)continue;
+      const body=Buffer.from(match[2],'base64'),digest=crypto.createHash('sha256').update(body).digest('hex').slice(0,12);
+      item[key]=`assets/blog-image-${digest}.${match[1].toLowerCase()==='jpeg'?'jpg':match[1].toLowerCase()}`;
+      fingerprintFile(item[key],body);
+    }
+  }
   filesIn('assets').forEach(file => fingerprintFile(file));
-  for(const file of [...filesIn('css'),...filesIn('js')]){
-    if(!/\.(?:css|js)$/.test(file)) continue;
-    const compiled = versionReferences(fs.readFileSync(path.join(root,file),'utf8'));
-    fs.writeFileSync(path.join(output,file),compiled);
-    fingerprintFile(file,compiled);
+  for (const file of [...filesIn('css'), ...filesIn('js')]) {
+    if (!/\.(?:css|js)$/.test(file)) continue;
+    let resource = fs.readFileSync(path.join(root, file), 'utf8');
+    if(file==='js/data.js'){
+      const defaults=defaultData();
+      defaults.site.blog=blogUtils.publicBlog(defaults.site.blog);
+      resource=`window.ByVitDefaults = ${JSON.stringify(defaults)};\n`;
+    }
+    const compiled = versionReferences(resource);
+    fs.writeFileSync(path.join(output, file), compiled);
+    fingerprintFile(file, compiled);
   }
 }
 
@@ -103,8 +125,8 @@ function prepareHtml(file) {
     `\n  ${staticFlag}$1`
   );
   if (withStaticMode === publicSource) throw new Error(`Static mode was not injected into ${file}`);
-  const html = withStaticMode.replace(/\s*<\/head>/i, `\n  ${pageMetadata(withStaticMode, file)}\n</head>`);
-  const versioned = versionReferences(html).replace(/((?:css|js)\/[\w./-]+\.(?:css|js))(?:\?v=[\w.-]+)?/g, (full,reference) => assetManifest[reference] || full);
+  const html = withStaticMode.replace(/\s*<\/head>/i, `\n  ${file==='article.html' ? '<meta name="robots" content="noindex, nofollow">' : ''}\n  ${pageMetadata(withStaticMode, file)}\n</head>`);
+  const versioned = versionReferences(html).replace(/((?:css|js)\/[\w./-]+\.(?:css|js))(?:\?v=[\w.-]+)?/g, (full, reference) => assetManifest[reference] || full);
   fs.writeFileSync(path.join(output, file), versioned);
 }
 
@@ -114,6 +136,52 @@ function defaultProducts() {
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox, { filename: 'js/data.js' });
   return sandbox.window.ByVitDefaults?.products || [];
+}
+
+let cachedDefaults;
+function defaultData(){
+  if(cachedDefaults)return cachedDefaults;
+  const sandbox={window:{},encodeURIComponent};
+  vm.runInNewContext(fs.readFileSync(path.join(root,'js/data.js'),'utf8'),sandbox);
+  cachedDefaults=sandbox.window.ByVitDefaults;
+  const conventionalBlog=path.join(root,'content','blog.json');
+  const blogFile=String(process.env.BYVIT_STATIC_BLOG_FILE || (fs.existsSync(conventionalBlog)?conventionalBlog:'')).trim();
+  if(blogFile){
+    const imported=JSON.parse(fs.readFileSync(path.resolve(blogFile),'utf8'));
+    const blog=imported.site?.blog ?? imported.blog ?? imported;
+    const error=blogUtils.validate(blog);if(error)throw new Error(`Invalid blog export: ${error}`);
+    cachedDefaults.site.blog=blogUtils.normalize(blog);
+  }else{cachedDefaults.site.blog=blogUtils.normalize(cachedDefaults.site.blog);}
+  return cachedDefaults;
+}
+
+function writeBlogPages(){
+  const blog=defaultData().site.blog;
+  const listingFile=path.join(output,'blog.html');
+  fs.writeFileSync(listingFile,versionReferences(fs.readFileSync(listingFile,'utf8').replace(/<!-- BLOG_LIST_START -->[\s\S]*?<!-- BLOG_LIST_END -->/,()=>`<!-- BLOG_LIST_START -->${blogUtils.listing(blog,{staticMode:true})}<!-- BLOG_LIST_END -->`)));
+  const template=fs.readFileSync(path.join(output,'article.html'),'utf8');
+  fs.mkdirSync(path.join(output,'blog'),{recursive:true});
+  for(const post of blogUtils.published(blog)){
+    const url=new URL(`blog/${post.id}.html`,publicUrl).href;
+    const title=post.seoTitle || `${post.title} | BYVIT`, description=post.seoDescription || post.excerpt;
+    const image=new URL(assetManifest[post.cover] || post.cover || 'assets/hero-share.jpg',publicUrl).href;
+    let html=template.replace('<head>','<head>\n  <base href="../">')
+      .replace('window.BYVIT_STATIC = true;',`window.BYVIT_STATIC = true; window.BYVIT_ARTICLE_ID = ${JSON.stringify(post.id)};`)
+      .replace('<meta name="robots" content="noindex, nofollow">','<meta name="robots" content="index, follow, max-image-preview:large">')
+      .replace(/<title>[\s\S]*?<\/title>/,()=>`<title>${escapeHtml(title)}</title>`)
+      .replace(/<meta\s+name="description"\s+content="[^"]*"\s*>/,()=>`<meta name="description" content="${escapeHtml(description)}">`)
+      .replace(/<link rel="canonical" href="[^"]*">/,()=>`<link rel="canonical" href="${escapeHtml(url)}">`)
+      .replace(/<meta property="og:type" content="[^"]*">/,'<meta property="og:type" content="article">')
+      .replace(/<meta property="og:title" content="[^"]*">/,()=>`<meta property="og:title" content="${escapeHtml(title)}">`)
+      .replace(/<meta property="og:description" content="[^"]*">/,()=>`<meta property="og:description" content="${escapeHtml(description)}">`)
+      .replace(/<meta property="og:url" content="[^"]*">/,()=>`<meta property="og:url" content="${escapeHtml(url)}">`)
+      .replace(/<meta (?:property="og:image"|name="twitter:image") content="[^"]*">/g,tag=>tag.replace(/content="[^"]*"/,`content="${escapeHtml(image)}"`))
+      .replace(/<meta property="og:image:(?:type|width|height|alt)"[^>]*>/g,'')
+      .replace(/<meta name="twitter:image:alt"[^>]*>/g,'')
+      .replace('</head>',()=>`<script id="seo-blog" type="application/ld+json">${JSON.stringify(blogUtils.schema(post,url,image)).replace(/</g,'\\u003c')}</script></head>`)
+      .replace(/<!-- BLOG_ARTICLE_START -->[\s\S]*?<!-- BLOG_ARTICLE_END -->/,()=>`<!-- BLOG_ARTICLE_START -->${blogUtils.article(post)}<!-- BLOG_ARTICLE_END -->`);
+    fs.writeFileSync(path.join(output,'blog',`${post.id}.html`),versionReferences(html));
+  }
 }
 
 function defaultBrandData(){
@@ -152,14 +220,16 @@ function writeSeoFiles() {
   const robots = `User-agent: *\nAllow: /\nDisallow: /admin.html\nDisallow: /cart.html\nDisallow: /wishlist.html\nDisallow: /compare.html\nSitemap: ${sitemapUrl}\n`;
   fs.writeFileSync(path.join(output, 'robots.txt'), robots);
 
-  const indexablePages = ['index.html', 'catalog.html', 'goals.html', 'brands.html', 'sale.html', 'delivery.html', 'stores.html', 'about.html', 'faq.html'];
+  const indexablePages = ['index.html', 'catalog.html', 'goals.html', 'brands.html', 'blog.html', 'sale.html', 'delivery.html', 'stores.html', 'about.html', 'faq.html'];
   const paths = indexablePages.map(file => file === 'index.html' ? './' : file);
   defaultProducts().forEach(product => paths.push(`product.html?id=${encodeURIComponent(product.id)}`));
   defaultBrandData().brands.forEach(brand => paths.push(`brands/${encodeURIComponent(brand.id)}.html`));
+  blogUtils.published(defaultData().site.blog).forEach(post=>paths.push(`blog/${post.id}.html`));
   const urls = paths.map(value => `  <url><loc>${escapeHtml(new URL(value, publicUrl).href)}</loc></url>`).join('\n');
   fs.writeFileSync(path.join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
 }
 
+defaultData(); // Validate a supplied export before replacing a previous build.
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
@@ -167,10 +237,11 @@ fs.mkdirSync(output, { recursive: true });
 prepareResources();
 pages.forEach(prepareHtml);
 writeBrandPages();
+writeBlogPages();
 writeSeoFiles();
 
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
-fs.writeFileSync(path.join(output, 'asset-manifest.json'), JSON.stringify(assetManifest,null,2));
+fs.writeFileSync(path.join(output, 'asset-manifest.json'), JSON.stringify(assetManifest, null, 2));
 fs.writeFileSync(path.join(output, '404.html'), fs.readFileSync(path.join(output, 'index.html')));
 
 console.log(`Static storefront built in ${output}`);

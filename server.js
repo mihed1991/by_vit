@@ -9,6 +9,7 @@ const { createMedia } = require('./lib/media');
 const { createMoySkladClient, mappingFor } = require('./lib/moysklad');
 const { createEuropostClient } = require('./lib/europost');
 const brandUtils = require('./js/brand-utils');
+const blogUtils = require('./js/blog-utils');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -83,7 +84,7 @@ const ALLOWED_ORIGINS = new Set(String(process.env.BYVIT_ALLOWED_ORIGINS || '').
 const PUBLIC_HTML_FILES = new Set([
   '/index.html', '/about.html', '/admin.html', '/brands.html', '/cart.html', '/catalog.html',
   '/compare.html', '/delivery.html', '/faq.html', '/product.html', '/sale.html', '/stores.html',
-  '/wishlist.html', '/goals.html', '/goal.html', '/brand.html'
+  '/wishlist.html', '/goals.html', '/goal.html', '/brand.html', '/blog.html', '/article.html'
 ]);
 const PUBLIC_ASSET_PREFIXES = ['/assets/', '/css/', '/js/'];
 let moyskladSyncTimer = null;
@@ -218,6 +219,7 @@ async function loadStore() {
     analytics: normalizeAnalytics(stored.analytics),
     meta: stored.meta && typeof stored.meta === 'object' ? stored.meta : {}
   };
+  if(normalized.site.blog === undefined) normalized.site.blog=blogUtils.normalize(defaults.site?.blog);
   const canRecoverCatalog = normalized.site.allowEmptyCatalog !== true && (defaults.products || []).length > 0;
   if (!normalized.products.length && canRecoverCatalog) {
     normalized.products = clone(defaults.products);
@@ -234,6 +236,7 @@ async function saveStore(store, options = {}) {
 
 function publicSite(site) {
   const safe = clone(site || {});
+  safe.blog = blogUtils.publicBlog(site?.blog ?? loadDefaults().site?.blog);
   delete safe.adminPasswordHash;
   safe.telegram = { contact: safe.telegram?.contact || '' };
   return safe;
@@ -425,6 +428,26 @@ async function injectServerMetadata(source, pathname, searchParams, req) {
         .replace(/<!-- BRAND_HERO_START -->[\s\S]*?<!-- BRAND_HERO_END -->/,()=>`<!-- BRAND_HERO_START -->${brandUtils.hero(brand,logo)}<!-- BRAND_HERO_END -->`);
       structuredData = {'@context':'https://schema.org','@type':'CollectionPage',name:brand.heading,url:canonical.href,description,about:{'@type':'Brand',name:brand.name}};
     }else{ robots = 'noindex, nofollow'; }
+  } else if (pathname === '/blog.html' || pathname === '/article.html') {
+    const store = await loadStore();
+    const blog = store.site.blog ?? loadDefaults().site?.blog;
+    if(pathname === '/blog.html'){
+      source = source.replace(/<!-- BLOG_LIST_START -->[\s\S]*?<!-- BLOG_LIST_END -->/,()=>`<!-- BLOG_LIST_START -->${blogUtils.listing(blog,{category:searchParams.get('topic') || '',page:searchParams.get('page')})}<!-- BLOG_LIST_END -->`);
+    }else{
+      const id=String(searchParams.get('id') || '');
+      const post=blogUtils.published(blog).find(item=>item.id===id);
+      if(post){
+        canonical.searchParams.set('id',id);
+        title=post.seoTitle || `${post.title} | BYVIT`;
+        description=post.seoDescription || post.excerpt;
+        image=new URL(post.cover || 'assets/hero-share.jpg',base).href;
+        type='article';
+        source=source.replace(/<title>[\s\S]*?<\/title>/i,()=>`<title>${xmlEscape(title)}</title>`)
+          .replace(/<meta\s+name="description"\s+content="[^"]*"\s*>/i,()=>htmlMetadataTag({name:'description',content:description}))
+          .replace(/<!-- BLOG_ARTICLE_START -->[\s\S]*?<!-- BLOG_ARTICLE_END -->/,()=>`<!-- BLOG_ARTICLE_START -->${blogUtils.article(post)}<!-- BLOG_ARTICLE_END -->`);
+        structuredData=blogUtils.schema(post,canonical.href,image);
+      }else{robots='noindex, nofollow';}
+    }
   } else if (pathname === '/goal.html') {
     const store = await loadStore();
     const id = String(searchParams.get('id') || '');
@@ -463,7 +486,7 @@ async function injectServerMetadata(source, pathname, searchParams, req) {
     htmlMetadataTag({ property: 'og:image', content: image }),
     htmlMetadataTag({ name: 'twitter:card', content: 'summary_large_image' })
   ];
-  if (structuredData) tags.push(`<script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>`);
+  if (structuredData) tags.push(`<script${pathname === '/article.html' ? ' id="seo-blog"' : ''} type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>`);
   return source.replace(/\s*<\/head>/i, `\n  ${tags.join('\n  ')}\n</head>`);
 }
 
@@ -488,12 +511,13 @@ async function handleSeoFile(req, res) {
     const store = await loadStore();
     const staticPages = [
       '/', '/catalog.html', '/brands.html', '/sale.html', '/delivery.html',
-      '/stores.html', '/about.html', '/faq.html', '/goals.html'
+      '/stores.html', '/about.html', '/faq.html', '/goals.html', '/blog.html'
     ];
     const productPages = store.products.map(product => `/product.html?id=${encodeURIComponent(product.id)}`);
     const goalPages = (store.site.goals || []).filter(goal => goal.enabled !== false).map(goal => `/goal.html?id=${encodeURIComponent(goal.id)}`);
     const brandPages = brandUtils.list(store.products,store.site).map(brand => `/brand.html?id=${encodeURIComponent(brand.id)}`);
-    const entries = [...staticPages, ...productPages, ...goalPages, ...brandPages].map(pathname =>
+    const blogPages = blogUtils.published(store.site.blog ?? loadDefaults().site?.blog).map(post=>`/article.html?id=${encodeURIComponent(post.id)}`);
+    const entries = [...staticPages, ...productPages, ...goalPages, ...brandPages, ...blogPages].map(pathname =>
       `  <url><loc>${xmlEscape(new URL(pathname, origin).href)}</loc></url>`
     ).join('\n');
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
@@ -1083,6 +1107,10 @@ async function serveStatic(req, res) {
   let data;
   try { data = await fs.promises.readFile(resolved); }
   catch (error) { send(res, 404, 'Not found'); return; }
+  if(pathname === '/js/data.js'){
+    const defaults=loadDefaults();defaults.site=publicSite(defaults.site);
+    data=Buffer.from(`window.ByVitDefaults = ${JSON.stringify(defaults)};\n`);
+  }
   const isHtml = path.extname(resolved).toLowerCase() === '.html';
   if (isHtml && pathname !== '/admin.html') data = Buffer.from(await injectServerMetadata(data.toString('utf8'), pathname, url.searchParams, req));
   const contentSecurityPolicy = [
@@ -1098,7 +1126,8 @@ async function serveStatic(req, res) {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
   ].join('; ');
-  res.writeHead(200, {
+  const missingArticle = pathname === '/article.html' && !blogUtils.published((await loadStore()).site.blog ?? loadDefaults().site?.blog).some(post=>post.id===url.searchParams.get('id'));
+  res.writeHead(missingArticle ? 404 : 200, {
     'Content-Type': contentType(resolved),
     'Content-Length': data.length,
     'Cache-Control': isHtml ? 'no-cache' : 'public, max-age=3600',
@@ -1443,6 +1472,11 @@ async function handleApi(req, res) {
     if (req.method === 'PUT' && url.pathname === '/api/admin/state') {
       if (!requireAdmin(req, res)) return;
       const body = await readJson(req);
+      if(body.site?.blog !== undefined){
+        const error=blogUtils.validate(body.site.blog);
+        if(error){send(res,400,{error});return;}
+        body.site.blog=blogUtils.normalize(body.site.blog);
+      }
       const adminStore = await loadStore();
       if (Array.isArray(body.products)) {
         const allowEmptyCatalog = body.allowEmptyCatalog === true || body.site?.allowEmptyCatalog === true;
