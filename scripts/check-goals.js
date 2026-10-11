@@ -230,7 +230,7 @@ async function main(){
       assert.ok(Math.abs(selectorSize.width-selectorSize.containerWidth)<1,'Mobile goal selector must fill its content container');
       assert.ok(Math.abs(selectorSize.left-selectorSize.containerLeft)<1,'Mobile goal selector must retain the page gutters');
       assert.equal(selectorSize.inProducts,width<=760,'Only phone layouts must place the selector with the products');
-      if(width<=760)assert.ok(selectorSize.top>=selectorSize.heroBottom && selectorSize.bottom<=selectorSize.filterTop,'Goal selector must sit below the hero and above the filters');
+      if(width<=760)assert.ok(Math.abs(selectorSize.top-selectorSize.heroBottom-24)<1 && selectorSize.bottom<=selectorSize.filterTop,'Goal selector must sit 24px below the hero and above the filters');
       const chevron=page.locator('#goalNavigation .goal-navigation-chevron');
       assert.equal(await chevron.getAttribute('aria-hidden'),'true');
       const alignment=await chevron.evaluate(node=>{
