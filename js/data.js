@@ -217,7 +217,7 @@
 	      homeGalleryStoryButtonText:'Подробнее',
 	      homeGalleryStoryButtonUrl:'stores.html',
 	      homeGallery:[],
-	      brandImages:{},
+	      brandImages:{'Optimum Nutrition':{src:'assets/optimum-nutrition.webp'}},
 	      brandProfiles:{},
 	      mobileHome:{
 	        heroEyebrow:'Больше, чем добавки ───',heroTitle:'Результаты начинаются здесь',heroText:'Оригинальные добавки для твоих целей.',heroButtonText:'К покупкам',
