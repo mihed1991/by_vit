@@ -211,7 +211,7 @@ async function main(){
     assert.match(page.url(),/id=many-test.*page=2/);
     await page.goBack();
     assert.equal(await page.locator('.product-card').count(),30);
-    for(const width of [320,375,432,820,1100]){
+    for(const width of [320,363,375,432,820,1100]){
       await page.setViewportSize({width,height:width===820?390:804});
       await page.goto('/goals.html');
       await page.locator('.goal-selection-card').first().waitFor();
@@ -221,6 +221,13 @@ async function main(){
       await page.goto('/goal.html?id=recovery');
       await page.locator('.product-card').first().waitFor();
       assert.equal(await page.locator('#goalNavigation').getAttribute('open'),null);
+      const selectorSize=await page.locator('#goalNavigation > summary').evaluate(node=>{
+        const box=node.getBoundingClientRect(),container=node.closest('.goal-hero-heading').getBoundingClientRect();
+        return {width:box.width,height:box.height,left:box.left,containerWidth:container.width,containerLeft:container.left};
+      });
+      assert.equal(selectorSize.height,40,'Mobile goal selector must be 40px tall');
+      assert.ok(Math.abs(selectorSize.width-selectorSize.containerWidth)<1,'Mobile goal selector must fill its content container');
+      assert.ok(Math.abs(selectorSize.left-selectorSize.containerLeft)<1,'Mobile goal selector must retain the page gutters');
       const chevron=page.locator('#goalNavigation .goal-navigation-chevron');
       assert.equal(await chevron.getAttribute('aria-hidden'),'true');
       const alignment=await chevron.evaluate(node=>{
@@ -238,6 +245,7 @@ async function main(){
         return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,limit:bottomNav.height?bottomNav.top:innerHeight,viewport:innerWidth};
       });
       assert.ok(popup.left>=0 && popup.right<=popup.viewport && popup.top>=0 && popup.bottom<=popup.limit+1,'Goal dropdown must fit phone and landscape viewports');
+      assert.ok(Math.abs(popup.right-popup.left-selectorSize.width)<1,'Mobile goal dropdown must align with its trigger width');
       if(screenshots && width===375) await page.screenshot({path:path.join(screenshots,'goal-mobile-selector-open.png')});
       const targets = await page.locator('#goalNavigation nav a').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
       assert.ok(targets.every(height=>height>=48));
@@ -250,6 +258,8 @@ async function main(){
       if(screenshots && width===375){ await page.waitForTimeout(800); await page.screenshot({path:path.join(screenshots,'goal-mobile.png')}); }
     }
     await page.setViewportSize({width:1101,height:900});
+    const desktopSelector=await page.locator('#goalNavigation > summary').evaluate(node=>({height:node.getBoundingClientRect().height,width:node.getBoundingClientRect().width,containerWidth:node.closest('.goal-hero-heading').getBoundingClientRect().width}));
+    assert.ok(desktopSelector.height>=48 && desktopSelector.width<desktopSelector.containerWidth/2,'Desktop goal selector must keep its compact original size');
     assert.equal(await page.locator('#catalogSort, .toolbar').count(),0);
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto('/goal.html?id=many-test');

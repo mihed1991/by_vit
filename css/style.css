@@ -17788,8 +17788,9 @@ body[data-page="goal"] .empty-state .btn { margin: 8px; }
 @media (max-width: 1100px) {
   .goals-index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .goal-hero-heading { display: block; }
-  .goal-navigation { margin-top: 16px; }
-  .goal-navigation nav { left: 0; right: auto; }
+  .goal-navigation { margin-top: 16px; width: 100%; }
+  .goal-navigation > summary { height: 40px; min-height: 40px; padding: 0 16px; }
+  .goal-navigation nav { left: 0; right: auto; width: 100%; }
 }
 @media (max-width: 760px) {
   .goals-index-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
