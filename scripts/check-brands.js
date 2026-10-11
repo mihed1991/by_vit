@@ -105,6 +105,8 @@ async function main(){
     await admin.locator('#adminLoginForm button[type="submit"]').click();
     await admin.locator('[data-admin-tab="brands"]').click();
     const editor=admin.locator('[data-brand-image-key="Optimum Nutrition"]');
+    const logoHint=await editor.locator('.admin-hint').first().textContent();
+    for(const expected of ['600×320 px','180×96 px','96×56 px','без фоновой шахматки']) assert.ok(logoHint.includes(expected),'Brand logo guidance must describe file size, responsive blocks and transparency');
     await editor.locator('[data-brand-profile="summary"]').fill('Сохранённое описание Optimum Nutrition.');
     await editor.locator('[data-brand-profile="description"]').fill('Подробности бренда.\n\nБез изменения товаров.');
     await editor.locator('.admin-goal-details > summary').click();
