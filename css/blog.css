@@ -5,7 +5,6 @@
 .blog-topics a,.blog-pagination a {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border:1px solid var(--line);color:var(--green);font-size:14px}
 .blog-topics [aria-current],.blog-pagination [aria-current] {border-color:var(--green);background:var(--green);color:var(--white)}
 .blog-topic-picker {display:none;gap:8px;max-width:480px;margin-bottom:24px}
-.blog-topic-picker label {font-size:14px;color:var(--green);font-weight:600}
 .blog-topic-control {position:relative;display:block;min-width:0;color:var(--green)}
 .blog-topic-picker select {display:block;appearance:none;-webkit-appearance:none;width:100%;min-width:0;min-height:44px;padding:8px 48px 8px 12px;border:1px solid var(--line);border-radius:2px;background-color:var(--white);background-image:none;color:var(--green);font:inherit;font-size:16px}
 .blog-topic-chevron {position:absolute;top:50%;right:16px;width:20px;height:20px;transform:translateY(-50%);fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
@@ -70,7 +69,9 @@
 .article-related .blog-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
 .article-missing {max-width:740px;margin:48px auto}
 .blog-card:focus-visible,.blog-topics a:focus-visible,.blog-pagination a:focus-visible,.article-contents summary:focus-visible,.article-contents a:focus-visible {outline:2px solid var(--green);outline-offset:4px}
-.blog-topic-picker select:focus-visible {outline:2px solid var(--green);outline-offset:4px}
+.blog-topic-picker select:hover,.blog-topic-picker select:focus {border-color:var(--green)}
+/* Keep focus within the existing border instead of drawing a second outer frame. */
+.blog-topic-picker select:focus-visible {outline:2px solid var(--green);outline-offset:-2px}
 .blog-admin-list {display:grid;gap:12px;margin-top:24px}
 .blog-admin-item {border:1px solid var(--line);padding:16px;display:grid;gap:8px;overflow-wrap:anywhere}
 .blog-admin-item h4 {margin:0}

@@ -20,6 +20,7 @@ try{
   assert.ok(!fs.existsSync(path.join(dist,'blog/private-export-archive.html')));
   const html=fs.readFileSync(path.join(dist,'blog/portable-post.html'),'utf8');
   assert.ok(html.includes('Portable article body') && html.includes('"@type":"BlogPosting"'));
+  assert.ok(html.includes('href="blog/portable-post.html#section-0"'),'Exported contents links include their article path');
   assert.match(html,/content="index, follow, max-image-preview:large"/);
   const image=Object.entries(manifest).find(([name])=>name.startsWith('assets/blog-image-'));
   assert.ok(image && fs.existsSync(path.join(dist,image[1])));

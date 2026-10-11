@@ -164,6 +164,7 @@ async function main(){
     const blogHtml=fs.readFileSync(path.join(dist,'blog/kak-chitat-kartochku-tovara.html'),'utf8');
     assert.match(blogHtml,/<h1>Как читать карточку товара перед покупкой<\/h1>/);
     assert.match(blogHtml,/"@type":"BlogPosting"/);
+    assert.ok(blogHtml.includes('href="blog/kak-chitat-kartochku-tovara.html#section-'),'SSR contents anchors must stay on the nested article even with a base URL');
     assert.ok(fs.readFileSync(path.join(dist,'sitemap.xml'),'utf8').includes('/blog/kak-chitat-kartochku-tovara.html'));
     await blogPage.goto(`http://127.0.0.1:${server.address().port}/by_vit/blog.html`);
     await blogPage.locator('.blog-card[href="blog/kak-chitat-kartochku-tovara.html"]').click();
@@ -176,6 +177,24 @@ async function main(){
     await blogPage.setViewportSize({width:390,height:844});
     await blogPage.locator('.blog-card').first().click();
     await blogPage.locator('.article-prose').waitFor();
+    for(const width of [356,1440]){
+      await blogPage.setViewportSize({width,height:720});
+      await blogPage.goto(`http://127.0.0.1:${server.address().port}/by_vit/blog/fasovka-i-tsena-kak-sravnivat.html`);
+      await blogPage.locator('.article-contents summary').click();
+      const targets=await blogPage.locator('.article-contents a').evaluateAll(links=>links.map(link=>({href:link.href,id:new URL(link.href).hash.slice(1),text:link.textContent})));
+      assert.equal(targets.length,3);
+      for(const target of targets){
+        assert.equal(new URL(target.href).pathname,'/by_vit/blog/fasovka-i-tsena-kak-sravnivat.html');
+        await blogPage.locator('.article-contents a').filter({hasText:target.text}).click();
+        assert.equal(new URL(blogPage.url()).pathname,'/by_vit/blog/fasovka-i-tsena-kak-sravnivat.html');
+        assert.equal(new URL(blogPage.url()).hash,'#'+target.id);
+        await blogPage.waitForFunction(id=>{
+          const heading=document.getElementById(id),header=document.querySelector('.site-header');
+          const top=heading.getBoundingClientRect().top;
+          return top>=(header?.getBoundingClientRect().bottom || 0) && top<innerHeight;
+        },target.id,{timeout:5000});
+      }
+    }
     assert.ok(await blogPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.deepEqual(apiRequests,[],'Static blog must not require Node API');
     assert.deepEqual(blogErrors,[],'Nested static article paths must resolve links and media');

@@ -179,7 +179,7 @@ function writeBlogPages(){
       .replace(/<meta property="og:image:(?:type|width|height|alt)"[^>]*>/g,'')
       .replace(/<meta name="twitter:image:alt"[^>]*>/g,'')
       .replace('</head>',()=>`<script id="seo-blog" type="application/ld+json">${JSON.stringify(blogUtils.schema(post,url,image)).replace(/</g,'\\u003c')}</script></head>`)
-      .replace(/<!-- BLOG_ARTICLE_START -->[\s\S]*?<!-- BLOG_ARTICLE_END -->/,()=>`<!-- BLOG_ARTICLE_START -->${blogUtils.article(post)}<!-- BLOG_ARTICLE_END -->`);
+      .replace(/<!-- BLOG_ARTICLE_START -->[\s\S]*?<!-- BLOG_ARTICLE_END -->/,()=>`<!-- BLOG_ARTICLE_START -->${blogUtils.article(post,true)}<!-- BLOG_ARTICLE_END -->`);
     fs.writeFileSync(path.join(output,'blog',`${post.id}.html`),versionReferences(html));
   }
 }

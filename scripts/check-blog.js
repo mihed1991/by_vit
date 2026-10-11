@@ -132,6 +132,8 @@ async function main(){
     await page.locator('.home-blog-mobile .section-head').scrollIntoViewIfNeeded();
     if(screenshotDir)await page.screenshot({path:path.join(screenshotDir,'blog-home-mobile-viewport.png')});
     await page.goto('/blog.html');await page.locator('#blogTopic').waitFor({state:'visible'});
+    assert.equal(await page.getByRole('combobox',{name:'Темы блога'}).count(),1,'Topic picker retains an accessible name');
+    assert.equal(await page.locator('.blog-topic-picker > label').count(),0,'No visible rubric label or empty label row');
     assert.deepEqual(await page.locator('#blogTopic option').allTextContents(),['Все статьи','Выбор добавок','Покупка и доставка']);
     for(const width of [320,356,390,760]){
       await page.setViewportSize({width,height:720});
@@ -145,6 +147,15 @@ async function main(){
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Rubric selector must not overflow at '+width);
       if(screenshotDir && width===356)await page.screenshot({path:path.join(screenshotDir,'blog-topic-selector-356.png')});
     }
+    await page.locator('#blogTopic').press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    const focus=await page.locator('#blogTopic').evaluate(select=>{
+      const style=getComputedStyle(select);
+      return {focused:document.activeElement===select,visible:select.matches(':focus-visible'),outline:style.outlineWidth,offset:style.outlineOffset,shadow:style.boxShadow};
+    });
+    assert.equal(focus.focused,true);assert.equal(focus.visible,true);
+    assert.equal(focus.outline,'2px');assert.equal(focus.offset,'-2px');assert.equal(focus.shadow,'none');
+    if(screenshotDir)await page.screenshot({path:path.join(screenshotDir,'blog-topic-keyboard-focus.png')});
     await page.setViewportSize({width:390,height:844});
     assert.equal(await page.locator('.blog-topics').isVisible(),false);
     await page.locator('#blogTopic').selectOption('Покупка и доставка');
