@@ -20,6 +20,10 @@ async function main(){
   assert.equal(blog.published({posts:[example]}).length,0);
   assert.ok(blog.article(blog.normalize({posts:[{...example,title:'<script>alert(1)</script>'}]}).posts[0]).includes('&lt;script&gt;'));
   assert.equal(blog.validate({posts:[{...example,id:'../escape'}]}).length>0,true);
+  const largeListing=blog.listing({posts:Array.from({length:500},(_,i)=>({...example,id:'large-'+i,status:'published'}))},{page:28});
+  const largePagination=largeListing.match(/<nav class="blog-pagination"[\s\S]*?<\/nav>/)[0];
+  assert.equal((largePagination.match(/<a /g)||[]).length,5,'Large archives keep compact first/current/last and previous/next navigation');
+  assert.ok(largeListing.includes('Страница 28 из 56') && largeListing.includes('Показано 244–252'));
 
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'byvit-blog-check-'));
   const probe=net.createServer();await new Promise(resolve=>probe.listen(0,'127.0.0.1',resolve));
@@ -88,7 +92,25 @@ async function main(){
     assert.equal(await page.locator('.home-blog-mobile').isVisible(),true);
     assert.equal(await page.locator('.home-blog-desktop').isVisible(),false);
     assert.equal(await page.locator('.mobile-bottom-nav a').count(),5);
-    if(screenshotDir)await page.locator('.home-blog-mobile').screenshot({path:path.join(screenshotDir,'blog-home-mobile.png')});
+    for(const width of [320,373,390,760]){
+      await page.setViewportSize({width,height:844});
+      const edges=await page.locator('.home-blog-mobile').evaluate(section=>{
+        const bounds=selector=>{const r=section.querySelector(selector).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height};};
+        return {label:bounds('.eyebrow'),heading:bounds('.section-head h2'),link:bounds('.text-link'),card:bounds('.blog-card'),border:getComputedStyle(section.querySelector('.section-head')).borderTopWidth,kickerLine:getComputedStyle(section.querySelector('.eyebrow'),'::before').display};
+      });
+      for(const node of ['label','heading','link','card'])assert.ok(Math.abs(edges[node].left-16)<1,'Mobile home gutter must align at 16px: '+node+'/'+width);
+      assert.ok(Math.abs(edges.card.right-(width-16))<1);
+      assert.equal(edges.border,'0px');assert.equal(edges.kickerLine,'none');assert.ok(edges.link.height>=44);
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('.home-blog-mobile .section-head').scrollIntoViewIfNeeded();
+    if(screenshotDir)await page.screenshot({path:path.join(screenshotDir,'blog-home-mobile-viewport.png')});
+    await page.goto('/blog.html');await page.locator('#blogTopic').waitFor({state:'visible'});
+    assert.equal(await page.locator('.blog-topics').isVisible(),false);
+    await page.locator('#blogTopic').selectOption('Покупка и доставка');
+    await page.locator('.blog-card').first().waitFor();assert.equal(await page.locator('.blog-card').count(),1);
+    assert.ok(page.url().includes('topic='));
+    await page.locator('#blogTopic').selectOption('');await page.locator('.blog-card').nth(2).waitFor();
 
     await page.setViewportSize({width:1440,height:900});
     await page.goto('/admin.html');await page.locator('#adminPassword').fill(password);await page.locator('#adminLoginForm button').click();
@@ -148,6 +170,22 @@ async function main(){
     await page.goto('/blog.html?topic='+encodeURIComponent('Проверка пагинации')+'&page=2');await page.locator('.blog-card').first().waitFor();
     assert.equal(await page.locator('.blog-card').count(),2);
     assert.equal(await page.locator('.blog-pagination [aria-current]').textContent(),'2');
+    current.site.blog.posts.push(...Array.from({length:90},(_,i)=>({...example,id:'many-topic-'+i,title:'Материал '+i,status:'published',category:'Рубрика '+i%12})));
+    assert.ok((await put(current)).ok);
+    for(const width of [320,373,390,1440]){
+      await page.setViewportSize({width,height:900});await page.goto('/blog.html');await page.locator('#blogTopic').waitFor({state:'visible'});
+      assert.ok(await page.locator('#blogTopic option').count()>12);
+      assert.equal(await page.locator('.blog-topics').isVisible(),false);
+      assert.equal(await page.locator('.blog-card').count(),9);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Many rubrics must not overflow at '+width);
+      if(screenshotDir && [390,1440].includes(width))await page.screenshot({path:path.join(screenshotDir,`blog-many-topics-${width}.png`)});
+    }
+    await page.setViewportSize({width:390,height:900});
+    await page.goto('/blog.html?topic='+encodeURIComponent('Проверка пагинации')+'&page=2');
+    await page.locator('.blog-pagination').scrollIntoViewIfNeeded();
+    if(screenshotDir)await page.screenshot({path:path.join(screenshotDir,'blog-pagination-mobile.png')});
+    await page.locator('#blogTopic').selectOption('Рубрика 0');await page.locator('.blog-card').first().waitFor();
+    assert.equal(await page.locator('.blog-card').count(),8);assert.ok(!new URL(page.url()).searchParams.has('page'),'Changing rubric resets pagination');
     current.site.blog.posts=[];assert.ok((await put(current)).ok);
     await page.goto('/blog.html');await page.locator('.empty-state h2').waitFor();
     assert.equal(await page.locator('.blog-card').count(),0);

@@ -40,12 +40,14 @@
       let section=$(`.home-blog-${mode}`);
       if(!section){section=document.createElement('section');section.className=`home-blog home-blog-${mode}`;if(mode==='desktop')parent.insertBefore(section,$('#homeGallerySection'));else parent.append(section);}
       section.hidden=!posts.length || settings[mode==='desktop'?'homeDesktop':'homeMobile']===false;
-      section.innerHTML=`<div class="${mode==='desktop'?'container':''}"><div class="section-head"><div><span class="eyebrow">Блог BYVIT</span><h2>${e(settings.homeTitle)}</h2></div><a class="text-link" href="blog.html">Все статьи →</a></div><div class="blog-grid">${posts.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></div>`;
+      section.innerHTML=`<div class="container"><div class="section-head"><div><span class="eyebrow">Блог BYVIT</span><h2>${e(settings.homeTitle)}</h2></div><a class="text-link" href="blog.html">Все статьи →</a></div><div class="blog-grid">${posts.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></div>`;
     }
   }
   function render(){
     const listing=$('#blogListing');
     if(listing){const params=new URLSearchParams(location.search);listing.innerHTML=blog.listing(data(),{category:params.get('topic') || '',page:params.get('page'),staticMode:window.BYVIT_STATIC===true});}
+    const topicForm=$('.blog-topic-picker');
+    if(topicForm){topicForm.classList.add('is-enhanced');$('select',topicForm).addEventListener('change',()=>topicForm.requestSubmit());}
     renderArticle();renderHome();
     $$('.blog-card-cover img,.article-cover img,.article-prose figure img').forEach(image=>{
       const fallback=()=>{const label=document.createElement('span');label.className='blog-cover-fallback';label.textContent=image.closest('.blog-card-cover') ? 'BYVIT / ЖУРНАЛ' : 'Изображение не загрузилось';image.replaceWith(label);};
