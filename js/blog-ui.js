@@ -40,7 +40,7 @@
       let section=$(`.home-blog-${mode}`);
       if(!section){section=document.createElement('section');section.className=`home-blog home-blog-${mode}`;if(mode==='desktop')parent.insertBefore(section,$('#homeGallerySection'));else parent.append(section);}
       section.hidden=!posts.length || settings[mode==='desktop'?'homeDesktop':'homeMobile']===false;
-      section.innerHTML=`<div class="container"><div class="section-head"><div><span class="eyebrow">Блог BYVIT</span><h2>${e(settings.homeTitle)}</h2></div><a class="text-link" href="blog.html">Все статьи →</a></div><div class="blog-grid">${posts.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></div>`;
+      section.innerHTML=`<div class="container"><div class="section-head"><div><span class="eyebrow">Блог BYVIT</span><h2>${e(settings.homeTitle)}</h2></div><a class="text-link${mode==='desktop'?' home-section-link':''}" href="blog.html">Все статьи${mode==='mobile'?' →':''}</a></div><div class="blog-grid">${posts.map(p=>blog.card(p,window.BYVIT_STATIC===true)).join('')}</div></div>`;
     }
   }
   function render(){

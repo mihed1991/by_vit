@@ -88,6 +88,22 @@ async function main(){
     }
     await page.goto('/index.html');await page.locator('.home-blog-desktop .blog-card').first().waitFor();
     assert.equal(await page.locator('.home-blog-desktop .blog-card').count(),3);
+    for(const width of [761,820,1146,1440]){
+      await page.setViewportSize({width,height:900});
+      const desktop=await page.locator('.home-blog-desktop .section-head').evaluate(section=>{
+        const bounds=node=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,right:r.right};};
+        const style=node=>{const s=getComputedStyle(node);return {color:s.color,fontSize:s.fontSize,fontWeight:s.fontWeight,textDecoration:s.textDecorationLine,minHeight:s.minHeight};};
+        const link=section.querySelector('a'),peer=document.querySelector('[data-home-block="brands"] .home-section-link');
+        return {label:bounds(section.querySelector('.eyebrow')),heading:bounds(section.querySelector('h2')),link:bounds(link),section:bounds(section),style:style(link),peerStyle:style(peer)};
+      });
+      assert.equal(await page.locator('.home-blog-desktop .text-link').innerText(),'Все статьи');
+      assert.deepEqual(desktop.style,desktop.peerStyle,'Desktop blog link must match brand navigation styling: '+width);
+      assert.ok(Math.abs((desktop.label.top+desktop.label.bottom)-(desktop.link.top+desktop.link.bottom))<2,'Desktop blog link must share the eyebrow row: '+width);
+      assert.ok(Math.abs(desktop.link.right-desktop.section.right)<1,'Desktop blog link must align to the container right: '+width);
+      assert.ok(desktop.heading.top>=desktop.link.bottom,'Desktop heading must remain below the navigation row: '+width);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Home must not overflow at '+width);
+      if(screenshotDir && width===1146){await page.locator('.home-blog-desktop .section-head').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(screenshotDir,'blog-home-desktop-1146.png')});}
+    }
     await page.setViewportSize({width:390,height:844});
     assert.equal(await page.locator('.home-blog-mobile').isVisible(),true);
     assert.equal(await page.locator('.home-blog-desktop').isVisible(),false);
