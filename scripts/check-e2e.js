@@ -320,6 +320,7 @@ async function main() {
     assert.equal(await page.locator('#homeTrust').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length), 4);
     assert.equal(await page.locator('#homeTrust .desktop-trust-top span').count(), 0);
     assert.equal(await page.locator('#homeTrust .desktop-trust-top svg').count(), 4);
+    assert.deepEqual(await page.locator('#homeTrust .desktop-trust-top svg').evaluateAll(icons => icons.map(icon => ({type:icon.dataset.trustIcon,viewBox:icon.getAttribute('viewBox')}))), ['shield-check','truck','clipboard-check','shopping-bag-check'].map(type => ({type,viewBox:'0 0 24 24'})));
     if(qaScreenshotDir){
       for(const [block, file] of [['goals','home-goals-desktop.png'], ['brands','home-brands-desktop.png'], ['trust','home-trust-desktop.png']]){
         const section = page.locator(`[data-home-block="${block}"]`);

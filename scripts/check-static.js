@@ -109,6 +109,9 @@ async function main(){
     assert.deepEqual(errors,[],'Goal routes and assets must resolve in the published subdirectory');
     await context.close();
     const brandContext=await browser.newContext();
+    // A browser-only logo fixture verifies every placement without adding a real brand asset.
+    const logoFixture='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="320"><rect x="30" y="16" width="540" height="288" fill="#113d30"/></svg>');
+    await brandContext.route('**/'+manifest['js/data.js'],route=>route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(dist,manifest['js/data.js']),'utf8')+`\nwindow.ByVitDefaults.site.brandImages['Optimum Nutrition']={src:${JSON.stringify(logoFixture)}};`}));
     const brandPage=await brandContext.newPage();
     const brandErrors=[];
     brandPage.on('pageerror',error=>brandErrors.push(error.message));
@@ -134,6 +137,23 @@ async function main(){
     await brandPage.locator('.product-card').first().waitFor();
     await brandPage.setViewportSize({width:363,height:720});
     assert.ok(await brandPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    for(const width of [1384,363]){
+      await brandPage.setViewportSize({width,height:900});
+      for(const [file,selector] of [['index.html',width>760?'#homeBrands img[alt="Optimum Nutrition"]':'.mv-brand-rail img[alt="Optimum Nutrition"]'],['brands.html','#brandsList img[alt="Optimum Nutrition"]'],['brands/optimum-nutrition.html','.brand-page-logo img']]){
+        await brandPage.goto(`http://127.0.0.1:${server.address().port}/by_vit/${file}`,{waitUntil:'networkidle'});
+        const logo=brandPage.locator(selector).first();
+        await logo.evaluate(image=>image.decode());
+        const box=await logo.evaluate(image=>{
+          const media=image.parentElement;
+          const bounds=media.getBoundingClientRect();
+          const rect=image.getBoundingClientRect();
+          const style=getComputedStyle(media);
+          return {width:rect.width,height:rect.height,availableWidth:bounds.width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight)-parseFloat(style.borderLeftWidth)-parseFloat(style.borderRightWidth),availableHeight:bounds.height-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-parseFloat(style.borderTopWidth)-parseFloat(style.borderBottomWidth),fit:getComputedStyle(image).objectFit};
+        });
+        assert.equal(box.fit,'contain');
+        assert.ok(box.width>0&&box.height>0&&box.width<=box.availableWidth+1&&box.height<=box.availableHeight+1,`${file} (${width}px): logo must fit within its padded container without clipping`);
+      }
+    }
     assert.deepEqual(brandErrors,[],'Nested static brand pages must resolve all links and assets');
     await brandContext.close();
     console.log('Static release cache, legacy browser data, PNG icons and mobile media checks passed.');

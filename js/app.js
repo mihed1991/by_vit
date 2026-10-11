@@ -4454,7 +4454,7 @@
         <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
       </label>
       <button class="btn btn-light small" data-brand-image-clear type="button">Убрать логотип</button>
-      <p class="admin-hint">Рекомендуемый размер файла: 600×320 px — один логотип для десктопа и мобильной версии. Формат: SVG или PNG/WebP с настоящим прозрачным фоном, без фоновой шахматки. Логотип должен занимать основную часть холста, без больших пустых полей. Блок на странице бренда: 180×96 px на десктопе и 96×56 px на мобильном. Изображение показывается целиком, без обрезки.</p>
+      <p class="admin-hint">Универсальный файл логотипа: 600×320 px, пропорции холста 15:8. Один файл используется на главной, в списке брендов и на странице бренда — в десктопной и мобильной версиях. Предпочтителен SVG с viewBox по границам логотипа; для PNG/WebP нужен настоящий прозрачный фон, без фоновой шахматки. Сохраняйте пропорции знака: не растягивайте его под холст. Оставляйте лишь небольшие поля, примерно 5% от края. Сайт вписывает изображение целиком, без обрезки и искажения; отдельные мобильные файлы не нужны.</p>
       <label class="admin-input-field"><span>Название страницы (необязательно)</span><input data-brand-profile="heading" value="${esc(profile.heading || '')}" placeholder="${esc(brand)}"></label>
       <label class="admin-input-field"><span>Краткое описание — 2–3 строки</span><textarea data-brand-profile="summary">${esc(profile.summary || '')}</textarea></label>
       <label class="admin-input-field"><span>Подробное описание — раскрывается по нажатию. Разделяйте абзацы пустой строкой</span><textarea data-brand-profile="description">${esc(profile.description || '')}</textarea></label>
