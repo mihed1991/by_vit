@@ -6,7 +6,10 @@
 .blog-topics [aria-current],.blog-pagination [aria-current] {border-color:var(--green);background:var(--green);color:var(--white)}
 .blog-topic-picker {display:none;gap:8px;max-width:480px;margin-bottom:24px}
 .blog-topic-picker label {font-size:14px;color:var(--green);font-weight:600}
-.blog-topic-picker select {width:100%;min-width:0;min-height:44px;padding:8px 40px 8px 12px;border:1px solid var(--line);border-radius:2px;background-color:var(--white);color:var(--green);font:inherit;font-size:16px}
+.blog-topic-control {position:relative;display:block;min-width:0;color:var(--green)}
+.blog-topic-picker select {display:block;appearance:none;-webkit-appearance:none;width:100%;min-width:0;min-height:44px;padding:8px 48px 8px 12px;border:1px solid var(--line);border-radius:2px;background-color:var(--white);background-image:none;color:var(--green);font:inherit;font-size:16px}
+.blog-topic-chevron {position:absolute;top:50%;right:16px;width:20px;height:20px;transform:translateY(-50%);fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+@media(forced-colors:active){.blog-topic-picker select{appearance:auto;-webkit-appearance:auto}.blog-topic-chevron{display:none}}
 .blog-topic-picker.is-many {display:grid}
 .blog-topics.is-many,.blog-topic-picker.is-enhanced .blog-topic-apply {display:none}
 .blog-results {margin:0 0 16px;font-size:14px;color:var(--muted);line-height:1.5}

@@ -132,6 +132,19 @@ async function main(){
     await page.locator('.home-blog-mobile .section-head').scrollIntoViewIfNeeded();
     if(screenshotDir)await page.screenshot({path:path.join(screenshotDir,'blog-home-mobile-viewport.png')});
     await page.goto('/blog.html');await page.locator('#blogTopic').waitFor({state:'visible'});
+    assert.deepEqual(await page.locator('#blogTopic option').allTextContents(),['Все статьи','Выбор добавок','Покупка и доставка']);
+    for(const width of [320,356,390,760]){
+      await page.setViewportSize({width,height:720});
+      const arrow=await page.locator('.blog-topic-control').evaluate(control=>{
+        const select=control.querySelector('select'),svg=control.querySelector('svg'),s=select.getBoundingClientRect(),r=svg.getBoundingClientRect();
+        return {appearance:getComputedStyle(select).appearance,background:getComputedStyle(select).backgroundImage,gap:s.right-r.right,centerOffset:(s.top+s.bottom-r.top-r.bottom)/2,size:r.width,pointerEvents:getComputedStyle(svg).pointerEvents};
+      });
+      assert.equal(arrow.appearance,'none');assert.equal(arrow.background,'none');assert.equal(arrow.pointerEvents,'none');
+      assert.ok(Math.abs(arrow.gap-16)<1 && Math.abs(arrow.centerOffset)<1);assert.equal(arrow.size,20);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Rubric selector must not overflow at '+width);
+      if(screenshotDir && width===356)await page.screenshot({path:path.join(screenshotDir,'blog-topic-selector-356.png')});
+    }
+    await page.setViewportSize({width:390,height:844});
     assert.equal(await page.locator('.blog-topics').isVisible(),false);
     await page.locator('#blogTopic').selectOption('Покупка и доставка');
     await page.locator('.blog-card').first().waitFor();assert.equal(await page.locator('.blog-card').count(),1);
