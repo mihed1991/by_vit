@@ -19,7 +19,7 @@
 - Density: comfortable
 - Motion: none for editorial content; existing shop motion unchanged
 - Imagery/data role: article covers support topic discovery; catalog cards retain live prices
-- Signature move: readable article aligned with the logo on desktop, compact related-article column on the right, compact contents, then selected catalog products
+- Signature move: readable article aligned with the logo on desktop, full blog cards on the right, compact contents, then selected catalog products
 - Locked: 2026-10-11
 
 ## Bounded brand and product constraints
@@ -31,6 +31,7 @@ Blog discovery: three/two/one columns at desktop/tablet/mobile; card titles belo
 Article: maximum 740px text measure; 16–18px body; no catalog sidebar, comments,
 newsletter or AI controls. Admin uses its existing form/layout conventions.
 Above 1100px, align the article to the main container left edge and reuse the existing
-related articles as a compact right column. At 1100px and below keep the original
+related articles as a right column of full blog cards with cover, description and reading link.
+Reuse the same card styling as the blog listing. At 1100px and below keep the original
 single reading column and related articles beneath it. Routes, data and editor stay unchanged.
 Empty, missing article, keyboard focus and safe preview states are required.

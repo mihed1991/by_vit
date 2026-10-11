@@ -75,13 +75,7 @@
  .article-shell #articleRelated > .article-related{grid-column:1 / -1;grid-row:2;min-width:0}
  .article-shell #articleRelated > .article-recommendations{grid-column:2;grid-row:1;margin-top:0;padding-top:0;border-top:0}
  .article-recommendations > h2{font-size:22px;margin-bottom:20px}
- .article-recommendations .blog-grid{grid-template-columns:minmax(0,1fr);gap:16px}
- .article-recommendations .blog-card{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:start;gap:16px;padding:16px}
- .article-recommendations .blog-card-copy{padding:0;gap:8px}
- .article-recommendations .blog-meta{gap:4px 12px}
- .article-recommendations .blog-card h2{font-size:16px;line-height:1.4}
- .article-recommendations .blog-card p{display:none}
- .article-recommendations .blog-card-read{padding-top:4px;font-size:12px}
+ .article-recommendations .blog-grid{grid-template-columns:minmax(0,1fr);gap:24px}
 }
 .article-missing {max-width:740px;margin:48px auto}
 .blog-card:focus-visible,.blog-topics a:focus-visible,.blog-pagination a:focus-visible,.article-contents summary:focus-visible,.article-contents a:focus-visible {outline:2px solid var(--green);outline-offset:4px}

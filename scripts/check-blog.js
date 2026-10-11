@@ -74,12 +74,20 @@ async function main(){
     assert.ok(page.url().includes('#section-'));
     await page.locator('[data-action="cart"][data-id="1"]').first().click();
     assert.equal(await page.locator('[data-action="cart"][data-id="1"]').first().getAttribute('aria-pressed'),'true');
+    const cardStyle=card=>{
+      const properties=['display','flexDirection','padding','gap','fontSize','lineHeight','aspectRatio','borderTopWidth','borderTopColor'];
+      return Object.fromEntries(['',' .blog-card-cover',' .blog-card-copy',' h2',' p',' .blog-card-read'].map(selector=>{
+        const node=selector?card.querySelector(selector.trim()):card,s=getComputedStyle(node);
+        return [selector,Object.fromEntries(properties.map(property=>[property,s[property]]))];
+      }));
+    };
     for(const width of [320,390,760,820,1100,1101,1146,1384,1440]){
       await page.setViewportSize({width,height:900});
       await page.goto('/blog.html');await page.locator('.blog-card').first().waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Blog must not overflow at '+width);
       const columns=await page.locator('.blog-grid').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length);
       assert.equal(columns,width<=760?1:width<=1100?2:3);
+      const listingCardStyle=await page.locator('.blog-card').first().evaluate(cardStyle);
       if(screenshotDir && [390,1440].includes(width)){fs.mkdirSync(screenshotDir,{recursive:true});await page.screenshot({path:path.join(screenshotDir,`blog-${width}.png`),fullPage:true});}
       await page.goto('/article.html?id='+slug);await page.locator('.article-prose').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Article must not overflow at '+width);
@@ -90,6 +98,8 @@ async function main(){
         return {article:bounds(article),side:bounds(side),related:bounds(related),logo:bounds(logo)};
       });
       assert.equal(await page.locator('.article-recommendations .blog-card').count(),2,'Current article must be excluded from recommendations');
+      assert.deepEqual(await page.locator('.article-recommendations .blog-card').first().evaluate(cardStyle),listingCardStyle,'Recommendation cards must reuse the full listing design at '+width);
+      assert.equal(await page.locator('.article-recommendations .blog-card p').first().isVisible(),true,'Card description remains visible');
       if(width>1100){
         assert.ok(Math.abs(articleLayout.article.left-articleLayout.logo.left)<1,'Desktop article must align with the logo');
         assert.ok(articleLayout.side.left>articleLayout.article.right,'Other articles must occupy the right column');

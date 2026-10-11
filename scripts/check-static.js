@@ -187,6 +187,13 @@ async function main(){
       });
       assert.ok(layout.width<=740);
       assert.equal(await blogPage.locator('.article-recommendations .blog-card').count(),2);
+      assert.equal(await blogPage.locator('.article-recommendations .blog-card p').first().isVisible(),true,'Published sidebar cards keep their descriptions');
+      const fullCard=await blogPage.locator('.article-recommendations .blog-card').first().evaluate(card=>{
+        const image=card.querySelector('.blog-card-cover').getBoundingClientRect(),copy=card.querySelector('.blog-card-copy').getBoundingClientRect();
+        return {width:card.getBoundingClientRect().width,coverWidth:image.width,coverBottom:image.bottom,copyTop:copy.top};
+      });
+      assert.ok(Math.abs(fullCard.width-fullCard.coverWidth-2)<1,'Cover spans the full card instead of being a thumbnail');
+      assert.ok(fullCard.copyTop>=fullCard.coverBottom,'Card text sits below the large cover');
       if(width>1100){
         assert.ok(Math.abs(layout.left-layout.logoLeft)<1,'Published article aligns with logo at '+width);
         assert.ok(layout.sideLeft>layout.right && Math.abs(layout.sideTop-layout.top)<1,'Published recommendations occupy the right column');
