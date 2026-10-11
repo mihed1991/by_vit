@@ -265,9 +265,9 @@
     try{
       const source = value || '/';
       if(window.BYVIT_STATIC === true && String(source).startsWith('/')){
-        return new URL(String(source).slice(1), new URL('.', location.href)).href;
+        return new URL(String(source).slice(1), new URL('.', document.baseURI)).href;
       }
-      return new URL(source, location.href).href;
+      return new URL(source, document.baseURI).href;
     }
     catch(error){ return String(value || ''); }
   }
@@ -965,6 +965,7 @@
     merged.homeLayoutVersion = Math.max(3, Number(site?.homeLayoutVersion || 1));
     merged.goals = normalizeGoals(site, defaults);
     merged.brandImages = normalizeBrandImages(site, defaults);
+    merged.brandProfiles = window.ByVitBrands.normalizeProfiles({...defaults.brandProfiles,...site?.brandProfiles});
     merged.mobileHome = normalizeMobileHome(merged, defaults);
     merged.heroMetrics = normalizeHeroMetrics(site, defaults);
     merged.storeBlocks = normalizeStoreBlocks(site, defaults);
@@ -1142,10 +1143,45 @@
     return selected.slice(0, limit);
   }
   function categoryName(id){ return (getCategories().find(c => c.id === id) || {}).name || id || 'Категория'; }
-  function brands(){ return [...new Set(getProducts().map(p => p.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); }
+  function brandProfiles(){ return window.ByVitBrands.list(getProducts(),getSite()); }
+  function brands(){ return brandProfiles().map(brand => brand.name); }
+  function brandHref(brand){ return window.BYVIT_STATIC === true ? `brands/${encodeURIComponent(brand.id)}.html` : `brand.html?id=${encodeURIComponent(brand.id)}`; }
+  function activeBrand(){
+    if(document.body.dataset.page !== 'brand') return null;
+    const id = window.BYVIT_BRAND_ID || new URLSearchParams(location.search).get('id');
+    return brandProfiles().find(brand => brand.id === id) || null;
+  }
+  function brandProducts(){ return getProducts().filter(product => String(product.brand || '').trim() === activeBrand()?.name); }
+  function renderBrandPage(){
+    const brand = activeBrand();
+    const hero = $('#brandHero');
+    if(!brand){
+      hero.innerHTML = '<div class="breadcrumbs"><a href="index.html">Главная</a> / <a href="brands.html">Бренды</a></div><h1>Бренд не найден</h1><p>Возможно, ссылка устарела.</p>';
+      $('.brand-catalog-section').innerHTML = '<div class="container"><div class="empty-state"><a class="btn btn-primary" href="brands.html">Все бренды</a></div></div>';
+      document.title = 'Бренд не найден | BYVIT';
+      ensureMeta('robots','noindex, nofollow');
+      return;
+    }
+    const image = getSite().brandImages?.[brand.name];
+    hero.innerHTML = window.ByVitBrands.hero(brand,image);
+    const logo = $('.brand-page-logo img',hero);
+    if(logo){
+      const hide = () => { logo.closest('.brand-page-logo').hidden = true; };
+      logo.addEventListener('error',hide,{once:true});
+      if(logo.complete && !logo.naturalWidth) hide();
+    }
+    document.title = brand.seoTitle;
+    ensureMeta('description',brand.seoDescription);
+    ensureMeta('robots','index, follow, max-image-preview:large');
+    const url = `/${brandHref(brand)}`;
+    ensureCanonical(url);
+    applySocialMeta({title:brand.seoTitle,description:brand.seoDescription,url,image:image?.src || image || 'assets/hero-share.jpg'});
+    setStructuredData('seo-brand',{'@context':'https://schema.org','@type':'CollectionPage',name:brand.heading,url:absoluteUrl(url),description:brand.seoDescription,about:{'@type':'Brand',name:brand.name}});
+    renderCatalog();
+  }
   function brandCardHtml(brand, site=getSite()){
     const image = normalizeBrandImageValue(site.brandImages?.[brand] || '');
-    return `<a href="catalog.html?brand=${encodeURIComponent(brand)}" class="brand-card ${image.src ? 'has-image' : ''}">
+    return `<a href="${esc(brandHref(brandProfiles().find(item => item.name === brand)))}" class="brand-card ${image.src ? 'has-image' : ''}">
       <div class="brand-media" style="${esc(brandImageStyle(image))}">${image.src ? `<img src="${esc(image.src)}" alt="${esc(brand)}" decoding="async" data-brand-logo>` : `<div class="brand-letter" title="${esc(brand)}">${esc(brand)}</div>`}</div>
     </a>`;
   }
@@ -1284,7 +1320,7 @@
   }
   function setActiveNav(){
     const current = currentPageHref();
-    $$('[data-nav]').forEach(a => a.classList.toggle('active', a.getAttribute('href') === (current === 'goal.html' ? 'goals.html' : current)));
+    $$('[data-nav]').forEach(a => a.classList.toggle('active', a.getAttribute('href') === (document.body.dataset.page === 'brand' ? 'brands.html' : current === 'goal.html' ? 'goals.html' : current)));
   }
   function updateCounts(){
     const cartQty = getCart().reduce((sum,item)=>sum + Number(item.qty || 0),0);
@@ -3063,7 +3099,7 @@
   }
 
   function filterProducts(){
-    let list = document.body.dataset.page === 'goal' ? goalProducts(activeGoal()) : getProducts();
+    let list = document.body.dataset.page === 'goal' ? goalProducts(activeGoal()) : document.body.dataset.page === 'brand' ? brandProducts() : getProducts();
     const params = new URLSearchParams(location.search);
     const filters = $('#catalogFilters');
     const searchInput = $('#catalogSearch');
@@ -3096,10 +3132,10 @@
   }
 
   function syncCatalogUrl(){
-    if(!['catalog','goal'].includes(document.body.dataset.page)) return;
+    if(!['catalog','goal','brand'].includes(document.body.dataset.page)) return;
     const params = new URLSearchParams();
     const currentParams = new URLSearchParams(location.search);
-    if(document.body.dataset.page === 'goal' && currentParams.has('id')) params.set('id', currentParams.get('id'));
+    if(['goal','brand'].includes(document.body.dataset.page) && !window.BYVIT_BRAND_ID && currentParams.has('id')) params.set('id', currentParams.get('id'));
     const q = $('#catalogSearch')?.value.trim() ?? currentParams.get('q');
     const sort = $('#catalogSort')?.value || 'default';
     const recommendationTag = currentParams.get('tag');
@@ -3120,7 +3156,7 @@
   }
 
 	function catalogFlavors(){
-	  return [...new Set(getProducts().flatMap(product => product.flavors || []).filter(Boolean))]
+	  return [...new Set((document.body.dataset.page === 'brand' ? brandProducts() : getProducts()).flatMap(product => product.flavors || []).filter(Boolean))]
 	    .sort((a,b)=>a.localeCompare(b,'ru'));
 	}
 	function catalogFilterOption(name, value, label, activeValues){
@@ -3135,6 +3171,8 @@
 	  const activeCategories = params.getAll('category');
 	  const activeBrands = params.getAll('brand');
 	  const activeFlavors = params.getAll('flavor');
+	  const onBrandPage = document.body.dataset.page === 'brand';
+	  const availableCategories = onBrandPage ? getCategories().filter(category => brandProducts().some(product => product.category === category.id)) : getCategories();
 	  root.innerHTML = `
 	    <div class="catalog-filter-row">
 	      <details class="catalog-filter-menu catalog-filter-menu-all" data-filter-menu>
@@ -3143,7 +3181,7 @@
 	          <fieldset class="catalog-filter-group">
 	            <legend>Категории</legend>
 	            <div class="catalog-filter-options catalog-filter-options-categories">
-	              ${getCategories().map(category => catalogFilterOption('category', category.id, category.name, activeCategories)).join('')}
+              ${availableCategories.map(category => catalogFilterOption('category', category.id, category.name, activeCategories)).join('')}
 	            </div>
 	          </fieldset>
 	          <fieldset class="catalog-filter-group">
@@ -3160,23 +3198,23 @@
 	          <button class="catalog-filter-reset" type="button" data-clear-filters>Сбросить фильтры</button>
 	        </div>
 	      </details>
-	      <details class="catalog-filter-menu" data-filter-menu>
+	      ${onBrandPage ? '' : `<details class="catalog-filter-menu" data-filter-menu>
 	        <summary>Производитель <span class="catalog-filter-count" data-filter-count="brand" hidden></span></summary>
 	        <div class="catalog-filter-popover">
 	          <div class="catalog-filter-options">
 	            ${brands().map(brand => catalogFilterOption('brand', brand, brand, activeBrands)).join('')}
 	          </div>
 	        </div>
-	      </details>
-	      <details class="catalog-filter-menu" data-filter-menu>
+	      </details>`}
+	      ${!onBrandPage || catalogFlavors().length ? `<details class="catalog-filter-menu" data-filter-menu>
 	        <summary>Вкус <span class="catalog-filter-count" data-filter-count="flavor" hidden></span></summary>
 	        <div class="catalog-filter-popover">
 	          <div class="catalog-filter-options">
 	            ${catalogFlavors().map(flavor => catalogFilterOption('flavor', flavor, flavor, activeFlavors)).join('')}
 	          </div>
 	        </div>
-	      </details>
-	      <a class="catalog-filter-all-link" href="catalog.html">Все товары</a>
+	      </details>` : ''}
+	      <a class="catalog-filter-all-link" href="${onBrandPage ? 'brands.html' : 'catalog.html'}">${onBrandPage ? 'Все бренды' : 'Все товары'}</a>
 	    </div>
 	    <div class="catalog-active-filters" data-active-filters hidden aria-live="polite"></div>`;
 	}
@@ -3346,6 +3384,10 @@
     if(!list.length && document.body.dataset.page === 'goal'){
       const hasProducts = goalProducts(activeGoal()).length > 0;
       $('#catalogProducts').innerHTML = `<div class="empty-state"><h2>${hasProducts ? 'По этим фильтрам товаров нет' : 'Подборка пока пустая'}</h2><p>${hasProducts ? 'Измените условия или сбросьте фильтры.' : 'Товары для этой цели ещё не добавлены. Можно выбрать другую цель или перейти в каталог.'}</p><a class="btn btn-primary" href="${hasProducts ? `goal.html?id=${encodeURIComponent(activeGoal().id)}` : 'goals.html'}">${hasProducts ? 'Сбросить фильтры' : 'Выбрать другую цель'}</a><a class="btn btn-outline" href="catalog.html">Открыть каталог</a></div>`;
+    }
+    if(!list.length && document.body.dataset.page === 'brand'){
+      const hasProducts = brandProducts().length > 0;
+      $('#catalogProducts').innerHTML = `<div class="empty-state"><h2>${hasProducts ? 'По этим фильтрам товаров нет' : 'Товары бренда скоро появятся'}</h2><p>${hasProducts ? 'Измените условия или сбросьте фильтры.' : 'Посмотрите другие бренды или весь каталог.'}</p><a class="btn btn-primary" href="${hasProducts ? esc(brandHref(activeBrand())) : 'brands.html'}">${hasProducts ? 'Сбросить фильтры' : 'Все бренды'}</a></div>`;
     }
     const pagination = $('#catalogPagination');
     if(!pagination) return;
@@ -4396,6 +4438,8 @@
   }
   function brandImageEditor(brand, image='', index=0){
     const settings = normalizeBrandImageValue(image);
+    const profile = getSite().brandProfiles?.[brand] || {};
+    const identity = brandProfiles().find(item => item.name === brand);
     return `<article class="admin-block-editor brand-image-editor" data-brand-image-key="${esc(brand)}">
       <div class="admin-block-head">
         <h4>${esc(brand)}</h4>
@@ -4410,6 +4454,16 @@
         <input data-brand-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml">
       </label>
       <button class="btn btn-light small" data-brand-image-clear type="button">Убрать логотип</button>
+      <p class="admin-hint">Логотип: SVG или PNG/WebP с прозрачным фоном, рекомендуемый холст 600×320 px. Изображение показывается целиком, без обрезки.</p>
+      <label class="admin-input-field"><span>Название страницы (необязательно)</span><input data-brand-profile="heading" value="${esc(profile.heading || '')}" placeholder="${esc(brand)}"></label>
+      <label class="admin-input-field"><span>Краткое описание — 2–3 строки</span><textarea data-brand-profile="summary">${esc(profile.summary || '')}</textarea></label>
+      <label class="admin-input-field"><span>Подробное описание — раскрывается по нажатию. Разделяйте абзацы пустой строкой</span><textarea data-brand-profile="description">${esc(profile.description || '')}</textarea></label>
+      <details class="admin-goal-details"><summary>SEO-настройки</summary>
+        <label class="admin-input-field"><span>Title (необязательно)</span><input data-brand-profile="seoTitle" value="${esc(profile.seoTitle || '')}"></label>
+        <label class="admin-input-field"><span>SEO-описание (необязательно)</span><textarea data-brand-profile="seoDescription">${esc(profile.seoDescription || '')}</textarea></label>
+      </details>
+      <a class="btn btn-outline small" href="${esc(brandHref(identity))}" target="_blank" rel="noopener">Открыть страницу бренда</a>
+      <p class="admin-hint">Предпросмотр открывает сохранённые настройки. На GitHub Pages изменения появляются после публикации сборки.</p>
     </article>`;
   }
   function storeBlockEditor(block={}, index=0){
@@ -5591,6 +5645,7 @@
     event.preventDefault();
     const site = getSite();
     site.brandImages = collectBrandImages(site.brandImages || {});
+    site.brandProfiles = {...site.brandProfiles,...Object.fromEntries($$('[data-brand-image-key]').map(card => [card.dataset.brandImageKey,Object.fromEntries(window.ByVitBrands.fields.map(field => [field,$(`[data-brand-profile="${field}"]`,card)?.value.trim() || '']))]))};
     saveSite(site);
     renderAdminSite();
     toast('Бренды сохранены');
@@ -6278,6 +6333,7 @@
     const page = document.body.dataset.page;
     if(page === 'home') renderHome();
     if(page === 'catalog') renderCatalogProducts();
+    if(page === 'brand') renderCatalogProducts();
     if(page === 'sale') renderSale();
     if(page === 'wishlist') renderWishlist();
     if(page === 'compare') renderCompare();
@@ -6574,6 +6630,7 @@
     if(page === 'sale') renderSale();
     if(page === 'wishlist') renderWishlist();
     if(page === 'brands') renderBrands();
+    if(page === 'brand') renderBrandPage();
     if(page === 'compare') renderCompare();
     if(page === 'delivery') renderDeliveryPage();
     if(page === 'stores') renderStores();

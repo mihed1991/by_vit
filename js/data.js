@@ -218,6 +218,7 @@
 	      homeGalleryStoryButtonUrl:'stores.html',
 	      homeGallery:[],
 	      brandImages:{},
+	      brandProfiles:{},
 	      mobileHome:{
 	        heroEyebrow:'Больше, чем добавки ───',heroTitle:'Результаты начинаются здесь',heroText:'Оригинальные добавки для твоих целей.',heroButtonText:'К покупкам',
 	        productsTitle:'Популярные товары',productsLinkText:'Смотреть все →',goalsEyebrow:'── Твои цели — наши решения',goalsTitle:'Подбери добавки под свою цель',

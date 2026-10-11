@@ -8,6 +8,7 @@ const { createStorage } = require('./lib/storage');
 const { createMedia } = require('./lib/media');
 const { createMoySkladClient, mappingFor } = require('./lib/moysklad');
 const { createEuropostClient } = require('./lib/europost');
+const brandUtils = require('./js/brand-utils');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -82,7 +83,7 @@ const ALLOWED_ORIGINS = new Set(String(process.env.BYVIT_ALLOWED_ORIGINS || '').
 const PUBLIC_HTML_FILES = new Set([
   '/index.html', '/about.html', '/admin.html', '/brands.html', '/cart.html', '/catalog.html',
   '/compare.html', '/delivery.html', '/faq.html', '/product.html', '/sale.html', '/stores.html',
-  '/wishlist.html', '/goals.html', '/goal.html'
+  '/wishlist.html', '/goals.html', '/goal.html', '/brand.html'
 ]);
 const PUBLIC_ASSET_PREFIXES = ['/assets/', '/css/', '/js/'];
 let moyskladSyncTimer = null;
@@ -409,6 +410,21 @@ async function injectServerMetadata(source, pathname, searchParams, req) {
     } else {
       robots = 'noindex, nofollow';
     }
+  } else if (pathname === '/brand.html') {
+    const store = await loadStore();
+    const id = String(searchParams.get('id') || '');
+    const brand = brandUtils.list(store.products,store.site).find(item => item.id === id);
+    if(brand){
+      canonical.searchParams.set('id',id);
+      title = brand.seoTitle;
+      description = brand.seoDescription;
+      const logo = store.site.brandImages?.[brand.name];
+      image = new URL(logo?.src || logo || 'assets/hero-share.jpg',base).href;
+      source = source.replace(/<title>[\s\S]*?<\/title>/i,()=>`<title>${xmlEscape(title)}</title>`)
+        .replace(/<meta\s+name="description"\s+content="[^"]*"\s*>/i,()=>htmlMetadataTag({name:'description',content:description}))
+        .replace(/<!-- BRAND_HERO_START -->[\s\S]*?<!-- BRAND_HERO_END -->/,()=>`<!-- BRAND_HERO_START -->${brandUtils.hero(brand,logo)}<!-- BRAND_HERO_END -->`);
+      structuredData = {'@context':'https://schema.org','@type':'CollectionPage',name:brand.heading,url:canonical.href,description,about:{'@type':'Brand',name:brand.name}};
+    }else{ robots = 'noindex, nofollow'; }
   } else if (pathname === '/goal.html') {
     const store = await loadStore();
     const id = String(searchParams.get('id') || '');
@@ -476,7 +492,8 @@ async function handleSeoFile(req, res) {
     ];
     const productPages = store.products.map(product => `/product.html?id=${encodeURIComponent(product.id)}`);
     const goalPages = (store.site.goals || []).filter(goal => goal.enabled !== false).map(goal => `/goal.html?id=${encodeURIComponent(goal.id)}`);
-    const entries = [...staticPages, ...productPages, ...goalPages].map(pathname =>
+    const brandPages = brandUtils.list(store.products,store.site).map(brand => `/brand.html?id=${encodeURIComponent(brand.id)}`);
+    const entries = [...staticPages, ...productPages, ...goalPages, ...brandPages].map(pathname =>
       `  <url><loc>${xmlEscape(new URL(pathname, origin).href)}</loc></url>`
     ).join('\n');
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;

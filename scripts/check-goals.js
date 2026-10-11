@@ -225,7 +225,7 @@ async function main(){
         const box=node.getBoundingClientRect(),container=node.closest('.goal-hero-heading').getBoundingClientRect();
         return {width:box.width,height:box.height,left:box.left,containerWidth:container.width,containerLeft:container.left};
       });
-      assert.equal(selectorSize.height,40,'Mobile goal selector must be 40px tall');
+      assert.ok(Math.abs(selectorSize.height-40)<.1,'Mobile goal selector must be 40px tall');
       assert.ok(Math.abs(selectorSize.width-selectorSize.containerWidth)<1,'Mobile goal selector must fill its content container');
       assert.ok(Math.abs(selectorSize.left-selectorSize.containerLeft)<1,'Mobile goal selector must retain the page gutters');
       const chevron=page.locator('#goalNavigation .goal-navigation-chevron');

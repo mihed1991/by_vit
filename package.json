@@ -10,6 +10,7 @@
     "check:api": "node scripts/check-api.js",
     "check:e2e": "node scripts/check-e2e.js",
     "check:goals": "node scripts/check-goals.js",
+    "check:brands": "node scripts/check-brands.js",
     "check:static": "node scripts/check-static.js",
     "check:production": "NODE_ENV=production node scripts/check-production.js",
     "backup:data": "node scripts/backup-data.js",

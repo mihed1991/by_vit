@@ -54,6 +54,9 @@ jobs:
       - name: Verify goal selections and admin persistence
         run: npm run check:goals
 
+      - name: Verify brand pages and admin persistence
+        run: npm run check:brands
+
       - name: Build public storefront
         env:
           BYVIT_PUBLIC_URL: https://mihed1991.github.io/by_vit/

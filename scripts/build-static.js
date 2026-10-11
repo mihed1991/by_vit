@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const brandUtils = require('../js/brand-utils');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
@@ -10,6 +11,7 @@ const pages = [
   'index.html',
   'about.html',
   'brands.html',
+  'brand.html',
   'cart.html',
   'catalog.html',
   'goals.html',
@@ -114,6 +116,37 @@ function defaultProducts() {
   return sandbox.window.ByVitDefaults?.products || [];
 }
 
+function defaultBrandData(){
+  const sandbox = {window:{},encodeURIComponent};
+  vm.runInNewContext(fs.readFileSync(path.join(root,'js/data.js'),'utf8'),sandbox);
+  const defaults = sandbox.window.ByVitDefaults;
+  return {site:defaults.site,brands:brandUtils.list(defaults.products,defaults.site)};
+}
+
+function writeBrandPages(){
+  const {site,brands} = defaultBrandData();
+  const template = fs.readFileSync(path.join(output,'brand.html'),'utf8');
+  fs.mkdirSync(path.join(output,'brands'),{recursive:true});
+  for(const brand of brands){
+    const relative = `brands/${encodeURIComponent(brand.id)}.html`;
+    const url = new URL(relative,publicUrl).href;
+    const logo = site.brandImages?.[brand.name];
+    let html = template.replace('<head>','<head>\n  <base href="../">')
+      .replace('window.BYVIT_STATIC = true;',`window.BYVIT_STATIC = true; window.BYVIT_BRAND_ID = ${JSON.stringify(brand.id).replace(/</g,'\\u003c')};`)
+      .replace(/<title>[\s\S]*?<\/title>/,()=>`<title>${escapeHtml(brand.seoTitle)}</title>`)
+      .replace(/<meta\s+name="description"\s+content="[^"]*"\s*>/,()=>`<meta name="description" content="${escapeHtml(brand.seoDescription)}">`)
+      .replace(/<link rel="canonical" href="[^"]*">/,()=>`<link rel="canonical" href="${escapeHtml(url)}">`)
+      .replace(/<meta property="og:title" content="[^"]*">/,()=>`<meta property="og:title" content="${escapeHtml(brand.seoTitle)}">`)
+      .replace(/<meta property="og:description" content="[^"]*">/,()=>`<meta property="og:description" content="${escapeHtml(brand.seoDescription)}">`)
+      .replace(/<meta property="og:url" content="[^"]*">/,()=>`<meta property="og:url" content="${escapeHtml(url)}">`)
+      .replace('</head>',()=>`<meta name="twitter:title" content="${escapeHtml(brand.seoTitle)}"><meta name="twitter:description" content="${escapeHtml(brand.seoDescription)}"><script id="seo-brand" type="application/ld+json">${JSON.stringify({'@context':'https://schema.org','@type':'CollectionPage',name:brand.heading,url,description:brand.seoDescription,about:{'@type':'Brand',name:brand.name}}).replace(/</g,'\\u003c')}</script></head>`)
+      .replace(/<!-- BRAND_HERO_START -->[\s\S]*?<!-- BRAND_HERO_END -->/,()=>`<!-- BRAND_HERO_START -->${brandUtils.hero(brand,logo)}<!-- BRAND_HERO_END -->`);
+    html = versionReferences(html);
+    // URI-encode links, but retain Unicode filesystem names as requested by HTTP decoding.
+    fs.writeFileSync(path.join(output,'brands',`${brand.id}.html`),html);
+  }
+}
+
 function writeSeoFiles() {
   const sitemapUrl = new URL('sitemap.xml', publicUrl).href;
   const robots = `User-agent: *\nAllow: /\nDisallow: /admin.html\nDisallow: /cart.html\nDisallow: /wishlist.html\nDisallow: /compare.html\nSitemap: ${sitemapUrl}\n`;
@@ -122,6 +155,7 @@ function writeSeoFiles() {
   const indexablePages = ['index.html', 'catalog.html', 'goals.html', 'brands.html', 'sale.html', 'delivery.html', 'stores.html', 'about.html', 'faq.html'];
   const paths = indexablePages.map(file => file === 'index.html' ? './' : file);
   defaultProducts().forEach(product => paths.push(`product.html?id=${encodeURIComponent(product.id)}`));
+  defaultBrandData().brands.forEach(brand => paths.push(`brands/${encodeURIComponent(brand.id)}.html`));
   const urls = paths.map(value => `  <url><loc>${escapeHtml(new URL(value, publicUrl).href)}</loc></url>`).join('\n');
   fs.writeFileSync(path.join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
 }
@@ -132,6 +166,7 @@ fs.mkdirSync(output, { recursive: true });
 ['assets', 'css', 'js'].forEach(copyDirectory);
 prepareResources();
 pages.forEach(prepareHtml);
+writeBrandPages();
 writeSeoFiles();
 
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
