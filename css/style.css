@@ -21,13 +21,33 @@
 .search-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 24px; }
 .search-examples :is(button,a) { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 0; background: var(--white); color: var(--green); font: inherit; font-size: 14px; text-decoration: none; overflow-wrap: anywhere; cursor: pointer; }
 .search-examples :is(button,a):hover { border-color: var(--green); }
-.search-goal-context { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; margin-bottom: 16px; }
-.search-goal-context p { margin: 0; }
-.search-goal-context details { flex: 1 1 180px; }
-.search-goal-context summary { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 44px; padding: 10px 0; color: var(--green); cursor: pointer; list-style: none; }
+.search-goal-context { display: block; margin-bottom: 16px; }
+.search-goal-context details { position: relative; }
+.search-goal-context summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; width: 100%; min-height: 44px; padding: 0; cursor: pointer; list-style: none; }
+.search-goal-label { min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
+.search-goal-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 0; color: var(--green); }
+.search-goal-context details > summary:focus-visible { outline: none; }
+.search-goal-context summary:focus-visible .search-goal-toggle { outline: 2px solid var(--green); outline-offset: 3px; }
 .search-goal-context summary::-webkit-details-marker { display: none; }
 .search-goal-context summary svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .search-goal-context details[open] summary svg { transform: rotate(180deg); }
+.search-goal-list { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; max-height: min(288px, 45dvh); margin: 8px 0 16px; border: 0; border-top: 1px solid var(--line); background: transparent; overflow-y: auto; overscroll-behavior: contain; }
+.search-goal-list a { display: flex; align-items: center; min-height: 44px; min-width: 0; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 15px; line-height: 1.5; text-decoration: none; overflow-wrap: anywhere; }
+.search-goal-list a[aria-current] { color: var(--green); font-weight: 600; }
+.search-goal-list a:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
+.search-goal-list a:active { color: var(--green); }
+@media (max-width: 760px) {
+  .search-goal-context summary { flex-direction: column; align-items: flex-start; }
+  .search-goal-list a { padding: 0 10px; }
+  .search-goal-list a[aria-current] { font-weight: 400; }
+}
+@media (min-width: 761px) {
+  .search-goal-list { display: flex; flex-wrap: wrap; gap: 0 16px; position: static; width: 100%; max-height: none; margin: 8px 0; border: 0; background: transparent; box-shadow: none; overflow: visible; }
+  .search-goal-list a { padding: 0; border: 0; font-size: 16px; }
+  .search-goal-list a[aria-current] { font-weight: 400; }
+  .search-goal-list a:focus-visible { outline-offset: 3px; }
+}
+@media (min-width: 761px) and (hover: hover) and (pointer: fine) { .search-goal-list a:hover { color: var(--green); background: transparent; text-decoration: underline; text-underline-offset: 3px; } }
 .search-query-note { margin: 0 0 16px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .catalog-search-state { margin: 16px 0; }
 .catalog-search-state[hidden], [data-goal-search-rule][hidden] { display: none; }

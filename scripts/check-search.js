@@ -80,6 +80,74 @@ async function browserCheck(){
     const input=page.locator('[data-overlay-search-input]');
     const screenshots=process.env.BYVIT_E2E_SCREENSHOTS;
     if(screenshots)fs.mkdirSync(screenshots,{recursive:true});
+    const checkGoalDropdown=async(root)=>{
+      const details=root.locator('.search-goal-context details');
+      const summary=details.locator('summary');
+      const results=root.locator('.header-result-link').first();
+      const initialTop=await results.count() ? await results.evaluate(node=>node.offsetTop) : null;
+      await summary.click();
+      const list=details.locator('.search-goal-list');
+      await list.waitFor();
+      assert.equal(await details.locator('.search-examples').count(),0,'Goal selector must use a list, not chips');
+      assert.equal(await list.locator('a').count(),6);
+      assert.equal(await list.locator('[aria-current="true"]').textContent(),'Набор массы');
+      const surface=await list.evaluate(node=>{
+        const style=getComputedStyle(node);
+        return {background:style.backgroundColor,left:style.borderLeftWidth,right:style.borderRightWidth,position:style.position,shadow:style.boxShadow,display:style.display,mobile:matchMedia('(max-width:760px)').matches,x:node.getBoundingClientRect().x,contextX:node.closest('.search-goal-context').getBoundingClientRect().x};
+      });
+      if(surface.mobile){
+        assert.equal(surface.background,'rgba(0, 0, 0, 0)');assert.equal(surface.left,'0px');assert.equal(surface.right,'0px');assert.equal(surface.position,'static');
+      }else{
+        assert.equal(surface.position,'static');assert.equal(surface.left,'0px');assert.equal(surface.right,'0px');assert.equal(surface.background,'rgba(0, 0, 0, 0)');assert.equal(surface.shadow,'none');assert.equal(surface.display,'flex');
+        assert.ok(Math.abs(surface.x-surface.contextX)<1,'Desktop goal row starts at the content block left edge');
+        if(initialTop!==null){
+          const layout=await results.evaluate(node=>({top:node.offsetTop,resultTop:node.getBoundingClientRect().top,listBottom:node.parentElement.querySelector('.search-goal-list').getBoundingClientRect().bottom}));
+          assert.ok(layout.top>initialTop+40,`Goals must expand inside the block, not cover results: ${JSON.stringify({initialTop,...layout})}`);
+          assert.ok(layout.resultTop>=layout.listBottom,'Expanded goals must finish above results');
+        }
+      }
+      const rows=await list.locator('a').evaluateAll(nodes=>nodes.map(node=>{
+        const box=node.getBoundingClientRect(),style=getComputedStyle(node);
+        return {x:box.x,y:box.y,width:box.width,height:box.height,left:style.borderLeftWidth,right:style.borderRightWidth,decoration:style.textDecorationLine};
+      }));
+      rows.forEach((row,index)=>{
+        assert.ok(row.height>=43.99);assert.equal(row.left,'0px');assert.equal(row.right,'0px');assert.equal(row.decoration,'none');
+        if(surface.mobile){
+          assert.ok(Math.abs(row.x-rows[0].x)<1 && Math.abs(row.width-rows[0].width)<1,'Mobile options use one full-width list column');
+          if(index)assert.ok(row.y>=rows[index-1].y+rows[index-1].height-1,'Mobile options stack vertically');
+        }
+      });
+      if(!surface.mobile)assert.ok(rows[1].x>rows[0].x && Math.abs(rows[1].y-rows[0].y)<1,'Desktop goals use a horizontal text row');
+      await list.locator('a').first().focus();
+      await page.keyboard.press('Escape');
+      assert.equal(await details.getAttribute('open'),null);
+      assert.equal(await summary.evaluate(node=>node===document.activeElement),true);
+      await summary.press('Enter');
+      await list.waitFor();
+      return {details,list};
+    };
+    const checkSearchReset=async()=>{
+      const trigger=page.locator('[data-header-search-toggle]');
+      for(const method of ['close','escape','backdrop']){
+        await input.fill('набрать массу');
+        await page.locator('[data-header-search-results] .header-result-link').first().waitFor();
+        await page.locator('[data-header-search-results] .search-goal-context summary').click();
+        await page.locator('.header-overlay-sheet').evaluate(node=>node.scrollTop=120);
+        if(method==='close')await page.locator('.header-overlay-close').click();
+        else if(method==='escape'){
+          await page.keyboard.press('Escape');
+          assert.equal(await page.locator('[data-header-search-overlay]').isVisible(),true);
+          await page.keyboard.press('Escape');
+        }else await page.locator('.header-overlay-backdrop').evaluate(node=>node.click());
+        assert.equal(await page.locator('[data-header-search-overlay]').isVisible(),false);
+        await trigger.click();
+        assert.equal(await input.inputValue(),'');
+        assert.equal(await page.locator('[data-header-search-results]').isVisible(),false);
+        assert.equal(await page.locator('[data-header-search-results]').innerHTML(),'');
+        assert.equal(await page.locator('[data-header-search-shortcuts]').isVisible(),true);
+        assert.equal(await page.locator('.header-overlay-sheet').evaluate(node=>node.scrollTop),0);
+      }
+    };
     const checkShortcutStyle=async()=>{
       assert.equal(await page.locator('.header-goal-shortcuts [data-search-example]').count(),4);
       assert.equal(await page.locator('.header-search-shortcuts .search-examples').count(),0,'Empty search goals must not use chip styling');
@@ -94,11 +162,16 @@ async function browserCheck(){
       else{assert.equal(styles.bottom,'0px');assert.equal(styles.right,'0px');assert.equal(styles.listBorder,'0px');}
     };
     await checkShortcutStyle();
+    await checkSearchReset();
     if(screenshots){await page.waitForTimeout(400);await page.screenshot({path:path.join(screenshots,'search-goal-shortcuts-desktop.png')});}
     await page.locator('.header-goal-shortcuts [data-search-example]').first().press('Enter');
     await page.locator('[data-header-search-results] .header-result-link').first().waitFor();
     assert.match(await page.locator('[data-header-search-results]').textContent(),/Набор массы/);
     assert.equal(await page.locator('[data-header-search-results] .header-result-link').count(),5);
+    const headerDropdown=await checkGoalDropdown(page.locator('[data-header-search-results]'));
+    assert.equal(await page.locator('[data-header-search-overlay]').isVisible(),true,'Escape closes only the selector first');
+    if(screenshots){await page.waitForTimeout(400);await page.screenshot({path:path.join(screenshots,'search-goal-dropdown-desktop.png')});}
+    await headerDropdown.details.locator('summary').click();
     await input.fill('протеин для массы');
     await page.locator('[data-header-search-results] .header-result-link').first().waitFor();
     assert.equal(await page.locator('[data-header-search-results] .header-result-link').count(),3);
@@ -107,6 +180,9 @@ async function browserCheck(){
     assert.equal(await page.locator('#catalogProducts .product-card').count(),3);
     assert.match(await page.locator('#catalogSearchState').textContent(),/Набор массы/);
     assert.equal(await page.locator('#catalogProducts .search-product-reason:visible').count(),3);
+    const catalogDropdown=await checkGoalDropdown(page.locator('#catalogSearchState'));
+    await page.locator('.page-hero h1').click();
+    assert.equal(await catalogDropdown.details.getAttribute('open'),null,'Clicking outside closes the selector');
     await page.locator('#catalogSearch').fill('сила и восстановление');
     await page.locator('#catalogSearchState').getByRole('link',{name:'Сила и выносливость',exact:true}).click();
     await page.locator('#catalogProducts .product-card').first().waitFor();
@@ -143,6 +219,7 @@ async function browserCheck(){
       assert.ok(bounds.scroll<=bounds.width+1,`Shortcuts must not overflow at ${width}px`);
     }
     await page.setViewportSize({width:356,height:720});
+    await checkSearchReset();
     if(screenshots){await page.waitForTimeout(400);await page.screenshot({path:path.join(screenshots,'search-goal-shortcuts-mobile.png')});}
     await page.locator('.header-goal-shortcuts [data-search-example]').first().click();
     assert.match(await page.locator('[data-header-search-results]').textContent(),/Набор массы/);
@@ -150,6 +227,16 @@ async function browserCheck(){
     await page.locator('[data-header-search-results] .header-result-link').first().waitFor();
     const size=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
     assert.ok(size.scroll<=size.width+1,'Mobile search must not overflow');
+    const mobileDropdown=await checkGoalDropdown(page.locator('[data-header-search-results]'));
+    if(screenshots){await page.waitForTimeout(400);await page.screenshot({path:path.join(screenshots,'search-goal-dropdown-mobile.png')});}
+    await mobileDropdown.list.getByRole('link',{name:'Сила и выносливость',exact:true}).click();
+    await page.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('searchGoal'),'strength');
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),3);
+    await page.goto('/index.html');
+    await page.locator('[data-header-search-toggle]').click();
+    await input.fill('хочу набрать массу');
+    await page.locator('[data-header-search-results] .header-result-link').first().waitFor();
     if(screenshots){await page.waitForTimeout(400);await page.screenshot({path:path.join(screenshots,'smart-search-mobile.png')});}
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('[data-header-search-toggle]').evaluate(node=>node===document.activeElement),true);

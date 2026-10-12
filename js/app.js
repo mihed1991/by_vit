@@ -1544,8 +1544,17 @@
     const setOverlayTop = () => {
       overlay.style.setProperty('--header-overlay-top', `${Math.max(0, Math.round(headerEl.getBoundingClientRect().bottom))}px`);
     };
+    const resetSearch = () => {
+      if(input) input.value = '';
+      results.hidden = true;
+      results.replaceChildren();
+      if(shortcuts) shortcuts.hidden = false;
+      const sheet = $('.header-overlay-sheet',overlay);
+      if(sheet) sheet.scrollTop = 0;
+    };
     const closeSearch = (restoreFocus = false) => {
       if(overlay.hidden) return;
+      resetSearch();
       overlay.classList.remove('open');
       overlay.hidden = true;
       document.body.classList.remove('search-open');
@@ -1562,10 +1571,11 @@
       catalogMenu?.querySelector('[data-catalog-mega-close]')?.click();
       setOverlayTop();
       overlay.hidden = false;
-      requestAnimationFrame(() => overlay.classList.add('open'));
+      resetSearch();
+      requestAnimationFrame(() => { if(!overlay.hidden) overlay.classList.add('open'); });
       document.body.classList.add('search-open');
       trigger?.setAttribute('aria-expanded', 'true');
-      requestAnimationFrame(() => input?.focus());
+      requestAnimationFrame(() => { if(!overlay.hidden) input?.focus(); });
     };
     const renderResults = value => {
       const query = String(value || '').trim();
@@ -1600,13 +1610,21 @@
     });
     input?.addEventListener('input', event => renderResults(event.currentTarget.value));
     document.addEventListener('keydown', event => {
-      if(event.key === 'Escape' && !overlay.hidden) closeSearch(true);
+      if(event.key === 'Escape'){
+        const openGoals = $$('.search-goal-context details[open]').filter(node=>node.getClientRects().length);
+        const openGoal = openGoals.find(node=>node.contains(document.activeElement)) || openGoals[0];
+        if(openGoal){ openGoal.open = false; $('summary',openGoal)?.focus(); event.preventDefault(); return; }
+        if(!overlay.hidden) closeSearch(true);
+      }
       if(event.key === 'Tab' && !overlay.hidden){
         const focusable = $$('input,button,a[href]', $('.header-overlay-sheet',overlay)).filter(node=>node.getClientRects().length);
         const first=focusable[0], last=focusable.at(-1);
         if(event.shiftKey && document.activeElement===first){ event.preventDefault(); last?.focus(); }
         else if(!event.shiftKey && document.activeElement===last){ event.preventDefault(); first?.focus(); }
       }
+    });
+    document.addEventListener('click', event => {
+      $$('.search-goal-context details[open]').forEach(menu=>{ if(!menu.contains(event.target)) menu.open = false; });
     });
     window.addEventListener('resize', setOverlayTop);
   }
@@ -1617,8 +1635,8 @@
       return `${header ? 'catalog.html' : location.pathname}?${params}`;
     };
     const choices = found.status === 'ambiguous' ? found.choices : getGoals().filter(goal=>goal.enabled!==false);
-    const links = choices.map(goal=>`<a href="${esc(urlFor(goal))}">${esc(goal.title)}</a>`).join('');
-    return `${found.typo ? '<p class="search-query-note">Показаны близкие совпадения по написанию.</p>' : ''}${found.goal ? `<div class="search-goal-context"><p>Подборка: <strong>${esc(found.goal.title)}</strong></p><details><summary>Сменить цель <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav class="search-examples" aria-label="Выбор цели поиска">${links}</nav></details></div>` : ''}${found.message ? `<p class="search-query-note" role="status">${esc(found.message)}</p>` : ''}${found.status==='ambiguous' ? `<nav class="search-examples" aria-label="Уточнить цель">${links}</nav>` : ''}`;
+    const links = choices.map(goal=>`<a href="${esc(urlFor(goal))}"${found.goal?.id===goal.id ? ' aria-current="true"' : ''}>${esc(goal.title)}</a>`).join('');
+    return `${found.typo ? '<p class="search-query-note">Показаны близкие совпадения по написанию.</p>' : ''}${found.goal ? `<div class="search-goal-context"><details><summary aria-label="${esc(`Сменить цель. Текущая цель: ${found.goal.title}`)}"><span class="search-goal-label">Подборка: <strong>${esc(found.goal.title)}</strong></span><span class="search-goal-toggle">Сменить цель <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></summary><nav class="search-goal-list" aria-label="Выбор цели поиска">${links}</nav></details></div>` : ''}${found.message ? `<p class="search-query-note" role="status">${esc(found.message)}</p>` : ''}${found.status==='ambiguous' ? `<nav class="search-examples" aria-label="Уточнить цель">${links}</nav>` : ''}`;
   }
   function renderBottomNav(){
     let nav = $('[data-mobile-bottom-nav]');
