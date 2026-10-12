@@ -10,6 +10,7 @@ const { createMoySkladClient, mappingFor } = require('./lib/moysklad');
 const { createEuropostClient } = require('./lib/europost');
 const brandUtils = require('./js/brand-utils');
 const blogUtils = require('./js/blog-utils');
+const searchUtils = require('./js/search-utils');
 
 const ROOT = __dirname;
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data');
@@ -1476,6 +1477,9 @@ async function handleApi(req, res) {
         const error=blogUtils.validate(body.site.blog);
         if(error){send(res,400,{error});return;}
         body.site.blog=blogUtils.normalize(body.site.blog);
+      }
+      if(Array.isArray(body.site?.goals)){
+        body.site.goals=body.site.goals.map(goal=>({...goal,...searchUtils.goalSettings(goal)}));
       }
       const adminStore = await loadStore();
       if (Array.isArray(body.products)) {

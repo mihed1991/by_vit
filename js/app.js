@@ -728,6 +728,7 @@
         text:String(item.text || '').trim(),
         href:!href || href === 'catalog.html' || href === legacy?.href ? `goal.html?id=${encodeURIComponent(id)}` : href,
         productIds:[...new Set((Array.isArray(item.productIds) ? item.productIds : fallbackProducts).map(Number).filter(id => Number.isSafeInteger(id) && id > 0))],
+        ...window.ByVitSearch.goalSettings({...item,productIds:Array.isArray(item.productIds) ? item.productIds : fallbackProducts}),
         description:String(item.description || '').trim(),
         seoTitle:String(item.seoTitle || '').trim(),
         seoDescription:String(item.seoDescription || '').trim(),
@@ -1523,18 +1524,13 @@
         <div class="container header-overlay-content">
           <form class="header-overlay-form" data-header-search-form action="catalog.html" method="get">
             <span class="header-search-glyph" aria-hidden="true"></span>
-            <input data-header-search data-overlay-search-input name="q" autocomplete="off" placeholder="${esc(header.searchPlaceholder || 'Поиск товара')}">
+            <input data-header-search data-overlay-search-input name="q" autocomplete="off" maxlength="240" aria-label="Название, бренд или ваша цель" placeholder="${esc(!header.searchPlaceholder || header.searchPlaceholder === 'Поиск товара' ? 'Название, бренд или ваша цель' : header.searchPlaceholder)}">
             <button class="header-overlay-close" type="button" data-header-overlay-close aria-label="Закрыть поиск"></button>
           </form>
           <div class="header-overlay-body">
-            <nav class="header-search-shortcuts" data-header-search-shortcuts aria-label="Быстрый переход">
-              <p class="header-overlay-label">Быстрый переход</p>
-              <div class="header-search-shortcut-list">
-                <a href="catalog.html">Каталог</a>
-                <a href="sale.html">Акции</a>
-                <a href="brands.html">Бренды</a>
-                <a href="stores.html">Магазины</a>
-              </div>
+            <nav class="header-search-shortcuts" data-header-search-shortcuts aria-label="Поиск по цели">
+              <p class="header-overlay-label">Попробуйте поиск по цели</p>
+              <div class="header-search-shortcut-list header-goal-shortcuts">${getGoals().filter(goal => goal.enabled !== false).slice(0,4).map(goal => `<button type="button" data-search-example="${esc(goal.searchPhrases?.[0] || goal.title)}">${esc(goal.title)}</button>`).join('')}</div>
             </nav>
             <div class="header-live-results" data-header-search-results hidden></div>
           </div>
@@ -1572,7 +1568,7 @@
       requestAnimationFrame(() => input?.focus());
     };
     const renderResults = value => {
-      const query = String(value || '').trim().toLocaleLowerCase('ru');
+      const query = String(value || '').trim();
       if(!query){
         results.hidden = true;
         results.innerHTML = '';
@@ -1580,26 +1576,17 @@
         return;
       }
       if(shortcuts) shortcuts.hidden = true;
-      const matches = getProducts().filter(product => {
-        const haystack = [
-          product.name,
-          product.brand,
-          product.category,
-          product.description,
-          product.form,
-          ...(Array.isArray(product.tags) ? product.tags : []),
-          ...(Array.isArray(product.recommendationTags) ? product.recommendationTags : [])
-        ].filter(Boolean).join(' ').toLocaleLowerCase('ru');
-        return haystack.includes(query);
-      }).slice(0, 6);
+      const found = window.ByVitSearch.search(query,getProducts(),getGoals());
+      const matches = found.items.slice(0,6);
       results.hidden = false;
-      results.innerHTML = matches.length
-        ? `<p class="header-overlay-label">Товары</p>${matches.map(product => `
+      results.innerHTML = searchSummary(found,query,true) + (matches.length
+        ? `<p class="header-overlay-label" role="status">Найдено товаров: ${found.items.length}</p>${matches.map(({product,reason}) => `
             <a class="header-result-link" href="product.html?id=${encodeURIComponent(product.id)}">
               <span>${esc(product.name || 'Товар')}</span>
-              <small>${esc([product.brand, product.category].filter(Boolean).join(' · '))}</small>
-            </a>`).join('')}`
-        : '<p class="header-search-empty">Ничего не найдено. Попробуйте другое название или бренд.</p>';
+              <small>${esc([product.brand,categoryName(product.category),Number(product.stock)>0 ? 'В наличии' : 'Нет в наличии'].filter(Boolean).join(' · '))}</small>
+              ${reason ? `<small class="search-result-reason">${esc(reason)}</small>` : ''}
+            </a>`).join('')}<a class="text-link search-all-results" href="catalog.html?q=${encodeURIComponent(query)}">Все результаты →</a>`
+        : '');
     };
 
     if(trigger && trigger.dataset.searchBound !== '1'){
@@ -1608,12 +1595,30 @@
     }
     overlay.addEventListener('click', event => {
       if(event.target.closest('[data-header-overlay-close]')) closeSearch(true);
+      const example = event.target.closest('[data-search-example]');
+      if(example){ input.value = example.dataset.searchExample; renderResults(input.value); input.focus(); }
     });
     input?.addEventListener('input', event => renderResults(event.currentTarget.value));
     document.addEventListener('keydown', event => {
       if(event.key === 'Escape' && !overlay.hidden) closeSearch(true);
+      if(event.key === 'Tab' && !overlay.hidden){
+        const focusable = $$('input,button,a[href]', $('.header-overlay-sheet',overlay)).filter(node=>node.getClientRects().length);
+        const first=focusable[0], last=focusable.at(-1);
+        if(event.shiftKey && document.activeElement===first){ event.preventDefault(); last?.focus(); }
+        else if(!event.shiftKey && document.activeElement===last){ event.preventDefault(); first?.focus(); }
+      }
     });
     window.addEventListener('resize', setOverlayTop);
+  }
+  function searchSummary(found,query,header=false){
+    const urlFor = goal => {
+      const params = header ? new URLSearchParams({q:query}) : new URLSearchParams(location.search);
+      params.set('searchGoal',goal.id); params.delete('page');
+      return `${header ? 'catalog.html' : location.pathname}?${params}`;
+    };
+    const choices = found.status === 'ambiguous' ? found.choices : getGoals().filter(goal=>goal.enabled!==false);
+    const links = choices.map(goal=>`<a href="${esc(urlFor(goal))}">${esc(goal.title)}</a>`).join('');
+    return `${found.typo ? '<p class="search-query-note">Показаны близкие совпадения по написанию.</p>' : ''}${found.goal ? `<div class="search-goal-context"><p>Подборка: <strong>${esc(found.goal.title)}</strong></p><details><summary>Сменить цель <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav class="search-examples" aria-label="Выбор цели поиска">${links}</nav></details></div>` : ''}${found.message ? `<p class="search-query-note" role="status">${esc(found.message)}</p>` : ''}${found.status==='ambiguous' ? `<nav class="search-examples" aria-label="Уточнить цель">${links}</nav>` : ''}`;
   }
   function renderBottomNav(){
     let nav = $('[data-mobile-bottom-nav]');
@@ -2691,6 +2696,7 @@
   }
   function catalogSuggestionValues(){
     const values = new Set();
+    getGoals().filter(goal=>goal.enabled!==false).forEach(goal=>values.add(goal.title));
     getProducts().forEach(product => {
       [product.name, product.brand, categoryName(product.category), formTypeLabel(product.formType)].filter(Boolean).forEach(value => values.add(String(value).trim()));
       (product.options || []).forEach(option => values.add(String(option.label || '').trim()));
@@ -2729,6 +2735,9 @@
     const panel = $('#catalogSearchPanel');
     if(!input) return;
     input.value = value;
+    const params = new URLSearchParams(location.search);
+    params.delete('searchGoal'); params.delete('tag');
+    history.replaceState(null,'',`${location.pathname}${params.size ? `?${params}` : ''}`);
     if(panel) panel.hidden = true;
     syncCatalogUrl();
     renderCatalogProducts();
@@ -3126,7 +3135,7 @@
     const saleOnly = $('#saleOnly')?.checked;
     const priceMin = Number($('#catalogPriceMin')?.value || 0);
     const priceMax = Number($('#catalogPriceMax')?.value || 0);
-    if(q) list = list.filter(p => slugText([p.name,p.brand,p.shortDescription,p.description,p.ingredients,p.usage,p.category,formTypeLabel(p.formType),...productGoalLabels(p)].join(' ')).includes(q));
+    if(q) list = window.ByVitSearch.search(q,list,getGoals(),{goalId:params.get('searchGoal')}).items.map(item=>item.product);
     if(recommendationTag) list = list.filter(p => productRecommendationTags(p).includes(recommendationTag));
     if(categoryValues.length) list = list.filter(p => categoryValues.includes(p.category));
     if(brandValues.length) list = list.filter(p => brandValues.includes(p.brand));
@@ -3153,6 +3162,7 @@
     const sort = $('#catalogSort')?.value || 'default';
     const recommendationTag = currentParams.get('tag');
     if(q) params.set('q', q);
+    if(q && currentParams.has('searchGoal')) params.set('searchGoal',currentParams.get('searchGoal'));
     if(recommendationTag) params.set('tag', recommendationTag);
     if(sort && sort !== 'default') params.set('sort', sort);
     $$('input[name="category"]:checked').forEach(input => params.append('category', input.value));
@@ -3292,9 +3302,13 @@
     const apply = () => { syncCatalogUrl(); updateCatalogFilterState(); renderCatalogProducts(); };
     const searchEl = $('#catalogSearch');
     if(searchEl){
+      searchEl.placeholder = 'Название, бренд или ваша цель';
+      searchEl.setAttribute('aria-label','Название, бренд или ваша цель');
+      searchEl.maxLength = 240;
       searchEl.addEventListener('input', () => {
         const nextParams = new URLSearchParams(location.search);
         nextParams.delete('tag');
+        nextParams.delete('searchGoal');
         history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
         updateCatalogSuggestPanel();
         apply();
@@ -3340,6 +3354,7 @@
 	        const nextParams = new URLSearchParams(location.search);
 	        nextParams.delete('q');
 	        nextParams.delete('tag');
+            nextParams.delete('searchGoal');
 	        history.replaceState(null, '', `${location.pathname}${nextParams.size ? `?${nextParams}` : ''}`);
 	        $$('[data-filter-menu][open]', filters).forEach(menu => { menu.open = false; });
 	        apply();
@@ -3394,6 +3409,33 @@
     const note = $('#catalogResultNote');
     if(note) note.textContent = `${list.length} товар(ов)${pageCount > 1 ? ` · страница ${page} из ${pageCount}` : ''}`;
     renderGrid($('#catalogProducts'), list.slice((page - 1) * pageSize, page * pageSize));
+    const query = $('#catalogSearch')?.value.trim() || params.get('q') || '';
+    let searchState = $('#catalogSearchState');
+    if(!searchState && note){
+      searchState = document.createElement('div');
+      searchState.id = 'catalogSearchState';
+      searchState.className = 'catalog-search-state';
+      note.insertAdjacentElement('beforebegin',searchState);
+    }
+    if(searchState){
+      const pool = document.body.dataset.page === 'goal' ? goalProducts(activeGoal()) : document.body.dataset.page === 'brand' ? brandProducts() : getProducts();
+      const found = window.ByVitSearch.search(query,pool,getGoals(),{goalId:params.get('searchGoal')});
+      searchState.hidden = !query;
+      searchState.innerHTML = query ? searchSummary(found,query) : '';
+      if(query){
+        const reasons = new Map(found.items.map(item=>[String(item.product.id),item.reason]));
+        $$('.product-card', $('#catalogProducts')).forEach(card=>{
+          const reason = reasons.get(card.dataset.productId);
+          const description = $('.product-desc',card);
+          if(reason && description){
+            description.textContent = reason;
+            description.classList.add('search-product-reason');
+            card.classList.add('has-search-reason');
+          }
+        });
+        if(!list.length && document.body.dataset.page === 'catalog') $('#catalogProducts').innerHTML = `<div class="empty-state"><h3>${found.status === 'ambiguous' ? 'Выберите цель выше' : 'Товаров не найдено'}</h3><p>${esc(found.message || 'Измените запрос или сбросьте фильтры.')}</p><a class="btn btn-outline" href="catalog.html">Сбросить поиск и фильтры</a><a class="text-link" href="goals.html">Все цели →</a></div>`;
+      }
+    }
     if(!list.length && document.body.dataset.page === 'goal'){
       const hasProducts = goalProducts(activeGoal()).length > 0;
       $('#catalogProducts').innerHTML = `<div class="empty-state"><h2>${hasProducts ? 'По этим фильтрам товаров нет' : 'Подборка пока пустая'}</h2><p>${hasProducts ? 'Измените условия или сбросьте фильтры.' : 'Товары для этой цели ещё не добавлены. Можно выбрать другую цель или перейти в каталог.'}</p><a class="btn btn-primary" href="${hasProducts ? `goal.html?id=${encodeURIComponent(activeGoal().id)}` : 'goals.html'}">${hasProducts ? 'Сбросить фильтры' : 'Выбрать другую цель'}</a><a class="btn btn-outline" href="catalog.html">Открыть каталог</a></div>`;
@@ -4423,6 +4465,7 @@
   function goalEditor(goal={}, index=0){
     const id = String(goal.id || `goal-${Date.now()}-${index}`);
     const selected = new Set((goal.productIds || []).map(String));
+    const searchSettings = window.ByVitSearch.goalSettings(goal);
     return `<article class="admin-block-editor" data-goal-key="${esc(id)}">
       <div class="admin-block-head">
         <h4>Цель ${index + 1}</h4>
@@ -4441,6 +4484,15 @@
         <div class="admin-goal-product-list">${getProducts().map(product => `<label data-goal-product-option data-search="${esc(slugText(`${product.id} ${product.name} ${product.brand || ''}`))}"><input type="checkbox" data-goal-product value="${esc(product.id)}" ${selected.has(String(product.id)) ? 'checked' : ''}><span>${esc(product.name)}<small>${esc(product.brand || '')} · ID ${esc(product.id)}</small></span></label>`).join('')}</div>
         <p data-goal-product-empty hidden>Поиск не дал результатов. Выбранные товары сохранены.</p>
       </fieldset>
+      <details class="admin-goal-search"><summary>Умный поиск: фразы и пояснения</summary>
+        <label class="admin-input-field"><span>Фразы покупателей — каждая с новой строки</span><textarea data-goal-search-phrases rows="5">${esc(searchSettings.searchPhrases.join('\n'))}</textarea></label>
+        <p class="admin-hint">До 100 фраз, по 160 символов. Название цели тоже участвует в поиске. Пишите конкретные формулировки: «набрать массу», а не просто «вес». Новые цели участвуют в поиске после сохранения. Исключения и медицинские запросы не превращаются в рекомендации.</p>
+        <p class="admin-hint">Пояснения показываются только для выбранных товаров. Указывайте проверенные сведения, без обещаний результата. Приоритет от 0 до 100 действует среди одинаково подходящих товаров; затем учитывается наличие.</p>
+        <div class="admin-goal-search-rules">${getProducts().map(product => {
+          const rule = searchSettings.productRules[product.id] || {};
+          return `<fieldset data-goal-search-rule="${esc(product.id)}" ${selected.has(String(product.id)) ? '' : 'hidden'}><legend>${esc(product.name)} · ID ${esc(product.id)}</legend><label class="admin-input-field"><span>Приоритет</span><input type="number" min="0" max="100" step="1" data-goal-search-priority value="${esc(rule.priority || 0)}"></label><label class="admin-input-field"><span>Почему товар в подборке (необязательно)</span><textarea maxlength="400" data-goal-search-reason>${esc(rule.reason || '')}</textarea></label></fieldset>`;
+        }).join('')}</div>
+      </details>
       <details class="admin-goal-details"><summary>Текст страницы и SEO</summary>
         <label class="admin-input-field"><span>Подробный текст — ниже товаров. Разделяйте абзацы пустой строкой</span><textarea data-goal-description>${esc(goal.description || '')}</textarea></label>
         <label class="admin-input-field"><span>Title (необязательно)</span><input data-goal-seo-title value="${esc(goal.seoTitle || '')}"></label>
@@ -4609,6 +4661,11 @@
       text:$('[data-goal-text]', card)?.value.trim() || '',
       href:$('[data-goal-href]', card)?.value.trim() || `goal.html?id=${encodeURIComponent(card.dataset.goalKey || `goal-${index + 1}`)}`,
       productIds:$$('[data-goal-product]:checked', card).map(input => Number(input.value)),
+      searchPhrases:[...new Set(String($('[data-goal-search-phrases]',card)?.value || '').split(/\r?\n/).map(value=>value.trim().slice(0,160)).filter(Boolean))].slice(0,100),
+      productRules:Object.fromEntries($$('[data-goal-product]:checked',card).map(input=>{
+        const rule = $$('[data-goal-search-rule]',card).find(node=>node.dataset.goalSearchRule===input.value);
+        return [input.value,{priority:Math.min(100,Math.max(0,Number($('[data-goal-search-priority]',rule)?.value) || 0)),reason:$('[data-goal-search-reason]',rule)?.value.trim().slice(0,400) || ''}];
+      })),
       description:$('[data-goal-description]', card)?.value.trim() || '',
       seoTitle:$('[data-goal-seo-title]', card)?.value.trim() || '',
       seoDescription:$('[data-goal-seo-description]', card)?.value.trim() || '',
@@ -5547,6 +5604,7 @@
 	    const goalsRoot = $('#adminGoalsList');
 	    if(goalsRoot){
 	      goalsRoot.innerHTML = (site.goals || DEFAULT_GOALS).map(goalEditor).join('');
+          if(!$('#adminSearchPreview')) goalsRoot.insertAdjacentHTML('beforebegin','<section class="admin-block-editor" id="adminSearchPreview"><h3>Проверить умный поиск</h3><p class="admin-hint">Проверка использует текущие поля ниже, даже до сохранения. Для покупателей изменения действуют только после нажатия «Сохранить цели».</p><label class="admin-input-field"><span>Запрос покупателя</span><input data-search-preview-query placeholder="Например: протеин для массы" maxlength="240"></label><button class="btn btn-outline" type="button" data-search-preview>Проверить запрос</button><div data-search-preview-results aria-live="polite"></div></section>');
 	    }
 	    const brandImagesRoot = $('#adminBrandImages');
 	    if(brandImagesRoot){
@@ -6477,6 +6535,12 @@
 	      }
 	      const goalAdd = event.target.closest('[data-goal-add]'); if(goalAdd){ const root = $('#adminGoalsList'); if(root) root.insertAdjacentHTML('beforeend', goalEditor({id:`goal-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-goal-key]', root).length)); return; }
 	      const goalDelete = event.target.closest('[data-goal-delete]'); if(goalDelete){ goalDelete.closest('[data-goal-key]')?.remove(); return; }
+          if(event.target.closest('[data-search-preview]')){
+            const query = $('[data-search-preview-query]')?.value.trim() || '';
+            const found = window.ByVitSearch.search(query,getProducts(),collectGoals());
+            $('[data-search-preview-results]').innerHTML = query ? `<p>${esc(found.goal ? `Распознана цель: ${found.goal.title}` : found.status === 'ambiguous' ? `Нужно уточнение: ${found.choices.map(goal=>goal.title).join(', ')}` : 'Поиск по товарам')}${found.typo ? ' · близкое написание' : ''}</p>${found.message ? `<p>${esc(found.message)}</p>` : ''}<p>Найдено: ${found.items.length}</p>${found.items.slice(0,10).map(({product,reason})=>`<p><strong>${esc(product.name)}</strong> · ${Number(product.stock)>0 ? 'В наличии' : 'Нет в наличии'}${reason ? `<br>${esc(reason)}` : ''}</p>`).join('')}` : '<p>Введите запрос для проверки.</p>';
+            return;
+          }
 	      const brandImageClear = event.target.closest('[data-brand-image-clear]'); if(brandImageClear){ const block = brandImageClear.closest('[data-brand-image-key]'); const input = $('[data-brand-image-src]', block); deleteUploadedSource(input?.value); if(input) input.value = ''; updateBrandImagePreview(block); return; }
 	      const storeAdd = event.target.closest('[data-store-block-add]'); if(storeAdd){ const root = $('#adminStoreBlocks'); if(root) root.insertAdjacentHTML('beforeend', storeBlockEditor({id:`store-${Date.now()}`,title:'',text:'',enabled:true}, $$('[data-store-block-key]', root).length)); return; }
       const storeDelete = event.target.closest('[data-store-block-delete]'); if(storeDelete){ storeDelete.closest('[data-store-block-key]')?.remove(); return; }
@@ -6575,6 +6639,11 @@
     $('#adminProductForm')?.addEventListener('submit', saveProduct);
     $('#adminCategoriesForm')?.addEventListener('submit', saveAdminCategories);
     $('#adminGoalsForm')?.addEventListener('submit', saveAdminGoals);
+    $('#adminGoalsForm')?.addEventListener('keydown', event => {
+      if(event.key === 'Enter' && event.target.matches('[data-search-preview-query]')){
+        event.preventDefault(); $('[data-search-preview]')?.click();
+      }
+    });
     $('#adminGoalsList')?.addEventListener('input', event => {
       const card = event.target.closest('[data-goal-key]');
       if(!card) return;
@@ -6584,7 +6653,11 @@
         options.forEach(option => { option.hidden = !option.dataset.search.includes(q); });
         $('[data-goal-product-empty]', card).hidden = options.some(option => !option.hidden);
       }
-      if(event.target.matches('[data-goal-product]')) $('[data-goal-product-count]', card).textContent = `Выбрано: ${$$('[data-goal-product]:checked', card).length}`;
+      if(event.target.matches('[data-goal-product]')){
+        $('[data-goal-product-count]', card).textContent = `Выбрано: ${$$('[data-goal-product]:checked', card).length}`;
+        const rule = $$('[data-goal-search-rule]',card).find(node=>node.dataset.goalSearchRule===event.target.value);
+        if(rule) rule.hidden = !event.target.checked;
+      }
     });
     $('#adminProductReset')?.addEventListener('click', resetProductForm);
     $('#adminImageUpload')?.addEventListener('change', e=>readAdminProductImages(e.target));

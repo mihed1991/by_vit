@@ -10,6 +10,7 @@
     "check:api": "node scripts/check-api.js",
     "check:e2e": "node scripts/check-e2e.js",
     "check:goals": "node scripts/check-goals.js",
+    "check:search": "node scripts/check-search.js --browser",
     "check:brands": "node scripts/check-brands.js",
     "check:blog": "node scripts/check-blog.js",
     "check:blog-export": "node scripts/check-blog-export.js",

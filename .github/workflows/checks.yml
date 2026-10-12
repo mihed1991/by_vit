@@ -54,6 +54,9 @@ jobs:
       - name: Verify goal selections and admin persistence
         run: npm run check:goals
 
+      - name: Verify smart search and admin persistence
+        run: npm run check:search
+
       - name: Verify brand pages and admin persistence
         run: npm run check:brands
 

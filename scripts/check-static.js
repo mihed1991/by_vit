@@ -107,6 +107,12 @@ async function main(){
     await page.waitForURL('**/goal.html?id=recovery&stock=1');
     assert.match(page.url(),/id=recovery/);
     assert.deepEqual(errors,[],'Goal routes and assets must resolve in the published subdirectory');
+    await page.goto(`http://127.0.0.1:${server.address().port}/by_vit/catalog.html?q=протеин%20для%20массы`,{waitUntil:'networkidle'});
+    await page.locator('#catalogProducts .product-card').first().waitFor();
+    assert.equal(await page.locator('#catalogProducts .product-card').count(),3,'Smart search must work in the published subdirectory');
+    assert.match(await page.locator('#catalogSearchState').textContent(),/Набор массы/);
+    assert.equal(await page.locator('#catalogProducts .search-product-reason:visible').count(),3);
+    assert.deepEqual(errors,[],'Search module and links must resolve in the published subdirectory');
     await context.close();
     const brandContext=await browser.newContext();
     // A browser-only logo fixture verifies every placement without adding a real brand asset.
